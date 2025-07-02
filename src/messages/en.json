@@ -1,0 +1,9 @@
+{
+  "welcome": "Welcome to my app",
+  "title": "My Next.js App",
+  "description": "This is a simple Next.js application with internationalization support.",
+  "language": {
+    "english": "English",
+    "arabic": "Arabic"
+  }
+}
