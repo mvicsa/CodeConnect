@@ -1,8 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import logoLight from "/public/logo-light.svg";
-import logoDark from "/public/logo-dark.svg";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
@@ -18,14 +16,15 @@ const Logo = () => {
     return null;
   }
 
-  const logoSrc = theme === "light" ? logoLight : logoDark;
+  const logoSrc = theme === "light" ? "/logo-light.svg" : "/logo-dark.svg";
 
   return (
     <div className="flex justify-center">
       <Image
         src={logoSrc}
         alt="CodeConnect"
-        style={{ height: "auto", width: "180px" }}
+        width={180}
+        height={50}
         priority
       />
     </div>
