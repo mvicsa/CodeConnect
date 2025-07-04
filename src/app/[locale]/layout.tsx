@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans_Arabic, Josefin_Sans } from "next/font/google";
-import { NextIntlClientProvider } from 'next-intl';
+import { NextIntlClientProvider } from "next-intl";
 import "@/styles/globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { Messages } from '@/messages';
+import { Messages } from "@/messages";
 import ReduxProvider from "@/store/Provider";
+import { MainNavBar } from "@/components/layout/navigation/MainNavBar";
 
 const josefinSans = Josefin_Sans({
   variable: "--font-josefin-sans",
-  subsets: ["latin"]
+  subsets: ["latin"],
 });
 
 const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({
@@ -31,9 +32,9 @@ export default async function RootLayout({
   params: Promise<{ locale: string }>;
 }>) {
   let locale = (await params).locale;
-  const supportedLocales = ['en', 'ar'];
+  const supportedLocales = ["en", "ar"];
 
-  if (!locale || !supportedLocales.includes(locale)) locale = 'en';
+  if (!locale || !supportedLocales.includes(locale)) locale = "en";
 
   let messages: Messages;
   try {
@@ -44,17 +45,24 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'} suppressHydrationWarning>
+    <html
+      lang={locale}
+      dir={locale === "ar" ? "rtl" : "ltr"}
+      suppressHydrationWarning
+    >
       <head>
         <link rel="alternate" hrefLang="en" href="/en" />
         <link rel="alternate" hrefLang="ar" href="/ar" />
       </head>
-      <body
-        className={`${ibmPlexSansArabic.variable} ${josefinSans.variable}`}
-      >
-        <NextIntlClientProvider key={locale} locale={locale} messages={messages}>
+      <body className={`${ibmPlexSansArabic.variable} ${josefinSans.variable}`}>
+        <NextIntlClientProvider
+          key={locale}
+          locale={locale}
+          messages={messages}
+        >
           <ReduxProvider>
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+              <MainNavBar />
               <div className="flex items-center min-h-screen flex-col">
                 {children}
               </div>
