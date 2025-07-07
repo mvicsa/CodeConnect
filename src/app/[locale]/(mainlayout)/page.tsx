@@ -1,8 +1,9 @@
 import ClientCounter from "@/components/ClientCounter";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import Logo from "@/components/Logo";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { Button } from "@/components/ui/button";
+import { Heart } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 export default function Home() {
@@ -20,6 +21,9 @@ export default function Home() {
         { t('description') }
       </p>
       <p className="text-center mt-2 mb-4">
+        
+<Heart  />
+
         Share your code, learn from others. Join the community!
       </p>
       <div className="bg-warning text-warning-foreground px-3 py-1 rounded-2xl mt-2">Hello</div>
