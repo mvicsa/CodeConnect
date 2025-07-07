@@ -6,6 +6,9 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { Messages } from "@/messages";
 import ReduxProvider from "@/store/Provider";
 import { MainNavBar } from "@/components/layout/navigation/MainNavBar";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/layout/sidebar/AppSidebar";
+// import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 const josefinSans = Josefin_Sans({
   variable: "--font-josefin-sans",
@@ -63,8 +66,15 @@ export default async function RootLayout({
           <ReduxProvider>
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
               <MainNavBar />
+              {/* <MainNavBar /> */}
               <div className="flex items-center min-h-screen flex-col">
-                {children}
+                <SidebarProvider>
+                  <div className="flex flex-1 pt-0">
+                    <AppSidebar />
+                    {/* <SidebarTrigger /> */}
+                    <main className="mx-4">{children}</main>
+                  </div>
+                </SidebarProvider>
               </div>
             </ThemeProvider>
           </ReduxProvider>

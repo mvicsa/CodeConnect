@@ -16,7 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 
 export default function UserMenu() {
   return (
-    <NavigationMenu className="flex items-center ml-auto ">
+    <NavigationMenu className="flex items-center  ">
       <NavigationMenuList>
         <NavigationMenuItem>
           <NavigationMenuTrigger className="p-0 bg-transparent hover:bg-transparent focus:bg-transparent flex justify-center items-center">
@@ -29,7 +29,6 @@ export default function UserMenu() {
               <AvatarFallback>CN</AvatarFallback>
             </Avatar>
             <div className="items-center hidden sm:flex">
-
             persona
             </div>
           </NavigationMenuTrigger>
