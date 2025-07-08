@@ -3,6 +3,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import Logo from "@/components/Logo";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { Button } from "@/components/ui/button";
+import NotificationPage from "@/components/ui/notificationPage";
 import { useTranslations } from "next-intl";
 
 export default function Home() {
@@ -14,10 +15,10 @@ export default function Home() {
         <Logo />
       </div>
       <h1 className="text-2xl font-bold text-center mt-3">
-        { t('title') }
+        {t('title')}
       </h1>
       <p className="text-center mt-4">
-        { t('description') }
+        {t('description')}
       </p>
       <p className="text-center mt-2 mb-4">
         Share your code, learn from others. Join the community!
@@ -26,13 +27,14 @@ export default function Home() {
       <div className="bg-danger text-danger-foreground px-3 py-1 rounded-2xl mt-2">Hello</div>
       <div className="bg-info text-info-foreground px-3 py-1 rounded-2xl mt-2">Hello</div>
       <div className="bg-success text-success-foreground px-3 py-1 rounded-2xl mt-2">Hello</div>
-      { /* Test Rediux Toolkit */ }
+      { /* Test Rediux Toolkit */}
       <ClientCounter />
       <div className="flex justify-center gap-3 mt-6">
         <Button>Button</Button>
         <Button variant="secondary">Button</Button>
         <LanguageSwitcher />
         <ThemeSwitcher />
+        <NotificationPage />
       </div>
     </>
   );
