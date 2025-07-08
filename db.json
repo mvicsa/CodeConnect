@@ -1,0 +1,13 @@
+{
+  "users": [
+    {
+      "id": "2dd4",
+      "firstName": "Sohaila",
+      "lastName": "Mohamed",
+      "username": "Sohaila ",
+      "email": "sohaila@gmail.com",
+      "password": "123"
+    }
+  ],
+  "passwordResets": []
+}
