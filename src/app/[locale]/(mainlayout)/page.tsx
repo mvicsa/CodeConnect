@@ -3,7 +3,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import Logo from "@/components/Logo";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { Button } from "@/components/ui/button";
-import NotificationPage from "@/components/ui/notification";
+import NotificationPage from "@/components/notification";
 import { useTranslations } from "next-intl";
 
 export default function Home() {

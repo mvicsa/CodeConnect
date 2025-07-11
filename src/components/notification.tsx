@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-    Bell, Check, CheckCircle, XCircle, Settings,
-    Search, Clock, User, MessageSquare, Heart,
-    Calendar, Package, CreditCard, Shield, Trash2, X
+    Bell, Check, Search, Clock, MessageSquare,
+    Calendar, Package, CreditCard, Shield, Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -92,7 +91,7 @@ const NotificationPage = () => {
             message: 'Your document could not be saved. Please try again.',
             time: '4 hours ago',
             read: false,
-            icon: XCircle,
+            icon: Trash2,
             color: 'text-danger'
         }
     ]);
