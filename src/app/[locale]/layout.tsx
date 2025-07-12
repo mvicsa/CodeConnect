@@ -67,12 +67,12 @@ export default async function RootLayout({
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
               <MainNavBar />
               {/* <MainNavBar /> */}
-              <div className="flex items-center min-h-screen flex-col">
+              <div className="flex items-center min-h-screen flex-col max-w-screen-xl mx-auto px-1 sm:px-6 lg:px-8">
                 <SidebarProvider>
                   <div className="flex flex-1 pt-0">
                     <AppSidebar />
                     {/* <SidebarTrigger /> */}
-                    <main className="mx-4">{children}</main>
+                    <main className="mx-4 ">{children}</main>
                   </div>
                 </SidebarProvider>
               </div>

@@ -17,14 +17,14 @@ export default function MobileMenuWithIcon({
   return (
     <NavigationMenu className="md:hidden ">
       <NavigationMenuList>
-        <NavigationMenuItem className="relative w-[50px]">
+        <NavigationMenuItem className="relative w-[40px]">
           <NavigationMenuTrigger className="p-2">
             {/* <HamburgerButton setMenuOpen={setMenuOpen} menuOpen={menuOpen} /> */}
-            <Menu size={24} />
+            <Menu size={18} />
           </NavigationMenuTrigger>
 
           <NavigationMenuContent>
-            <MobileMenu
+            <MobileMenu 
               activeIndex={activeIndex}
               setActiveIndex={setActiveIndex}
             />

@@ -16,9 +16,9 @@ export function MainNavBar() {
   const isRtl = locale === "ar";
 
   return (
-    <nav className="w-full border-b bg-white dark:bg-gray-900">
-      <div className=" mx-1.5 lg:mx-10 px-1 sm:px-6 lg:px-8 ">
-        <div className="flex h-16 flex-start gap-4">
+    <nav className="w-full border-b ">
+      <div className="max-w-screen-xl mx-auto px-1 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center gap-4">
           {/* Hamburger menu - visible on small screens the first component */}
           <MobileMenuWithIcon
             activeIndex={activeIndex}
@@ -46,7 +46,7 @@ export function MainNavBar() {
       {/* Mobile menu - shows icons vertically when toggled */}
       {/* {menuOpen && (
         <MobileMenu activeIndex={activeIndex} setActiveIndex={setActiveIndex} />
-      )} */}
+        )} */}
     </nav>
   );
 }

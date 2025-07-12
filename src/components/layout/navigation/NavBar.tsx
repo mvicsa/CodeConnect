@@ -13,7 +13,7 @@ export default function NavBar({
   setActiveIndex,
 }: activeMenuProps) {
   return (
-    <NavigationMenu className="hidden md:flex md:w-[40%] md:justify-evenly flex-row lg:ml-[13%] mx-auto">
+    <NavigationMenu className="hidden md:flex md:w-[40%] md:justify-evenly flex-row lg:ml-[13%] mx-auto items-center align-middle">
       <NavigationMenuList>
         {navItems.map((item, index) => {
           return (

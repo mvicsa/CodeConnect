@@ -53,11 +53,14 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
+                <SidebarMenuItem key={item.title} >
                   <SidebarMenuButton asChild>
-                    <a href={item.url}>
-                      <item.icon />
+                    <a href={item.url} className="flex flex-row justify-center font-xl">
+                      <span className="w-[100px] flex flex-row justify-between">
+
+                      {/* <item.icon /> */}
                       <span>{item.title}</span>
+                      </span>
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
