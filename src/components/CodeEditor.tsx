@@ -32,7 +32,7 @@ export default function CodeEditor({
   onRemove,
   showRemoveButton = true
 }: CodeEditorProps) {
-  const programmingLanguages = useSelector((state: RootState) => state.programmingLanguages.languages)
+  const programmingLanguages = useSelector((state: RootState) => state.programmingLanguages?.languages || [])
   const [highlightedHtml, setHighlightedHtml] = useState('')
   const [isHighlighting, setIsHighlighting] = useState(false)
   const editorRef = useRef<HTMLDivElement>(null)
@@ -204,9 +204,9 @@ export default function CodeEditor({
 
 
   return (
-    <div className="space-y-3 mt-3">
+    <div className="space-y-3 mt-3" dir="ltr">
       <div className="flex items-center justify-between">
-        <div className="flex items-center flex-col gap-2">
+        <div className="flex items-center gap-2">
           <Select value={language} onValueChange={onLanguageChange}>
             <SelectTrigger className="text-xs h-8 w-32">
               <SelectValue placeholder="Language" />
@@ -232,63 +232,64 @@ export default function CodeEditor({
         )}
       </div>
       
-            {/* VS Code-like Editor */}
+      {/* VS Code-like Editor */}
       <div 
         className="relative rounded-lg overflow-hidden cursor-text group"
+        dir="ltr"
         style={{ 
           minHeight: `${(rows * 1.501 * 14) + 32}px` // rows * line-height * font-size + padding
         }}
       >
-          {/* Hidden textarea for input */}
-          <Textarea
-            ref={textareaRef}
-            value={value}
-            onChange={handleTextareaInput}
-            onScroll={handleTextareaScroll}
-            onSelect={handleTextareaSelect}
-            onKeyDown={handleTextareaKeyDown}
-            onKeyUp={handleTextareaKeyUp}
-            onFocus={handleTextareaFocus}
-            rows={rows}
-            spellCheck={false}
-            autoCorrect="off"
-            autoCapitalize="off"
-            className="absolute top-0 left-0 right-0 bottom-0 resize-none !bg-transparent border-0 rounded-lg p-4 outline-none z-50 !text-sm text-transparent overflow-x-auto overflow-y-auto"
-            style={{
-              color: 'transparent !important',
-              caretColor: '#3b82f6',
-              whiteSpace: 'pre',
-              lineHeight: '1.501 !important',
-              fontFamily: 'var(--font-family)',
-              minHeight: `${(rows * 1.501 * 14) + 32}px`,
-              fontSize: '14px !important',
-              pointerEvents: 'auto',
-              userSelect: 'text'
-            }}
-          />
-          
-          {/* Syntax highlighted overlay like CodeBlock */}
-          <div
-            ref={editorRef}
-            className="text-sm whitespace-pre p-4 bg-background pointer-events-none z-10 overflow-x-auto overflow-y-auto"
-            style={{
-              minHeight: `${(rows * 1.501 * 14) + 32}px`,
-              lineHeight: '1.501 !important',
-              fontFamily: 'var(--font-family)',
-              fontSize: '14px !important'
-            }}
-            dangerouslySetInnerHTML={{ __html: highlightedHtml || value }}
-          />
-          
-          {/* Show highlighting status */}
-          {isHighlighting && (
-            <div className="absolute top-2 right-2 z-20">
-              <div className="text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
-                Highlighting...
-              </div>
+        {/* Hidden textarea for input */}
+        <Textarea
+          ref={textareaRef}
+          value={value}
+          onChange={handleTextareaInput}
+          onScroll={handleTextareaScroll}
+          onSelect={handleTextareaSelect}
+          onKeyDown={handleTextareaKeyDown}
+          onKeyUp={handleTextareaKeyUp}
+          onFocus={handleTextareaFocus}
+          rows={rows}
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
+          className="absolute top-0 left-0 right-0 bottom-0 resize-none !bg-transparent border-0 rounded-lg p-4 outline-none z-50 !text-sm text-transparent overflow-x-auto overflow-y-auto"
+          style={{
+            color: 'transparent !important',
+            caretColor: '#3b82f6',
+            whiteSpace: 'pre',
+            lineHeight: '1.501 !important',
+            fontFamily: 'var(--font-family)',
+            minHeight: `${(rows * 1.501 * 14) + 32}px`,
+            fontSize: '14px !important',
+            pointerEvents: 'auto',
+            userSelect: 'text'
+          }}
+        />
+        
+        {/* Syntax highlighted overlay like CodeBlock */}
+        <div
+          ref={editorRef}
+          className="text-sm whitespace-pre p-4 bg-[#f8f8f8] dark:bg-background pointer-events-none z-10 overflow-x-auto overflow-y-auto"
+          style={{
+            minHeight: `${(rows * 1.501 * 14) + 32}px`,
+            lineHeight: '1.501 !important',
+            fontFamily: 'var(--font-family)',
+            fontSize: '14px !important'
+          }}
+          dangerouslySetInnerHTML={{ __html: highlightedHtml || value }}
+        />
+        
+        {/* Show highlighting status */}
+        {isHighlighting && (
+          <div className="absolute top-2 right-2 z-20">
+            <div className="text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
+              Highlighting...
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
+    </div>
   )
 } 

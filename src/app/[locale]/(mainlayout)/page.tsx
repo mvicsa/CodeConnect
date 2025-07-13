@@ -1,9 +1,7 @@
 import ClientCounter from "@/components/ClientCounter";
-import { Calendar22 } from "@/components/DatePicker";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import Logo from "@/components/Logo";
-import Post from "@/components/Post";
-import PostsList from "@/components/PostsList";
+import PostsListContainer from "@/components/PostsListContainer";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { Button } from "@/components/ui/button";
 import { PostType } from "@/types/post";
@@ -62,8 +60,7 @@ for (var i = 0; i < items.length; i++) {
       <div className="bg-muted p-4">
         Text
       </div>
-      <Calendar22 />
-      <PostsList />
+      <PostsListContainer />
     </div>
   );
 }

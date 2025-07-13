@@ -15,7 +15,8 @@ const examplePost = {
     love: 5,
     wow: 2,
     funny: 1,
-    dislike: 0
+    dislike: 0,
+    happy: 0
   },
   userReactions: [
     {
@@ -40,7 +41,8 @@ const exampleComment = {
     love: 2,
     wow: 1,
     funny: 0,
-    dislike: 0
+    dislike: 0,
+    happy: 0
   },
   userReactions: [
     {
@@ -67,7 +69,7 @@ export default function ReactsDemo() {
       {/* Post Reactions */}
       <Card>
         <CardHeader>
-          <CardTitle>Post Reactions (with counts)</CardTitle>
+          <CardTitle>Post Reactions</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -78,7 +80,6 @@ export default function ReactsDemo() {
               userReactions={examplePost.userReactions}
               currentUserId="user1"
               currentUsername="you"
-              showCounts={true}
               size="md"
             />
           </div>
@@ -88,18 +89,16 @@ export default function ReactsDemo() {
       {/* Comment Reactions */}
       <Card>
         <CardHeader>
-          <CardTitle>Comment Reactions (without counts)</CardTitle>
+          <CardTitle>Comment Reactions</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <p>This is an example comment with reactions.</p>
             <ReactionMenu
               commentId={exampleComment.id}
-              reactions={exampleComment.reactions}
               userReactions={exampleComment.userReactions}
               currentUserId="user1"
               currentUsername="you"
-              showCounts={false}
               size="sm"
             />
           </div>
@@ -121,7 +120,6 @@ export default function ReactsDemo() {
                 userReactions={examplePost.userReactions}
                 currentUserId="user1"
                 currentUsername="you"
-                showCounts={true}
                 size="sm"
               />
             </div>
@@ -133,7 +131,6 @@ export default function ReactsDemo() {
                 userReactions={examplePost.userReactions}
                 currentUserId="user1"
                 currentUsername="you"
-                showCounts={true}
                 size="md"
               />
             </div>
@@ -151,11 +148,10 @@ export default function ReactsDemo() {
             <p>This post has no reactions yet.</p>
             <ReactionMenu
               postId="new-post"
-              reactions={{ like: 0, love: 0, wow: 0, funny: 0, dislike: 0 }}
+              reactions={{ like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 }}
               userReactions={[]}
               currentUserId="user1"
               currentUsername="you"
-              showCounts={true}
               size="md"
             />
           </div>

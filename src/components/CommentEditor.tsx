@@ -74,10 +74,9 @@ export default function CommentEditor({
             value={content.text}
             onChange={(e) => setContent(prev => ({ ...prev, text: e.target.value }))}
             placeholder={placeholder}
-            rows={3}
-            className="resize-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 pr-20 min-h-[80px]"
+            className="resize-none pe-20 min-h-[80px]"
           />
-          <div className="absolute bottom-3 right-3 flex gap-2">
+          <div className="absolute bottom-3 end-3 flex gap-2">
             {showCodeToggle && !showCodeEditor && (
               <Button
                 size="sm"

@@ -51,11 +51,11 @@ export default function CommentItem({
   rootId = null,
 }: {
   comment: Comment | Reply
-  activeReplyId: number | null
-  setActiveReplyId: (id: number | null) => void
+  activeReplyId: number | string | null
+  setActiveReplyId: (id: number | string | null) => void
   mentionUser: string
   setMentionUser: (user: string) => void
-  rootId?: number | null
+  rootId?: number | string | null
 }) {
   const t = useTranslations()
   const dispatch = useDispatch<AppDispatch>()
@@ -68,7 +68,7 @@ export default function CommentItem({
 
   const handleReplyClick = () => {
     setMentionUser(comment.user.username)
-    setActiveReplyId(rootCommentId as number)
+    setActiveReplyId(rootCommentId)
   }
 
   const shouldShowReplyForm = activeReplyId === comment.id && !isReply
@@ -80,9 +80,10 @@ export default function CommentItem({
       user: { name: 'You', username: 'you' },
       content: { text },
       createdAt: new Date(),
-      reactions: {},
       replies: [],
       id: Date.now(),
+      reactions: { like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 },
+      userReactions: []
     }
 
     await dispatch(addReplyAsync(newReply))
@@ -120,7 +121,7 @@ export default function CommentItem({
       <div className="flex-1">
         <div className="bg-accent p-3 rounded-xl relative">
           {!isEditing && (
-            <div className="absolute top-2 right-2">
+            <div className="absolute top-2 end-2">
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger className="cursor-pointer outline-none">
                   <EllipsisVerticalIcon className="size-4 text-muted-foreground" />
@@ -167,7 +168,7 @@ export default function CommentItem({
               {comment.content.code && (
                 <CodeBlock 
                   code={comment.content.code.code} 
-                  lang={comment.content.code.language} 
+                  language={comment.content.code.language} 
                 />
               )}
             </div>
@@ -178,12 +179,21 @@ export default function CommentItem({
           <div className="flex gap-3 text-xs text-muted-foreground mt-2 items-center">
             <ReactionMenu 
               size="sm"
-              commentId={comment.id.toString()}
-              reactions={comment.reactions}
+              commentId={isReply ? undefined : comment.id.toString()}
+              parentCommentId={isReply ? rootCommentId : undefined}
+              replyId={isReply ? comment.id : undefined}
+              reactions={{
+                like: 0,
+                love: 0,
+                wow: 0,
+                funny: 0,
+                dislike: 0,
+                happy: 0,
+                ...comment.reactions
+              }}
               userReactions={comment.userReactions}
               currentUserId="user1"
               currentUsername="you"
-              showCounts={false}
             />
             <button onClick={handleReplyClick} className="cursor-pointer">
               <ReplyIcon className="size-4" />
@@ -204,7 +214,7 @@ export default function CommentItem({
           <div className="mt-3 space-y-2 ms-5">
             {comment.replies.map((reply, index) => (
               <CommentItem
-                key={index}
+                key={reply.id}
                 comment={reply}
                 activeReplyId={activeReplyId}
                 setActiveReplyId={setActiveReplyId}

@@ -26,25 +26,26 @@ export type Reactions = {
   wow: number
   funny: number
   dislike: number
+  happy: number
 }
 
 export type Reply = {
-  id: number
-  parentCommentId: number
+  id: number | string
+  parentCommentId: number | string
   user: User
   content: CommentContent
   createdAt: Date
   postId: string
   replies: Reply[]
-  reactions: Reactions
-  userReactions: UserReaction[]
+  reactions?: Reactions
+  userReactions?: UserReaction[]
 }
 
 export type Comment = {
-  id: number
+  id: number | string
   user: User
   content: CommentContent
-  parentCommentId?: number
+  parentCommentId?: number | string
   createdAt: Date
   postId: string
   reactions: Reactions
