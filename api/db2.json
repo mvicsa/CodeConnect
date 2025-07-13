@@ -14,24 +14,37 @@
         "javascript"
       ],
       "reactions": {
-        "like": 12,
-        "love": 5,
-        "wow": 2,
-        "funny": 1,
-        "dislike": 0
+        "like": 1,
+        "love": 1,
+        "wow": 1,
+        "funny": 0,
+        "dislike": 0,
+        "happy": 1
       },
       "userReactions": [
         {
-          "userId": "user1",
-          "username": "mohamed_dev",
+          "userId": "user2",
+          "username": "sarah_coder",
           "reaction": "like",
-          "createdAt": "2025-07-01T10:30:00.000Z"
+          "createdAt": "2025-07-13T12:00:00.000Z"
         },
         {
-          "userId": "user2", 
-          "username": "sarah_coder",
+          "userId": "user3",
+          "username": "alex_dev",
+          "reaction": "wow",
+          "createdAt": "2025-07-13T12:05:00.000Z"
+        },
+        {
+          "userId": "user4",
+          "username": "nour_tech",
+          "reaction": "happy",
+          "createdAt": "2025-07-13T12:10:00.000Z"
+        },
+        {
+          "userId": "user1",
+          "username": "you",
           "reaction": "love",
-          "createdAt": "2025-07-01T11:00:00.000Z"
+          "createdAt": "2025-07-13T13:39:55.351Z"
         }
       ]
     },
@@ -47,25 +60,26 @@
         "crud"
       ],
       "reactions": {
-        "like": 8,
-        "love": 3,
-        "wow": 1,
+        "like": 0,
+        "love": 1,
+        "wow": 0,
         "funny": 0,
-        "dislike": 0
+        "dislike": 0,
+        "happy": 0
       },
       "userReactions": [
         {
-          "userId": "user3",
-          "username": "alex_developer",
-          "reaction": "like",
-          "createdAt": "2025-07-05T16:00:00.000Z"
+          "userId": "user1",
+          "username": "you",
+          "reaction": "love",
+          "createdAt": "2025-07-13T11:30:28.019Z"
         }
       ]
     },
     {
       "id": "3",
       "text": "مشاركة فيديو عن تحسين أداء React Apps",
-      "video": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "video": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
       "createdBy": "nourr",
       "createdAt": "2025-07-10T09:00:00.000Z",
       "updatedAt": "2025-07-10T09:00:00.000Z",
@@ -75,26 +89,14 @@
         "video"
       ],
       "reactions": {
-        "like": 15,
-        "love": 7,
-        "wow": 3,
-        "funny": 2,
-        "dislike": 1
+        "like": 0,
+        "love": 0,
+        "wow": 0,
+        "funny": 0,
+        "dislike": 0,
+        "happy": 0
       },
-      "userReactions": [
-        {
-          "userId": "user1",
-          "username": "mohamed_dev",
-          "reaction": "love",
-          "createdAt": "2025-07-10T09:30:00.000Z"
-        },
-        {
-          "userId": "user2",
-          "username": "sarah_coder", 
-          "reaction": "wow",
-          "createdAt": "2025-07-10T10:00:00.000Z"
-        }
-      ]
+      "userReactions": []
     }
   ],
   "comments": [
@@ -114,107 +116,43 @@
       },
       "createdAt": "2024-01-15T10:30:00Z",
       "reactions": {
-        "like": 5,
+        "like": 0,
         "love": 2,
-        "wow": 1,
-        "funny": 0,
-        "dislike": 0
+        "wow": 0,
+        "funny": 1,
+        "dislike": 1,
+        "happy": 0
       },
       "userReactions": [
         {
-          "userId": "user2",
-          "username": "sarah_coder",
-          "reaction": "like",
-          "createdAt": "2024-01-15T11:00:00Z"
+          "userId": "user5",
+          "username": "mike_developer",
+          "reaction": "funny",
+          "createdAt": "2025-07-13T13:00:00.000Z"
         },
         {
-          "userId": "user3",
-          "username": "alex_developer",
+          "userId": "user6",
+          "username": "lisa_coder",
           "reaction": "love",
-          "createdAt": "2024-01-15T11:30:00Z"
+          "createdAt": "2025-07-13T13:05:00.000Z"
+        },
+        {
+          "userId": "user7",
+          "username": "john_tech",
+          "reaction": "dislike",
+          "createdAt": "2025-07-13T13:10:00.000Z"
+        },
+        {
+          "userId": "user1",
+          "username": "you",
+          "reaction": "love",
+          "createdAt": "2025-07-13T13:13:47.489Z"
         }
       ],
       "replies": [
         {
-          "postId": "1",
-          "parentCommentId": "1",
-          "user": {
-            "name": "You",
-            "username": "you"
-          },
-          "content": {
-            "text": "@sarah_coder",
-            "code": {
-              "code": "value={/* VS Code-like Editor */}",
-              "language": "typescript"
-            }
-          },
-          "createdAt": "2025-07-12T23:28:54.759Z",
-          "reactions": {
-            "like": 1,
-            "love": 0,
-            "wow": 0,
-            "funny": 0,
-            "dislike": 0
-          },
-          "userReactions": [
-            {
-              "userId": "user1",
-              "username": "mohamed_dev",
-              "reaction": "like",
-              "createdAt": "2025-07-12T23:30:00.000Z"
-            }
-          ],
-          "replies": [],
-          "id": 1752362934759
-        },
-        {
-          "postId": "1",
-          "parentCommentId": "1",
-          "user": {
-            "name": "You",
-            "username": "you"
-          },
-          "content": {
-            "text": "@you"
-          },
-          "createdAt": "2025-07-12T23:28:36.115Z",
-          "reactions": {
-            "like": 0,
-            "love": 0,
-            "wow": 0,
-            "funny": 0,
-            "dislike": 0
-          },
-          "userReactions": [],
-          "replies": [],
-          "id": 1752362916115
-        },
-        {
-          "postId": "1",
-          "parentCommentId": "1",
-          "user": {
-            "name": "You",
-            "username": "you"
-          },
-          "content": {
-            "text": "@mohamed_dev"
-          },
-          "createdAt": "2025-07-12T23:28:29.596Z",
-          "reactions": {
-            "like": 0,
-            "love": 0,
-            "wow": 0,
-            "funny": 0,
-            "dislike": 0
-          },
-          "userReactions": [],
-          "replies": [],
-          "id": 1752362909596
-        },
-        {
           "id": 2,
-          "parentCommentId": 1,
+          "parentCommentId": "1",
           "postId": "1",
           "user": {
             "name": "Sarah",
@@ -229,24 +167,31 @@
           },
           "createdAt": "2024-01-15T11:00:00Z",
           "reactions": {
-            "like": 3,
+            "like": 0,
             "love": 1,
-            "wow": 0,
+            "wow": 1,
             "funny": 0,
-            "dislike": 0
+            "dislike": 0,
+            "happy": 1
           },
           "userReactions": [
             {
-              "userId": "user1",
-              "username": "mohamed_dev",
-              "reaction": "like",
-              "createdAt": "2024-01-15T11:15:00Z"
+              "userId": "user8",
+              "username": "emma_dev",
+              "reaction": "wow",
+              "createdAt": "2025-07-13T14:00:00.000Z"
             },
             {
-              "userId": "user3",
-              "username": "alex_developer",
+              "userId": "user9",
+              "username": "david_coder",
+              "reaction": "happy",
+              "createdAt": "2025-07-13T14:05:00.000Z"
+            },
+            {
+              "userId": "user1",
+              "username": "you",
               "reaction": "love",
-              "createdAt": "2024-01-15T11:20:00Z"
+              "createdAt": "2025-07-13T13:11:52.104Z"
             }
           ],
           "replies": []
@@ -269,30 +214,25 @@
       },
       "createdAt": "2024-01-15T12:15:00Z",
       "reactions": {
-        "like": 1,
-        "love": 0,
-        "wow": 1,
+        "like": 0,
+        "love": 1,
+        "wow": 0,
         "funny": 0,
-        "dislike": 0
+        "dislike": 0,
+        "happy": 0
       },
       "userReactions": [
         {
           "userId": "user1",
-          "username": "mohamed_dev",
-          "reaction": "like",
-          "createdAt": "2024-01-15T12:30:00Z"
-        },
-        {
-          "userId": "user2",
-          "username": "sarah_coder",
-          "reaction": "wow",
-          "createdAt": "2024-01-15T12:45:00Z"
+          "username": "you",
+          "reaction": "love",
+          "createdAt": "2025-07-13T11:30:18.072Z"
         }
       ],
       "replies": []
     },
     {
-      "id": "6e0c",
+      "id": "2c77",
       "postId": "1",
       "user": {
         "name": "You",
@@ -301,38 +241,18 @@
       "content": {
         "text": "",
         "code": {
-          "code": "function improvedSolution() {\n  const result = someFunction();\n  return result.map(item => ({\n    ...item,\n    processed: false\n  }));\n}",
-          "language": "javascript"
+          "code": "function improvedSolution() {\n  const result = someFunction();\n  return result.map(item => ({\n    ...item,\n    processed: true\n  }));\n}",
+          "language": "typescript"
         }
       },
-      "createdAt": "2025-07-12T21:51:27.251Z",
+      "createdAt": "2025-07-13T13:15:52.547Z",
       "reactions": {
         "like": 0,
         "love": 0,
         "wow": 0,
         "funny": 0,
-        "dislike": 0
-      },
-      "userReactions": [],
-      "replies": []
-    },
-    {
-      "id": "3921",
-      "postId": "1",
-      "user": {
-        "name": "You",
-        "username": "you"
-      },
-      "content": {
-        "text": "mb-4"
-      },
-      "createdAt": "2025-07-12T23:24:56.508Z",
-      "reactions": {
-        "like": 0,
-        "love": 0,
-        "wow": 0,
-        "funny": 0,
-        "dislike": 0
+        "dislike": 0,
+        "happy": 0
       },
       "userReactions": [],
       "replies": []
@@ -347,7 +267,7 @@
     },
     {
       "id": "love",
-      "name": "Love", 
+      "name": "Love",
       "icon": "❤️",
       "color": "#ef4444"
     },
@@ -368,6 +288,12 @@
       "name": "Dislike",
       "icon": "👎",
       "color": "#6b7280"
+    },
+    {
+      "id": "happy",
+      "name": "Happy",
+      "icon": "😊",
+      "color": "#fbbf24"
     }
   ]
 }
