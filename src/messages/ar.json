@@ -5,5 +5,24 @@
   "language": {
     "english": "الإنجليزية",
     "arabic": "العربية"
+  },
+  "chat": {
+    "chat": "الدردشة",
+    "search": "البحث في الدردشات...",
+    "select": "اختر دردشة",
+    "choose": "اختر دردشة لبدء المحادثة",
+    "online": "متصل",
+    "offline": "غير متصل",
+    "away": "بعيد",
+    "write": "اكتب رسالتك...",
+    "typing": "يكتب...",
+    "members": "أعضاء",
+    "noChats": "لا توجد دردشات متاحة",
+    "noResults": "لم يتم العثور على نتائج",
+    "replyTo": "الرد على",
+    "readReceipt": "مقروءة",
+    "deliveredReceipt": "تم التسليم",
+    "groupChat": "دردشة جماعية",
+    "privateChat": "دردشة خاصة"
   }
 }
