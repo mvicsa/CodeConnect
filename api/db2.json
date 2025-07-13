@@ -1,0 +1,373 @@
+{
+  "posts": [
+    {
+      "id": "1",
+      "text": "أول بوست لينا عن React و Redux Toolkit.",
+      "code": "const a = 5;",
+      "codeLang": "javascript",
+      "createdBy": "mohamed_dev",
+      "createdAt": "2025-07-01T10:00:00.000Z",
+      "updatedAt": "2025-07-01T10:00:00.000Z",
+      "tags": [
+        "react",
+        "redux",
+        "javascript"
+      ],
+      "reactions": {
+        "like": 12,
+        "love": 5,
+        "wow": 2,
+        "funny": 1,
+        "dislike": 0
+      },
+      "userReactions": [
+        {
+          "userId": "user1",
+          "username": "mohamed_dev",
+          "reaction": "like",
+          "createdAt": "2025-07-01T10:30:00.000Z"
+        },
+        {
+          "userId": "user2", 
+          "username": "sarah_coder",
+          "reaction": "love",
+          "createdAt": "2025-07-01T11:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "text": "ازاي تنفذ CRUD باستخدام json-server و Redux Toolkit",
+      "createdBy": "basent_coder",
+      "createdAt": "2025-07-05T15:30:00.000Z",
+      "updatedAt": "2025-07-05T15:30:00.000Z",
+      "tags": [
+        "json-server",
+        "redux-toolkit",
+        "crud"
+      ],
+      "reactions": {
+        "like": 8,
+        "love": 3,
+        "wow": 1,
+        "funny": 0,
+        "dislike": 0
+      },
+      "userReactions": [
+        {
+          "userId": "user3",
+          "username": "alex_developer",
+          "reaction": "like",
+          "createdAt": "2025-07-05T16:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "text": "مشاركة فيديو عن تحسين أداء React Apps",
+      "video": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "createdBy": "nourr",
+      "createdAt": "2025-07-10T09:00:00.000Z",
+      "updatedAt": "2025-07-10T09:00:00.000Z",
+      "tags": [
+        "react",
+        "performance",
+        "video"
+      ],
+      "reactions": {
+        "like": 15,
+        "love": 7,
+        "wow": 3,
+        "funny": 2,
+        "dislike": 1
+      },
+      "userReactions": [
+        {
+          "userId": "user1",
+          "username": "mohamed_dev",
+          "reaction": "love",
+          "createdAt": "2025-07-10T09:30:00.000Z"
+        },
+        {
+          "userId": "user2",
+          "username": "sarah_coder", 
+          "reaction": "wow",
+          "createdAt": "2025-07-10T10:00:00.000Z"
+        }
+      ]
+    }
+  ],
+  "comments": [
+    {
+      "id": "1",
+      "postId": "1",
+      "user": {
+        "name": "Mohamed",
+        "username": "mohamed_dev"
+      },
+      "content": {
+        "text": "This is a great solution! Here's how I would improve it:",
+        "code": {
+          "code": "function improvedSolution() {\n  const result = someFunction();\n  return result.map(item => ({\n    ...item,\n    processed: false\n  }));\n}",
+          "language": "javascript"
+        }
+      },
+      "createdAt": "2024-01-15T10:30:00Z",
+      "reactions": {
+        "like": 5,
+        "love": 2,
+        "wow": 1,
+        "funny": 0,
+        "dislike": 0
+      },
+      "userReactions": [
+        {
+          "userId": "user2",
+          "username": "sarah_coder",
+          "reaction": "like",
+          "createdAt": "2024-01-15T11:00:00Z"
+        },
+        {
+          "userId": "user3",
+          "username": "alex_developer",
+          "reaction": "love",
+          "createdAt": "2024-01-15T11:30:00Z"
+        }
+      ],
+      "replies": [
+        {
+          "postId": "1",
+          "parentCommentId": "1",
+          "user": {
+            "name": "You",
+            "username": "you"
+          },
+          "content": {
+            "text": "@sarah_coder",
+            "code": {
+              "code": "value={/* VS Code-like Editor */}",
+              "language": "typescript"
+            }
+          },
+          "createdAt": "2025-07-12T23:28:54.759Z",
+          "reactions": {
+            "like": 1,
+            "love": 0,
+            "wow": 0,
+            "funny": 0,
+            "dislike": 0
+          },
+          "userReactions": [
+            {
+              "userId": "user1",
+              "username": "mohamed_dev",
+              "reaction": "like",
+              "createdAt": "2025-07-12T23:30:00.000Z"
+            }
+          ],
+          "replies": [],
+          "id": 1752362934759
+        },
+        {
+          "postId": "1",
+          "parentCommentId": "1",
+          "user": {
+            "name": "You",
+            "username": "you"
+          },
+          "content": {
+            "text": "@you"
+          },
+          "createdAt": "2025-07-12T23:28:36.115Z",
+          "reactions": {
+            "like": 0,
+            "love": 0,
+            "wow": 0,
+            "funny": 0,
+            "dislike": 0
+          },
+          "userReactions": [],
+          "replies": [],
+          "id": 1752362916115
+        },
+        {
+          "postId": "1",
+          "parentCommentId": "1",
+          "user": {
+            "name": "You",
+            "username": "you"
+          },
+          "content": {
+            "text": "@mohamed_dev"
+          },
+          "createdAt": "2025-07-12T23:28:29.596Z",
+          "reactions": {
+            "like": 0,
+            "love": 0,
+            "wow": 0,
+            "funny": 0,
+            "dislike": 0
+          },
+          "userReactions": [],
+          "replies": [],
+          "id": 1752362909596
+        },
+        {
+          "id": 2,
+          "parentCommentId": 1,
+          "postId": "1",
+          "user": {
+            "name": "Sarah",
+            "username": "sarah_coder"
+          },
+          "content": {
+            "text": "Nice improvement! I like how you used the spread operator.",
+            "code": {
+              "code": "// Even better with TypeScript\ntype ProcessedItem = Item & { processed: boolean };\n\nfunction improvedSolution(): ProcessedItem[] {\n  return someFunction().map(item => ({\n    ...item,\n    processed: true\n  }));\n}",
+              "language": "typescript"
+            }
+          },
+          "createdAt": "2024-01-15T11:00:00Z",
+          "reactions": {
+            "like": 3,
+            "love": 1,
+            "wow": 0,
+            "funny": 0,
+            "dislike": 0
+          },
+          "userReactions": [
+            {
+              "userId": "user1",
+              "username": "mohamed_dev",
+              "reaction": "like",
+              "createdAt": "2024-01-15T11:15:00Z"
+            },
+            {
+              "userId": "user3",
+              "username": "alex_developer",
+              "reaction": "love",
+              "createdAt": "2024-01-15T11:20:00Z"
+            }
+          ],
+          "replies": []
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "postId": "1",
+      "user": {
+        "name": "Alex",
+        "username": "alex_developer"
+      },
+      "content": {
+        "text": "I have a question about the performance. Would this approach scale well?",
+        "code": {
+          "code": "// Current approach\nfor (let i = 0; i < items.length; i++) {\n  processItem(items[i]);\n}\n\n// Would this be better?\nitems.forEach(processItem);",
+          "language": "javascript"
+        }
+      },
+      "createdAt": "2024-01-15T12:15:00Z",
+      "reactions": {
+        "like": 1,
+        "love": 0,
+        "wow": 1,
+        "funny": 0,
+        "dislike": 0
+      },
+      "userReactions": [
+        {
+          "userId": "user1",
+          "username": "mohamed_dev",
+          "reaction": "like",
+          "createdAt": "2024-01-15T12:30:00Z"
+        },
+        {
+          "userId": "user2",
+          "username": "sarah_coder",
+          "reaction": "wow",
+          "createdAt": "2024-01-15T12:45:00Z"
+        }
+      ],
+      "replies": []
+    },
+    {
+      "id": "6e0c",
+      "postId": "1",
+      "user": {
+        "name": "You",
+        "username": "you"
+      },
+      "content": {
+        "text": "",
+        "code": {
+          "code": "function improvedSolution() {\n  const result = someFunction();\n  return result.map(item => ({\n    ...item,\n    processed: false\n  }));\n}",
+          "language": "javascript"
+        }
+      },
+      "createdAt": "2025-07-12T21:51:27.251Z",
+      "reactions": {
+        "like": 0,
+        "love": 0,
+        "wow": 0,
+        "funny": 0,
+        "dislike": 0
+      },
+      "userReactions": [],
+      "replies": []
+    },
+    {
+      "id": "3921",
+      "postId": "1",
+      "user": {
+        "name": "You",
+        "username": "you"
+      },
+      "content": {
+        "text": "mb-4"
+      },
+      "createdAt": "2025-07-12T23:24:56.508Z",
+      "reactions": {
+        "like": 0,
+        "love": 0,
+        "wow": 0,
+        "funny": 0,
+        "dislike": 0
+      },
+      "userReactions": [],
+      "replies": []
+    }
+  ],
+  "reactionTypes": [
+    {
+      "id": "like",
+      "name": "Like",
+      "icon": "👍",
+      "color": "#3b82f6"
+    },
+    {
+      "id": "love",
+      "name": "Love", 
+      "icon": "❤️",
+      "color": "#ef4444"
+    },
+    {
+      "id": "wow",
+      "name": "Wow",
+      "icon": "😮",
+      "color": "#f59e0b"
+    },
+    {
+      "id": "funny",
+      "name": "Funny",
+      "icon": "😂",
+      "color": "#10b981"
+    },
+    {
+      "id": "dislike",
+      "name": "Dislike",
+      "icon": "👎",
+      "color": "#6b7280"
+    }
+  ]
+}
