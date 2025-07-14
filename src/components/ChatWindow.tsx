@@ -6,11 +6,9 @@ import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
 import { ChatRoom, Message, TypingIndicator } from "@/types/chat";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Send, Smile, Paperclip, Reply, Check, CheckCheck, MoreVertical, X, Image, File, Camera } from "lucide-react";
-import EmojiButtonModule from "emoji-button";
 import { useTranslations } from "next-intl";
 import MessageActions from "./MessageActions";
 
-const EmojiButton = EmojiButtonModule.default;
 
 interface ChatWindowProps {
   chatRoom: ChatRoom;
@@ -38,12 +36,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [isFileMenuOpen, setIsFileMenuOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const pickerRef = useRef<any>(null);
-  const emojiPickerRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
-  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
   // Scroll to bottom when messages change
@@ -83,30 +78,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       }, 50);
     }
   };
-
-  // Cleanup emoji picker on unmount or chat change
-  useEffect(() => {
-    return () => {
-      if (pickerRef.current) {
-        try {
-          // Remove document click event listener
-          if (pickerRef.current._documentClickHandler) {
-            document.removeEventListener('click', pickerRef.current._documentClickHandler);
-          }
-          
-          // Hide picker before destroying
-          pickerRef.current.hidePicker();
-          
-          // Destroy the picker
-          pickerRef.current.destroy();
-        } catch (error) {
-          // Ignore errors during cleanup
-        }
-        pickerRef.current = null;
-        setIsEmojiPickerOpen(false);
-      }
-    };
-  }, [chatRoom.id]); // Re-run when chat change
 
   // Close file menu when clicking outside
   useEffect(() => {
@@ -706,58 +677,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           />
           
           <ChatButton
-            ref={emojiPickerRef}
             variant="ghost"
             size="icon"
             className="cursor-pointer hover:bg-muted"
-            onClick={async () => {
-              try {
-                // If picker is already open, close it
-                if (isEmojiPickerOpen && pickerRef.current) {
-                  pickerRef.current.hidePicker();
-                  setIsEmojiPickerOpen(false);
-                  return;
-                }
-
-                const module = await import("emoji-button");
-                const EmojiButton = module.default;
-
-                if (!pickerRef.current) {
-                  pickerRef.current = new EmojiButton({
-                    position: "top-end",
-                    autoHide: false,
-                    theme: "light",
-                  });
-
-                  pickerRef.current.on("emoji", (emoji: any) => {
-                    setMessage((prev) => prev + emoji);
-                    // Keep picker open for multiple emoji selection
-                  });
-
-                  // Add event listener for document clicks to hide picker
-                  const handleDocumentClick = (event: MouseEvent) => {
-                    if (pickerRef.current && emojiPickerRef.current && isEmojiPickerOpen) {
-                      const target = event.target as Node;
-                      if (!emojiPickerRef.current.contains(target)) {
-                        pickerRef.current.hidePicker();
-                        setIsEmojiPickerOpen(false);
-                      }
-                    }
-                  };
-
-                  document.addEventListener('click', handleDocumentClick);
-                  pickerRef.current._documentClickHandler = handleDocumentClick;
-                }
-
-                if (pickerRef.current && emojiPickerRef.current) {
-                  pickerRef.current.showPicker(emojiPickerRef.current);
-                  setIsEmojiPickerOpen(true);
-                }
-              } catch (error) {
-                console.error('Error initializing emoji picker:', error);
-                setIsEmojiPickerOpen(false);
-              }
-            }}
           >
             <Smile className="h-5 w-5" />
           </ChatButton>
