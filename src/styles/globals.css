@@ -1,10 +1,19 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "plyr-react/plyr.css";
 
 @custom-variant dark (&:is(.dark *));
 
+:root {
+  --font-family: 'Josefin Sans', 'IBM Plex Sans Arabic';
+}
+
 body {
-  font-family: 'Geist Mono', 'IBM Plex Sans Arabic';
+  font-family: var(--font-family);
+}
+
+code, kbd, samp, pre {
+  font-family: var(--font-family);
 }
 
 :root {
@@ -48,6 +57,8 @@ body {
   --danger-foreground: oklch(0.98 0.02 95);
   --info: oklch(66.776% 0.13923 233.715);
   --info-foreground: oklch(0.98 0.02 95);
+  --plyr-color-main: var(--color-primary);
+  --plyr-font-family: var(--font-family);
 }
 
 .dark {
@@ -76,6 +87,9 @@ body {
   --sidebar-accent: oklch(0.274 0.006 286.033);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-primary: hsl(224.3 76.3% 48%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
 }
 
 @layer base {

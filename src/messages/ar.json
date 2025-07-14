@@ -2,6 +2,7 @@
   "welcome": "مرحبًا بك في تطبيقي",
   "title": "تطبيقي بـ Next.js",
   "description": "هذا تطبيق بسيط بـ Next.js يدعم الترجمة الدولية.",
+  "admin": "مسؤول",
   "language": {
     "english": "الإنجليزية",
     "arabic": "العربية"
@@ -24,5 +25,16 @@
     "deliveredReceipt": "تم التسليم",
     "groupChat": "دردشة جماعية",
     "privateChat": "دردشة خاصة"
-  }
+  },
+    "edit": "تعديل",
+  "delete": "حذف",
+  "cancel": "إلغاء",
+  "save": "حفظ",
+  "confirm": "تأكيد",
+  "close": "إغلاق",
+  "logout": "تسجيل الخروج",
+  "report": "إبلاغ",
+  "copy": "نسخ",
+  "copied": "تم النسخ"
 }
+

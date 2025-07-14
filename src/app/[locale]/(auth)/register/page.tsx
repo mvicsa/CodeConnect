@@ -1,11 +1,11 @@
-import React from 'react';
 
-const Page = () => {
+import { AuthPageLayout } from "@/components/auth/AuthPageLayout"
+import { RegisterForm } from "@/components/auth/RegisterForm"
+
+export default function RegisterPage() {
   return (
-    <div>
-      Register
-    </div>
-  );
+    <AuthPageLayout maxWidth="max-w-md">
+      <RegisterForm />
+    </AuthPageLayout>
+  )
 }
-
-export default Page;
