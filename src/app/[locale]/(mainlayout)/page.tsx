@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Heart } from "lucide-react";
 import { useTranslations } from "next-intl";
 import NotificationPage from "@/components/Notification";
-import ExampleArchiveCard from "@/components/Archives";
 export default function Home() {
   const t = useTranslations();
 
@@ -40,11 +39,6 @@ export default function Home() {
         <ThemeSwitcher />
         <NotificationPage />
       </div>
-
-      <div className="p-6 bg-muted rounded-xl">
-        <ExampleArchiveCard />
-      </div>
-
 
     </>
   );
