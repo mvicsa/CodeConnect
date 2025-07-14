@@ -4,9 +4,9 @@ import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { Button } from "@/components/ui/button";
 import { Heart } from "lucide-react";
-import NotificationPage from "@/components/notification";
 import { useTranslations } from "next-intl";
-
+import NotificationPage from "@/components/Notification";
+import ExampleArchiveCard from "@/components/Archives";
 export default function Home() {
   const t = useTranslations();
 
@@ -22,8 +22,8 @@ export default function Home() {
         {t('description')}
       </p>
       <p className="text-center mt-2 mb-4">
-        
-<Heart  />
+
+        <Heart />
 
         Share your code, learn from others. Join the community!
       </p>
@@ -40,6 +40,12 @@ export default function Home() {
         <ThemeSwitcher />
         <NotificationPage />
       </div>
+
+      <div className="p-6 bg-muted rounded-xl">
+        <ExampleArchiveCard />
+      </div>
+
+
     </>
   );
 }

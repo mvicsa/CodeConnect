@@ -11,10 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 import {
     initialNotifications, loadMoreNotificationsAPI, markNotificationAsReadAPI, markAllNotificationsAsReadAPI,
-    deleteNotificationAPI,
-    getBadgeVariant,
-    getNotificationBackground,
-    filterOptions
+    deleteNotificationAPI, getBadgeVariant, getNotificationBackground, filterOptions
 } from '@/services/staticAPI';
 
 type NotificationType = 'success' | 'info' | 'warning' | 'error';
