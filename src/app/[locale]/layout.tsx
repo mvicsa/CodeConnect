@@ -3,7 +3,6 @@ import { IBM_Plex_Sans_Arabic, Josefin_Sans } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import "@/styles/globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { Messages } from "@/messages";
 import ReduxProvider from "@/store/Provider";
 import { MainNavBar } from "@/components/layout/navigation/MainNavBar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -39,12 +38,12 @@ export default async function RootLayout({
 
   if (!locale || !supportedLocales.includes(locale)) locale = "en";
 
-  let messages: Messages;
+  let messages;
   try {
-    messages = (await import(`@/messages/${locale}.json`)).default as Messages;
+    messages = (await import(`@/messages/${locale}.json`)).default;
   } catch (error) {
     console.log(error);
-    messages = (await import(`@/messages/en.json`)).default as Messages;
+    messages = (await import(`@/messages/en.json`)).default;
   }
 
   return (
@@ -65,17 +64,7 @@ export default async function RootLayout({
         >
           <ReduxProvider>
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-              <MainNavBar />
-              {/* <MainNavBar /> */}
-              <div className="flex items-center min-h-screen flex-col max-w-screen-xl mx-auto px-1 sm:px-6 lg:px-8">
-                <SidebarProvider>
-                  <div className="flex flex-1 pt-0">
-                    <AppSidebar />
-                    {/* <SidebarTrigger /> */}
-                    <main className="mx-4 ">{children}</main>
-                  </div>
-                </SidebarProvider>
-              </div>
+              {children}
             </ThemeProvider>
           </ReduxProvider>
         </NextIntlClientProvider>
