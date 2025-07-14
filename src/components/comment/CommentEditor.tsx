@@ -1,11 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Textarea } from './ui/textarea'
-import { Button } from './ui/button'
+import { Textarea } from '../ui/textarea'
+import { Button } from '../ui/button'
 import { Code, Send } from 'lucide-react'
 import { CommentContent } from '@/types/comments'
-import CodeEditor from './CodeEditor'
+import CodeEditor from '../code/CodeEditor'
 
 interface CommentEditorProps {
   initialValue?: CommentContent
@@ -69,7 +69,7 @@ export default function CommentEditor({
   return (
     <div className="border-0 shadow-none my-4">
         {/* Text Editor */}
-        <div className="relative">
+        <div className="relative mb-3">
           <Textarea
             value={content.text}
             onChange={(e) => setContent(prev => ({ ...prev, text: e.target.value }))}

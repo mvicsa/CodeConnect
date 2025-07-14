@@ -19,7 +19,7 @@ const reactionImageMap = {
   dislike: "/reactions/dislike.png",
 };
 
-interface ReactionMenuProps {
+interface ReactionsMenuProps {
   size?: "sm" | "md";
   postId?: string;
   commentId?: string;
@@ -43,7 +43,7 @@ interface ReactionMenuProps {
   currentUsername?: string;
 }
 
-export default function ReactionMenu({ 
+export default function ReactionsMenu({ 
   size = "md",
   postId,
   commentId,
@@ -53,7 +53,7 @@ export default function ReactionMenu({
   userReactions = [],
   currentUserId = "user1",
   currentUsername = "you"
-}: ReactionMenuProps) {
+}: ReactionsMenuProps) {
   const { 
     reactionTypes, 
     loading: initialLoading, 
@@ -158,14 +158,12 @@ export default function ReactionMenu({
     return <div className="animate-pulse">Loading...</div>;
   }
 
-
-
   return (
     <div className="flex items-center gap-2">
       {/* Reaction Button */}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <div className={`w-${size === "sm" ? "5" : "6"} h-${size === "sm" ? "5" : "6"} cursor-pointer flex items-center justify-center ${isReactionLoading ? 'opacity-50' : ''}`}>
+          <div className={`w-${size === "sm" ? "4" : "5"} h-${size === "sm" ? "4" : "5"} cursor-pointer flex items-center justify-center ${isReactionLoading ? 'opacity-50' : ''}`}>
             {selectedReaction ? (
               <Image
                 src={selectedReaction}
@@ -174,7 +172,7 @@ export default function ReactionMenu({
                 height={30}
               />
             ) : (
-              <Heart className={`size-${size === "sm" ? "4" : "5"} text-muted-foreground`} />
+              <Heart className={`size-${size === "sm" ? "4" : "5"} text-muted-foreground hover:text-foreground transition-colors`} />
             )}
           </div>
         </PopoverTrigger>
@@ -207,7 +205,7 @@ export default function ReactionMenu({
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <div className="cursor-pointer select-none" onClick={() => setDialogOpen(true)}>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-muted text-xs font-medium text-muted-foreground hover:bg-muted/80 transition-colors">
+              <span className="inline-flex items-center hover:underline">
                 {totalReactions}
               </span>
             </div>
@@ -216,40 +214,40 @@ export default function ReactionMenu({
             <DialogHeader>
               <DialogTitle>Reactions</DialogTitle>
             </DialogHeader>
-            <Tabs defaultValue="all" className="w-full mt-2">
+            <Tabs defaultValue={allUsers.length > 0 ? "all" : reactionTypeList.find(rt => reactions[rt] > 0) || "all"} className="w-full mt-2">
               <TabsList>
-                <TabsTrigger value="all">All</TabsTrigger>
-                {reactionTypeList.map((rt) => (
+                {allUsers.length > 0 && <TabsTrigger value="all">All ({allUsers.length})</TabsTrigger>}
+                {reactionTypeList.filter(rt => reactions[rt] > 0).map((rt) => (
                   <TabsTrigger key={rt} value={rt}>
                     <span className="flex items-center gap-1">
                       <Image src={reactionImageMap[rt]} alt={rt} width={18} height={18} />
-                      {reactions[rt] || 0}
+                      {reactions[rt]}
                     </span>
                   </TabsTrigger>
                 ))}
               </TabsList>
               {/* All Tab */}
-              <TabsContent value="all">
-                <div className="flex flex-col gap-2 mt-2">
-                  {allUsers.length === 0 && <span className="text-muted-foreground text-sm">No reactions yet.</span>}
-                  {allUsers.map((u, idx) => (
-                    <div key={u.userId + u.reaction + idx} className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={`/avatars/${u.username}.jpg`} alt={u.username} />
-                        <AvatarFallback className="text-xs">{u.username.charAt(0).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <Image src={reactionImageMap[u.reaction as keyof typeof reactionImageMap]} alt={u.reaction} width={20} height={20} />
-                      <span className="font-medium">{u.username}</span>
-                      <span className="text-xs text-muted-foreground">({u.reaction})</span>
-                    </div>
-                  ))}
-                </div>
-              </TabsContent>
+              {allUsers.length > 0 && (
+                <TabsContent value="all">
+                  <div className="flex flex-col gap-2 mt-2">
+                    {allUsers.map((u, idx) => (
+                      <div key={u.userId + u.reaction + idx} className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={`/avatars/${u.username}.jpg`} alt={u.username} />
+                          <AvatarFallback className="text-xs">{u.username.charAt(0).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <Image src={reactionImageMap[u.reaction as keyof typeof reactionImageMap]} alt={u.reaction} width={20} height={20} />
+                        <span className="font-medium">{u.username}</span>
+                        <span className="text-xs text-muted-foreground">({u.reaction})</span>
+                      </div>
+                    ))}
+                  </div>
+                </TabsContent>
+              )}
               {/* Per-reaction Tabs */}
-              {reactionTypeList.map((rt) => (
+              {reactionTypeList.filter(rt => reactions[rt] > 0).map((rt) => (
                 <TabsContent key={rt} value={rt}>
                   <div className="flex flex-col gap-2 mt-2">
-                    {usersByReaction[rt].length === 0 && <span className="text-muted-foreground text-sm">No one reacted with this.</span>}
                     {usersByReaction[rt].map((u, idx) => (
                       <div key={u.userId + u.reaction + idx} className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">

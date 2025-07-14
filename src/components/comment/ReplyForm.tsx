@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import CommentEditor from './CommentEditor'
-import { Button } from './ui/button'
+import { Button } from '../ui/button'
 import { X } from 'lucide-react'
 
 interface ReplyFormProps {

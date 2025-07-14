@@ -6,8 +6,9 @@ import { AppDispatch, RootState } from '@/store/store'
 import { fetchComments, addCommentAsync } from '@/store/slices/commentsSlice'
 import CommentItem from './CommentItem'
 import CommentEditor from './CommentEditor'
-import { MessageCircle } from 'lucide-react'
+import { MessageCircle, ChevronDown } from 'lucide-react'
 import { Comment, CommentContent } from '@/types/comments'
+import { Button } from '../ui/button'
 
 interface CommentSectionProps {
   postId: string
@@ -19,12 +20,22 @@ const CommentSection = memo(function CommentSection({ postId, className = '' }: 
   const { comments, loading } = useSelector((state: RootState) => state.comments)
   const [activeReplyId, setActiveReplyId] = useState<number | null>(null)
   const [mentionUser, setMentionUser] = useState('')
+  const [visibleComments, setVisibleComments] = useState(3) // Show 3 comments initially
 
   // Filter comments for this specific post - memoize to prevent unnecessary re-renders
   const postComments = useMemo(() => 
     comments.filter(comment => comment.postId === postId), 
     [comments, postId]
   )
+
+  // Get visible comments based on pagination
+  const visibleCommentsList = useMemo(() => 
+    postComments.slice(0, visibleComments), 
+    [postComments, visibleComments]
+  )
+
+  // Check if there are more comments to load
+  const hasMoreComments = postComments.length > visibleComments
 
   useEffect(() => {
     // Fetch comments when component mounts
@@ -48,6 +59,10 @@ const CommentSection = memo(function CommentSection({ postId, className = '' }: 
     } catch (error) {
       console.error('Failed to add comment:', error)
     }
+  }
+
+  const handleLoadMore = () => {
+    setVisibleComments(prev => prev + 3) // Load 3 more comments
   }
 
   if (loading) {
@@ -75,7 +90,7 @@ const CommentSection = memo(function CommentSection({ postId, className = '' }: 
 
       {/* Comments List */}
       <div className="space-y-4">
-        {postComments.map((comment) => (
+        {visibleCommentsList.map((comment) => (
           <CommentItem
             key={comment.id}
             comment={comment}
@@ -86,6 +101,21 @@ const CommentSection = memo(function CommentSection({ postId, className = '' }: 
           />
         ))}
       </div>
+
+      {/* Load More Button */}
+      {hasMoreComments && (
+        <div className="flex justify-center pt-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLoadMore}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <ChevronDown className="size-4 mr-1" />
+            Load More Comments ({postComments.length - visibleComments} more)
+          </Button>
+        </div>
+      )}
 
       {/* No Comments */}
       {postComments.length === 0 && (

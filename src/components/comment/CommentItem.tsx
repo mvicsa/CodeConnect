@@ -8,19 +8,20 @@ import {
   FlagIcon,
   CheckIcon,
   XIcon,
+  ChevronDown,
 } from 'lucide-react'
 import ReplyForm from './ReplyForm'
 import CommentEditor from './CommentEditor'
-import UserAvatar from './UserAvatar'
-import ReactionMenu from './Reacts'
-import CodeBlock from './CodeBlock'
-import { Button } from './ui/button'
+import UserAvatar from '../UserAvatar'
+import ReactionMenu from '../ReactionsMenu'
+import CodeBlock from '../code/CodeBlock'
+import { Button } from '../ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from './ui/dropdown-menu'
+} from '../ui/dropdown-menu'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -39,7 +40,7 @@ import {
   deleteCommentOrReplyAsync,
   editCommentOrReplyAsync,
 } from '@/store/slices/commentsSlice'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Comment, Reply, CommentContent } from '@/types/comments'
 
 export default function CommentItem({
@@ -62,9 +63,20 @@ export default function CommentItem({
   const [openDelete, setOpenDelete] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState<CommentContent>(comment.content)
+  const [showReplies, setShowReplies] = useState(false)
+  const [visibleReplies, setVisibleReplies] = useState(2) // Show 2 replies initially
 
   const isReply = !!comment.parentCommentId
   const rootCommentId = rootId || comment.id
+
+  // Get visible replies based on pagination
+  const visibleRepliesList = useMemo(() => {
+    if (!comment.replies || comment.replies.length === 0) return []
+    return comment.replies.slice(0, visibleReplies)
+  }, [comment.replies, visibleReplies])
+
+  // Check if there are more replies to load
+  const hasMoreReplies = comment.replies && comment.replies.length > visibleReplies
 
   const handleReplyClick = () => {
     setMentionUser(comment.user.username)
@@ -114,11 +126,19 @@ export default function CommentItem({
     setOpenDelete(false)
   }
 
+  const handleViewReplies = () => {
+    setShowReplies(true)
+  }
+
+  const handleLoadMoreReplies = () => {
+    setVisibleReplies(prev => prev + 2) // Load 2 more replies
+  }
+
   return (
     <div className="flex gap-3 items-start">
       <UserAvatar />
 
-      <div className="flex-1">
+      <div className="flex-1 overflow-hidden">
         <div className="bg-accent p-3 rounded-xl relative">
           {!isEditing && (
             <div className="absolute top-2 end-2">
@@ -210,9 +230,24 @@ export default function CommentItem({
           />
         )}
 
-        {comment.replies?.length > 0 && (
+        {/* View Replies Button (Facebook-style) */}
+        {!isReply && comment.replies && comment.replies.length > 0 && !showReplies && (
+          <div className="mt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleViewReplies}
+              className="text-muted-foreground hover:text-foreground text-xs px-2 py-1 h-auto"
+            >
+              View {comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}
+            </Button>
+          </div>
+        )}
+
+        {/* Replies Section */}
+        {!isReply && showReplies && comment.replies && comment.replies.length > 0 && (
           <div className="mt-3 space-y-2 ms-5">
-            {comment.replies.map((reply, index) => (
+            {visibleRepliesList.map((reply, index) => (
               <CommentItem
                 key={reply.id}
                 comment={reply}
@@ -223,6 +258,21 @@ export default function CommentItem({
                 rootId={rootCommentId}
               />
             ))}
+            
+            {/* Load More Replies Button */}
+            {hasMoreReplies && (
+              <div className="flex justify-start pt-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLoadMoreReplies}
+                  className="text-muted-foreground hover:text-foreground text-xs px-2 py-1 h-auto"
+                >
+                  <ChevronDown className="size-3 mr-1" />
+                  Load More Replies ({comment.replies!.length - visibleReplies} more)
+                </Button>
+              </div>
+            )}
           </div>
         )}
 

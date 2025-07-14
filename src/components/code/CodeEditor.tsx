@@ -3,11 +3,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createHighlighter } from 'shiki'
 import { useSelector } from 'react-redux'
-import { RootState } from '../store/store'
-import { Button } from './ui/button'
-import { Badge } from './ui/badge'
-import { Textarea } from './ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { RootState } from '../../store/store'
+import { Button } from '../ui/button'
+import { Badge } from '../ui/badge'
+import { Textarea } from '../ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Code, X } from 'lucide-react'
 
 interface CodeEditorProps {
@@ -43,7 +43,7 @@ export default function CodeEditor({
 
   // Highlight code like CodeBlock with caching
   const highlightCode = useCallback(async (code: string, lang: string) => {
-    if (!code.trim()) {
+    if (!code) {
       setHighlightedHtml('')
       return
     }
@@ -62,27 +62,83 @@ export default function CodeEditor({
       if (needsNewHighlighter) {
         // Dispose old highlighter if it exists
         if (highlighterRef.current) {
-          highlighterRef.current.dispose()
+          try {
+            highlighterRef.current.dispose()
+          } catch (error) {
+            console.warn('Error disposing highlighter:', error)
+          }
         }
 
-        const themePath = `/themes/${themeName}.json`
-        const customTheme = await fetch(themePath).then((res) => res.json())
+        try {
+          const themePath = `/themes/${themeName}.json`
+          const response = await fetch(themePath)
+          
+          if (!response.ok) {
+            throw new Error(`Failed to load theme: ${response.status} ${response.statusText}`)
+          }
+          
+          const customTheme = await response.json()
 
-        highlighterRef.current = await createHighlighter({
-          langs: [lang || ''],
-          themes: [{ name: themeName, ...customTheme }],
-        })
+          highlighterRef.current = await createHighlighter({
+            langs: [lang || 'javascript'],
+            themes: [{ name: themeName, ...customTheme }],
+          })
+        } catch (themeError) {
+          console.error('Failed to load theme, using fallback:', themeError)
+          // Use a simple fallback theme
+          const fallbackTheme = {
+            name: themeName,
+            type: (isDark ? 'dark' : 'light') as 'dark' | 'light',
+            settings: [
+              {
+                scope: ['comment'],
+                settings: { foreground: isDark ? '#6a9955' : '#008000' }
+              },
+              {
+                scope: ['string'],
+                settings: { foreground: isDark ? '#ce9178' : '#a31515' }
+              },
+              {
+                scope: ['keyword'],
+                settings: { foreground: isDark ? '#569cd6' : '#0000ff' }
+              }
+            ],
+            fg: isDark ? '#d4d4d4' : '#000000',
+            bg: isDark ? '#1e1e1e' : '#ffffff'
+          }
+
+          highlighterRef.current = await createHighlighter({
+            langs: [lang || 'javascript'],
+            themes: [fallbackTheme],
+          })
+        }
+      }
+
+      if (!highlighterRef.current) {
+        throw new Error('Failed to create highlighter')
       }
 
       const html = highlighterRef.current.codeToHtml(code, {
-        lang: lang || '',
+        lang: lang || 'javascript',
         theme: themeName,
       })
 
-      setHighlightedHtml(html)
+      // Check if the highlighted HTML has the same line count as the original code
+      const originalLines = code.split('\n')
+      const highlightedLines = html.split('\n')
+      
+      // If there's a mismatch in line count, use the original content with highlighting
+      if (originalLines.length !== highlightedLines.length) {
+        // Use the original code structure but with basic highlighting
+        const fallbackHtml = code.replace(/\n/g, '<br>')
+        setHighlightedHtml(fallbackHtml)
+      } else {
+        setHighlightedHtml(html)
+      }
     } catch (error) {
       console.error('Failed to highlight code:', error)
-      setHighlightedHtml('')
+      // Fallback to plain text with preserved line structure
+      setHighlightedHtml(code.replace(/\n/g, '<br>'))
     } finally {
       setIsHighlighting(false)
     }
@@ -115,7 +171,7 @@ export default function CodeEditor({
   useEffect(() => {
     const htmlEl = document.documentElement
     const observer = new MutationObserver(() => {
-      if (value.trim()) {
+      if (value) {
         // Clear previous timeout
         if (highlightTimeoutRef.current) {
           clearTimeout(highlightTimeoutRef.current)
@@ -153,16 +209,22 @@ export default function CodeEditor({
     setCursorPosition(newPosition)
   }
 
-  // Handle textarea key up to sync cursor position
+    // Handle textarea key up to sync cursor position
   const handleTextareaKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     setCursorPosition(e.currentTarget.selectionStart)
   }
 
-  // Handle textarea scroll sync
+  // Handle textarea scroll sync (horizontal only)
   const handleTextareaScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
     if (editorRef.current) {
-      editorRef.current.scrollTop = e.currentTarget.scrollTop
       editorRef.current.scrollLeft = e.currentTarget.scrollLeft
+    }
+  }
+
+  // Handle editor scroll sync (horizontal only)
+  const handleEditorScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (textareaRef.current) {
+      textareaRef.current.scrollLeft = e.currentTarget.scrollLeft
     }
   }
 
@@ -204,7 +266,7 @@ export default function CodeEditor({
 
 
   return (
-    <div className="space-y-3 mt-3" dir="ltr">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Select value={language} onValueChange={onLanguageChange}>
@@ -236,9 +298,6 @@ export default function CodeEditor({
       <div 
         className="relative rounded-lg overflow-hidden cursor-text group"
         dir="ltr"
-        style={{ 
-          minHeight: `${(rows * 1.501 * 14) + 32}px` // rows * line-height * font-size + padding
-        }}
       >
         {/* Hidden textarea for input */}
         <Textarea
@@ -250,35 +309,35 @@ export default function CodeEditor({
           onKeyDown={handleTextareaKeyDown}
           onKeyUp={handleTextareaKeyUp}
           onFocus={handleTextareaFocus}
-          rows={rows}
           spellCheck={false}
           autoCorrect="off"
           autoCapitalize="off"
-          className="absolute top-0 left-0 right-0 bottom-0 resize-none !bg-transparent border-0 rounded-lg p-4 outline-none z-50 !text-sm text-transparent overflow-x-auto overflow-y-auto"
+          className="relative resize-none !bg-transparent border-0 rounded-lg outline-none z-50 !text-sm text-transparent w-full overflow-x-auto overflow-y-hidden"
           style={{
             color: 'transparent !important',
             caretColor: '#3b82f6',
             whiteSpace: 'pre',
             lineHeight: '1.501 !important',
             fontFamily: 'var(--font-family)',
-            minHeight: `${(rows * 1.501 * 14) + 32}px`,
             fontSize: '14px !important',
             pointerEvents: 'auto',
-            userSelect: 'text'
+            userSelect: 'text',
+            padding: '16px'
           }}
         />
         
         {/* Syntax highlighted overlay like CodeBlock */}
         <div
           ref={editorRef}
-          className="text-sm whitespace-pre p-4 bg-[#f8f8f8] dark:bg-background pointer-events-none z-10 overflow-x-auto overflow-y-auto"
+          onScroll={handleEditorScroll}
+          className="absolute top-0 left-0 right-0 bottom-0 text-sm whitespace-pre bg-[#f8f8f8] dark:bg-background z-10 pointer-events-none overflow-x-auto overflow-y-hidden"
           style={{
-            minHeight: `${(rows * 1.501 * 14) + 32}px`,
             lineHeight: '1.501 !important',
             fontFamily: 'var(--font-family)',
-            fontSize: '14px !important'
+            fontSize: '14px !important',
+            padding: '16px'
           }}
-          dangerouslySetInnerHTML={{ __html: highlightedHtml || value }}
+          dangerouslySetInnerHTML={{ __html: highlightedHtml || value.replace(/\n/g, '<br>') }}
         />
         
         {/* Show highlighting status */}
