@@ -16,7 +16,7 @@ export function MainNavBar() {
   const isRtl = locale === "ar";
 
   return (
-    <nav className="w-full border-b ">
+    <nav className="w-full border-b fixed top-0 z-50  bg-white shadow dark:bg-gray-900">
       <div className="max-w-screen-xl mx-auto px-1 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center gap-4">
           {/* Hamburger menu - visible on small screens the first component */}

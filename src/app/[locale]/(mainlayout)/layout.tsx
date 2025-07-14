@@ -1,3 +1,4 @@
+
 import { MainNavBar } from "@/components/layout/navigation/MainNavBar";
 import React from "react";
 
@@ -7,11 +8,11 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-       <>
-        <MainNavBar />
-        <div className="flex items-center min-h-screen flex-col max-w-screen-xl mx-auto px-1 sm:px-6 lg:px-8">
-          {children}
-        </div>
-       </>
+    <>
+      <MainNavBar />
+      <div className="w-full px-4 sm:px-6 lg:px-8 pt-16">
+        {children}
+      </div>
+    </>
   );
 }
