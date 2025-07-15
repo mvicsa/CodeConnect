@@ -1,63 +1,38 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { CircleCheckIcon, CircleHelpIcon, CircleIcon } from "lucide-react";
-
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ChevronDown, LogOutIcon, UserIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
+import { useState } from "react";
+import Link from "next/link";
 
 export default function UserMenu() {
+  const [open, setOpen] = useState(false);
   return (
-    <NavigationMenu className="flex items-center  ">
-      <NavigationMenuList>
-        <NavigationMenuItem>
-          <NavigationMenuTrigger className="p-0 bg-transparent hover:bg-transparent focus:bg-transparent flex justify-center items-center">
-            <Avatar className="p-2">
-              <AvatarImage
-                src="https://github.com/shadcn.png"
-                alt="@shadcn"
-                className="h-8 w-8 rounded-full"
-              />
-              <AvatarFallback>CN</AvatarFallback>
-            </Avatar>
-            <div className="items-center hidden sm:flex">
-            persona
-            </div>
-          </NavigationMenuTrigger>
-          <NavigationMenuContent>
-            <ul className="grid md:w-[200px] w-[100px] gap-4">
-              <li>
-                <NavigationMenuLink asChild>
-                  <Link href="#" className="flex-row items-center gap-2">
-                    <CircleHelpIcon />
-                    Backlog
-                  </Link>
-                </NavigationMenuLink>
-                <NavigationMenuLink asChild>
-                  <Link href="#" className="flex-row items-center gap-2">
-                    <CircleIcon />
-                    To Do
-                  </Link>
-                </NavigationMenuLink>
-                <NavigationMenuLink asChild>
-                  <Link href="#" className="flex-row items-center gap-2">
-                    <CircleCheckIcon />
-                    Done
-                  </Link>
-                </NavigationMenuLink>
-              </li>
-            </ul>
-          </NavigationMenuContent>
-        </NavigationMenuItem>
-      </NavigationMenuList>
-    </NavigationMenu>
+    <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger className="flex items-center gap-2 !px-1 cursor-pointer hover:bg-card rounded-lg whitespace-nowrap">
+          <Avatar className="w-7 h-7 rounded-full flex items-center justify-center">
+            <AvatarImage className="rounded-full" src="https://github.com/shadcn.png" />
+            <AvatarFallback>CN</AvatarFallback>
+          </Avatar>
+          <span className="hidden md:block text-sm font-medium">John Doe</span>
+          <ChevronDown className={`w-4 h-4 transition-transform duration-300 hidden md:block ${open ? "rotate-180" : ""}`} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem className="cursor-pointer">
+          <Link href="/profile" className="flex items-center gap-2">
+            <UserIcon className="w-4 h-4" />
+            <span>Profile</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer">
+          <Link href="/logout" className="flex items-center gap-2">
+            <LogOutIcon className="w-4 h-4" />
+            <span>Logout</span>
+          </Link>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

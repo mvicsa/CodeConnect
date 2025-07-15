@@ -8,11 +8,9 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <>
+    <div className="mt-24 mb-24 md:mb-0">
       <MainNavBar />
-      <div className="w-full px-4 sm:px-6 lg:px-8 pt-16">
-        {children}
-      </div>
-    </>
+      {children}
+    </div>
   );
 }

@@ -8,8 +8,8 @@ export default function MobileMenuWithIcon({
 }: activeMenuProps) {
   return (
      <MobileMenu 
-              activeIndex={activeIndex}
-              setActiveIndex={setActiveIndex}
-            />
-          );
-        }
+      activeIndex={activeIndex}
+      setActiveIndex={setActiveIndex}
+    />
+  );
+}
