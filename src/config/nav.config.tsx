@@ -9,7 +9,7 @@ const navItems = [
   },
   {
     name: "Messages",
-    href: "/profile",
+    href: "/chat",
     iconFilled: <MessageCircleMore fill="currentColor" className="w-6 h-6" />,
     iconOutline: <MessageCircleMore  className="w-6 h-6" />,
   },

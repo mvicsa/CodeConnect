@@ -6,10 +6,8 @@ const withIntl = withNextIntl();
 
 const nextConfig: NextConfig = {
     images: {
-
-    domains: ['images.pexels.com'],
-
-},
+      domains: ['images.pexels.com', 'github.com'],
+    },
 };
 
 export default withIntl(nextConfig);

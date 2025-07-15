@@ -14,13 +14,7 @@ export function NavBarSearchInput() {
     type="text"
     placeholder="Search"
     onKeyDown={handleKeyDown}
-    className={cn(
-      "transition-all duration-300 ease-in-out",
-      "hidden sm:block w-[160px] focus:w-[240px]",
-      "h-[30px] text-sm text-gray-700 dark:text-gray-200",
-      "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700",
-      "rounded-4xl px-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-    )}
+    className="transition-all duration-300 ease-in-out hidden sm:block w-[160px] focus:w-[240px] rounded-full"
   />
 </div>
 
