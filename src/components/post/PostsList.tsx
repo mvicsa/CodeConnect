@@ -14,6 +14,7 @@ interface PostsListProps {
   error?: string | null
   onRefresh?: () => void
   className?: string
+  title?: string
 }
 
 export default function PostsList({
@@ -21,7 +22,8 @@ export default function PostsList({
   loading = false,
   error = null,
   onRefresh,
-  className = ''
+  className = '',
+  title = 'Timeline',
 }: PostsListProps) {
   const [localPosts, setLocalPosts] = useState<PostType[]>([])
   
@@ -59,7 +61,7 @@ export default function PostsList({
     <div className={`${className}`}>
       {/* Header */}
       <div className="flex items-center justify-between my-4">
-        <h2 className="text-2xl font-bold">Timeline</h2>
+        <h2 className="text-2xl font-bold">{title}</h2>
         {onRefresh && (
           <Button
             variant="outline"
@@ -77,7 +79,7 @@ export default function PostsList({
       {/* Posts */}
       <div className="space-y-4">
         {localPosts.map((post) => (
-          <Post key={post.id} post={post} />
+          <Post key={post._id} post={post} />
         ))}
       </div>
 

@@ -27,9 +27,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../ui/alert-dialog'
+import { toast } from 'sonner';
 
 const Post = memo(function Post({ post }: { post: PostType }) {
-  const { id, text, image, video, code, codeLang, tags, createdBy, createdAt, updatedAt, reactions, userReactions } = post;
+  const { _id, text, image, video, code, codeLang, tags, createdBy, createdAt, reactions, userReactions } = post;
   const t = useTranslations();
   const dispatch = useDispatch<AppDispatch>();
   const [showComments, setShowComments] = useState(false);
@@ -40,8 +41,8 @@ const Post = memo(function Post({ post }: { post: PostType }) {
   // Get comments count for this post
   const { comments } = useSelector((state: RootState) => state.comments)
   const commentsCount = useMemo(() => 
-    comments.filter(comment => comment.postId === id).length, 
-    [comments, id]
+    comments.filter(comment => comment.postId === _id).length, 
+    [comments, _id]
   )
   
   const toggleComments = () => {
@@ -67,9 +68,11 @@ const Post = memo(function Post({ post }: { post: PostType }) {
   const handleConfirmDelete = async () => {
     setIsDeleting(true);
     try {
-      await dispatch(deletePost(id)).unwrap();
+      await dispatch(deletePost({ id: _id, token: localStorage.getItem('token') || '' })).unwrap();
+      toast.success('Post deleted successfully!');
       setShowDeleteDialog(false);
     } catch (error) {
+      toast.error('Failed to delete post.');
       console.error('Failed to delete post:', error);
     } finally {
       setIsDeleting(false);
@@ -98,24 +101,28 @@ const Post = memo(function Post({ post }: { post: PostType }) {
           <CardHeader>
               <CardTitle className='flex items-center gap-2'>
                 <Link href="#">
-                  <UserAvatar />
+                  <UserAvatar src={createdBy?.avatar} firstName={createdBy?.firstName} />
                 </Link>
                 <div>
                   <div className='align-middle'>
-                    <Link href="#" className='text-xl font-medium me-1'>Shadcn</Link>
-                    <HoverCard>
-                      <HoverCardTrigger>
-                        <ShieldCheck className='size-5 text-primary inline-flex mb-1' />
-                      </HoverCardTrigger>
-                      <HoverCardContent className='text-sm w-auto p-2 uppercase'>
-                        { t('admin') }
-                      </HoverCardContent>
-                    </HoverCard>
+                    <Link href="#" className='text-lg font-medium me-1'>
+                      {createdBy?.firstName || ''}  {createdBy?.lastName || ''}
+                    </Link>
+                    {createdBy?.role === 'admin' && (
+                      <HoverCard>
+                        <HoverCardTrigger>
+                          <ShieldCheck className='size-5 text-primary inline-flex mb-1' />
+                        </HoverCardTrigger>
+                        <HoverCardContent className='text-sm w-auto p-2 uppercase'>
+                          {createdBy?.role || ''}
+                        </HoverCardContent>
+                      </HoverCard>
+                    )}
                   </div>
                   <div className='flex items-center font-light gap-2'>
-                    <Link href="#" className='text-sm text-muted-foreground'>@shadcn</Link>
+                    <Link href="#" className='text-sm text-muted-foreground'>@{createdBy?.username || ''}</Link>
                     <div className='w-1 h-1 bg-primary rounded-full' />
-                    <p className='text-sm text-primary'>1 hour ago</p>
+                    <p className='text-sm text-primary'>{createdAt ? new Date(createdAt).toLocaleString() : ''}</p>
                   </div>
                 </div>
               </CardTitle>
@@ -157,16 +164,8 @@ const Post = memo(function Post({ post }: { post: PostType }) {
           <CardFooter className='flex flex-col items-start gap-3'>
             <div className='flex items-center gap-4'>
               <ReactionMenu 
-                postId={id}
-                reactions={{
-                  like: 0,
-                  love: 0,
-                  wow: 0,
-                  funny: 0,
-                  dislike: 0,
-                  happy: 0,
-                  ...reactions
-                }}
+                postId={_id}
+                reactions={reactions}
                 userReactions={userReactions || []}
                 currentUserId="user1"
                 currentUsername="you"
@@ -181,7 +180,7 @@ const Post = memo(function Post({ post }: { post: PostType }) {
               <SendIcon className='size-5 text-muted-foreground' />
             </div>
             <div className={`w-full border-t border-border ${showComments ? 'block' : 'hidden'}`}>
-              <CommentSection postId={id} />
+              <CommentSection postId={_id} />
             </div>
           </CardFooter>
       </Card>
