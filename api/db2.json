@@ -588,8 +588,8 @@
       "createdAt": "2025-07-14T09:49:55.665Z",
       "updatedAt": "2025-07-14T09:49:55.665Z",
       "reactions": {
-        "like": 0,
-        "love": 1,
+        "like": 1,
+        "love": 0,
         "wow": 0,
         "funny": 0,
         "dislike": 0
@@ -598,8 +598,8 @@
         {
           "userId": "user1",
           "username": "you",
-          "reaction": "love",
-          "createdAt": "2025-07-14T09:52:53.651Z"
+          "reaction": "like",
+          "createdAt": "2025-07-15T13:31:26.424Z"
         }
       ]
     }

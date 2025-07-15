@@ -13,10 +13,6 @@ export default function NavItem({
   isActive,
   setActiveIndex,
 }: NavItemProps) {
-  React.useEffect(() => {
-    console.log("isActive", isActive);
-  }, [isActive]);
-
   return (
     <NavigationMenuItem
       asChild
