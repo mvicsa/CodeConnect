@@ -23,6 +23,8 @@ import {
 import CodeEditor from '../code/CodeEditor'
 import UserAvatar from '../UserAvatar'
 import { PostType } from '@/types/post'
+import { toast } from 'sonner';
+import { Toaster } from 'sonner';
 
 interface PostFormProps {
   mode: 'create' | 'edit'
@@ -199,21 +201,19 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
       }
 
       if (mode === 'create') {
-        const newPost: Omit<PostType, 'id'> = {
+        const newPost: Omit<PostType, '_id' | 'createdBy' | 'createdAt' | 'updatedAt'> = {
           text: content.text.trim(),
           code: content.code?.code.trim(),
           codeLang: content.code?.language,
           image: imageUrl,
           video: videoUrl,
           tags: content.tags,
-          createdBy: 'user1',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          reactions: { like: 0, love: 0, wow: 0, funny: 0, dislike: 0 },
+          reactions: { like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 },
           userReactions: []
         }
 
-        await dispatch(createPost(newPost))
+        await dispatch(createPost({ postData: newPost, token: localStorage.getItem('token') || '' })).unwrap();
+        toast.success('Post created successfully!');
         
         // Reset form for create mode
         setContent({
@@ -228,22 +228,24 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
         // Edit mode
         if (!post) return
 
-        const updatedPost: PostType = {
-          ...post,
+        const updatedPost: Partial<PostType> = {
           text: content.text.trim(),
           code: content.code?.code.trim(),
           codeLang: content.code?.language,
           image: imageUrl,
           video: videoUrl,
           tags: content.tags,
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
+          createdBy: post.createdBy
         }
 
-        await dispatch(updatePost({ id: post.id, data: updatedPost }))
+        await dispatch(updatePost({ id: post._id, data: updatedPost, token: localStorage.getItem('token') || '' })).unwrap();
+        toast.success('Post updated successfully!');
       }
       
       onSuccess()
     } catch (error) {
+      toast.error(`Failed to ${mode} post.`);
       console.error(`Failed to ${mode} post:`, error)
     } finally {
       setIsSubmitting(false)
@@ -271,7 +273,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
     <Card className={`w-full dark:border-none shadow-none gap-4 ${className}`}>
       <CardHeader>
         <div className="flex items-center gap-3">
-          <UserAvatar />
+          <UserAvatar src={post?.createdBy?.avatar} firstName={post?.createdBy?.firstName} />
           <div className="flex-1">
             <h3 className="font-semibold">{isEditMode ? 'Edit Post' : 'Create Post'}</h3>
             <p className="text-sm text-muted-foreground">
@@ -514,6 +516,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
           </Button>
         </div>
       </CardContent>
+      <Toaster position='bottom-right' richColors />
     </Card>
   )
 } 

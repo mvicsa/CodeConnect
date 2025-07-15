@@ -1,5 +1,7 @@
+import type { User } from './user';
+
 export interface UserReaction {
-  userId: string;
+  userId: string; // changed from User to string for compatibility
   username: string;
   reaction: string;
   createdAt: string;
@@ -11,19 +13,30 @@ export interface Reactions {
   wow: number;
   funny: number;
   dislike: number;
+  happy: number;
+}
+
+export interface CreatedBy {
+  _id: string;
+  username: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+  avatar?: string;
 }
 
 export interface PostType {
-  id: string,
-  text: string,
-  code?: string,
-  codeLang?: string,
-  video?: string,
-  image?: string,
-  tags?: string[],
-  createdBy: string,
-  createdAt: string,
-  updatedAt: string,
-  reactions?: Reactions,
-  userReactions?: UserReaction[],
+  _id: string;
+  text: string;
+  code?: string;
+  codeLang?: string;
+  video?: string;
+  image?: string;
+  tags?: string[];
+  createdBy: CreatedBy;
+  createdAt: string;
+  updatedAt: string;
+  reactions: Reactions;
+  userReactions: UserReaction[];
 }

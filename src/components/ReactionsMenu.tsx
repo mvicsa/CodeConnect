@@ -8,6 +8,7 @@ import { Heart } from "lucide-react";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import type { UserReaction } from '@/types/post';
 
 // Map your existing reaction images to the database structure
 const reactionImageMap = {
@@ -33,13 +34,8 @@ interface ReactionsMenuProps {
     dislike: number;
     happy: number;
   };
-  userReactions?: Array<{
-    userId: string;
-    username: string;
-    reaction: string;
-    createdAt: string;
-  }>;
-  currentUserId?: string;
+  userReactions?: UserReaction[];
+  currentUserId?: string; // Should be the user's _id from backend
   currentUsername?: string;
 }
 
@@ -55,8 +51,6 @@ export default function ReactionsMenu({
   currentUsername = "you"
 }: ReactionsMenuProps) {
   const { 
-    reactionTypes, 
-    loading: initialLoading, 
     handlePostReaction, 
     handleCommentReaction,
     handleReplyReaction,
@@ -69,7 +63,9 @@ export default function ReactionsMenu({
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // Get current user's reaction
-  const currentUserReactionType = getCurrentUserReaction(userReactions, currentUserId);
+  const currentUserReactionType = userReactions.find(
+    ur => ur.userId && typeof ur.userId === 'object' && ur.userId._id === currentUserId
+  )?.reaction || null;
   const selectedReaction = currentUserReactionType ? reactionImageMap[currentUserReactionType as keyof typeof reactionImageMap] : null;
 
   // Calculate total reactions
@@ -129,7 +125,7 @@ export default function ReactionsMenu({
       
       if (postId) {
         console.log('📝 Processing POST reaction');
-        result = await handlePostReaction(postId, currentUserId, currentUsername, reactionName);
+        result = await handlePostReaction(postId, reactionName);
       } else if (commentId && !replyId) {
         console.log('💬 Processing COMMENT reaction');
         result = await handleCommentReaction(commentId, currentUserId, currentUsername, reactionName);
@@ -153,10 +149,7 @@ export default function ReactionsMenu({
     }
   };
 
-  // Only show loading during initial reaction types fetch, not during reaction selection
-  if (initialLoading && reactionTypes.length === 0) {
-    return <div className="animate-pulse">Loading...</div>;
-  }
+  // Remove the loading check for initialLoading and reactionTypes
 
   return (
     <div className="flex items-center gap-2">
@@ -233,11 +226,11 @@ export default function ReactionsMenu({
                     {allUsers.map((u, idx) => (
                       <div key={u.userId + u.reaction + idx} className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src={`/avatars/${u.username}.jpg`} alt={u.username} />
-                          <AvatarFallback className="text-xs">{u.username.charAt(0).toUpperCase()}</AvatarFallback>
+                          <AvatarImage src={u.userId.avatar} alt={u.userId._id} />
+                          <AvatarFallback className="text-xs">{`${u.userId?.firstName?.charAt(0)?.toUpperCase() || ''}${u.userId?.lastName ? u.userId.lastName.charAt(0).toUpperCase() : ''}`}</AvatarFallback>
                         </Avatar>
                         <Image src={reactionImageMap[u.reaction as keyof typeof reactionImageMap]} alt={u.reaction} width={20} height={20} />
-                        <span className="font-medium">{u.username}</span>
+                        <span className="font-medium">{u.userId?.firstName || ''} {u.userId?.lastName || ''}</span>
                         <span className="text-xs text-muted-foreground">({u.reaction})</span>
                       </div>
                     ))}
@@ -251,11 +244,11 @@ export default function ReactionsMenu({
                     {usersByReaction[rt].map((u, idx) => (
                       <div key={u.userId + u.reaction + idx} className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src={`/avatars/${u.username}.jpg`} alt={u.username} />
-                          <AvatarFallback className="text-xs">{u.username.charAt(0).toUpperCase()}</AvatarFallback>
+                          <AvatarImage src={u.userId.avatar} alt={u.userId._id} />
+                          <AvatarFallback className="text-xs">{`${u.userId?.firstName?.charAt(0)?.toUpperCase() || ''}${u.userId?.lastName ? u.userId.lastName.charAt(0).toUpperCase() : ''}`}</AvatarFallback>
                         </Avatar>
                         <Image src={reactionImageMap[rt]} alt={rt} width={20} height={20} />
-                        <span className="font-medium">{u.username}</span>
+                        <span className="font-medium">{u.userId?.firstName || ''} {u.userId?.lastName || ''}</span>
                         <span className="text-xs text-muted-foreground">({u.reaction})</span>
                       </div>
                     ))}

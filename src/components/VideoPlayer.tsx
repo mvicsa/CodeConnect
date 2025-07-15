@@ -1,5 +1,6 @@
 'use client'
 
+import { Loader2 } from 'lucide-react'
 import { useEffect, useState, memo } from 'react'
 
 interface VideoPlayerProps {
@@ -34,8 +35,10 @@ const VideoPlayer = memo(function VideoPlayer({ source, className = '' }: VideoP
 
   if (!isMounted || !PlyrComponent) {
     return (
-      <div className={`${className} bg-muted rounded-lg flex items-center justify-center`} style={{ aspectRatio: '16/9' }}>
-        <div className="text-muted-foreground">Loading video player...</div>
+      <div className={`${className} bg-background rounded-lg flex items-center justify-center`} style={{ aspectRatio: '16/9' }}>
+        <div className="text-muted-foreground">
+          <Loader2 className='size-6 animate-spin' />
+        </div>
       </div>
     )
   }

@@ -3,7 +3,7 @@ import axios from 'axios'
 import { PostType } from '@/types/post'
 import { addPostReaction } from './reactionsSlice'
 
-const API_URL = 'http://localhost:3001/posts'
+const API_URL = 'http://localhost:5000/posts'
 
 type PostsState = {
   posts: PostType[]
@@ -23,57 +23,78 @@ const initialState: PostsState = {
   limit: 10
 }
 
-export const fetchPosts = createAsyncThunk<PostType[], { page?: number; limit?: number; refresh?: boolean }>(
+// Fetch all posts with pagination and type filter
+export const fetchPosts = createAsyncThunk<PostType[], { page?: number; limit?: number; type?: string; refresh?: boolean }>(
   'posts/fetchPosts',
-  async ({ page = 1, limit = 10, refresh = false }) => {
-    console.log('Fetching posts:', { page, limit, refresh })
-    
-    // Get all posts and sort them properly, then paginate manually
-    const url = `${API_URL}?_sort=createdAt&_order=desc`
-    console.log('API URL:', url)
-    
+  async ({ page = 1, limit = 10, type, refresh = false }) => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+    if (type) params.append('type', type)
+    const url = `${API_URL}?${params.toString()}`
     const response = await axios.get(url)
-    console.log('API response:', response.data)
-    
-    // Extract posts from the data property
-    const allPosts = response.data.data || response.data
-    console.log('All posts from API:', allPosts.map((p: PostType) => ({ id: p.id, createdAt: p.createdAt })))
-    
-    // Sort all posts by createdAt DESC to ensure proper order
-    const sortedAllPosts = allPosts.sort((a: PostType, b: PostType) => {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    })
-    
-    // Manual pagination
-    const startIndex = (page - 1) * limit
-    const endIndex = startIndex + limit
-    const paginatedPosts = sortedAllPosts.slice(startIndex, endIndex)
-    
-    console.log(`Page ${page}: posts ${startIndex}-${endIndex}:`, paginatedPosts.map((p: PostType) => ({ id: p.id, createdAt: p.createdAt })))
-    return paginatedPosts
-  }
-)
-
-export const createPost = createAsyncThunk<PostType, Omit<PostType, 'id'>>(
-  'posts/createPost',
-  async (postData) => {
-    const response = await axios.post<PostType>(API_URL, postData)
     return response.data
   }
 )
 
-export const updatePost = createAsyncThunk<PostType, { id: string; data: Partial<PostType> }>(
-  'posts/updatePost',
-  async ({ id, data }) => {
-    const response = await axios.put<PostType>(`${API_URL}/${id}`, data)
+// Fetch posts by tag
+export const fetchPostsByTag = createAsyncThunk<PostType[], { tag: string; page?: number; limit?: number }>(
+  'posts/fetchPostsByTag',
+  async ({ tag, page = 1, limit = 10 }) => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+    const url = `${API_URL}/tag/${tag}?${params.toString()}`
+    const response = await axios.get(url)
     return response.data
   }
 )
 
-export const deletePost = createAsyncThunk<string, string>(
-  'posts/deletePost',
+// Fetch posts by user
+export const fetchPostsByUser = createAsyncThunk<PostType[], { userId: string; page?: number; limit?: number }>(
+  'posts/fetchPostsByUser',
+  async ({ userId, page = 1, limit = 10 }) => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+    const url = `${API_URL}/user/${userId}?${params.toString()}`
+    const response = await axios.get(url)
+    return response.data
+  }
+)
+
+// Fetch post by ID
+export const fetchPostById = createAsyncThunk<PostType, string>(
+  'posts/fetchPostById',
   async (id) => {
-    await axios.delete(`${API_URL}/${id}`)
+    const response = await axios.get(`${API_URL}/${id}`)
+    return response.data
+  }
+)
+
+// Create post (requires Bearer token)
+export const createPost = createAsyncThunk<PostType, { postData: Omit<PostType, '_id' | 'createdBy' | 'createdAt' | 'updatedAt'>; token: string }>(
+  'posts/createPost',
+  async ({ postData, token }) => {
+    const response = await axios.post(API_URL, postData, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    return response.data
+  }
+)
+
+// Update post (requires Bearer token)
+export const updatePost = createAsyncThunk<PostType, { id: string; data: Partial<PostType>; token: string }>(
+  'posts/updatePost',
+  async ({ id, data, token }) => {
+    const response = await axios.put(`${API_URL}/${id}`, data, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    return response.data
+  }
+)
+
+// Delete post (requires Bearer token)
+export const deletePost = createAsyncThunk<string, { id: string; token: string }>(
+  'posts/deletePost',
+  async ({ id, token }) => {
+    await axios.delete(`${API_URL}/${id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
     return id
   }
 )
@@ -87,7 +108,7 @@ const postsSlice = createSlice({
       state.posts.unshift(action.payload)
     },
     editPost: (state, action: PayloadAction<{ id: string; data: Partial<PostType> }>) => {
-      const index = state.posts.findIndex(p => p.id === action.payload.id)
+      const index = state.posts.findIndex(p => p._id === action.payload.id)
       if (index !== -1) {
         state.posts[index] = { ...state.posts[index], ...action.payload.data }
       }
@@ -131,8 +152,8 @@ const postsSlice = createSlice({
         } else {
           // Pagination mode - append posts at the end without resorting
           // This maintains the scroll position and prevents posts from jumping around
-          const existingIds = new Set(state.posts.map(post => post.id))
-          const uniqueNewPosts = newPosts.filter(post => !existingIds.has(post.id))
+          const existingIds = new Set(state.posts.map(post => post._id))
+          const uniqueNewPosts = newPosts.filter(post => !existingIds.has(post._id))
           
           // Simply append new posts at the end
           // The API should return posts in the correct order (newest first for page 1, older for page 2+)
@@ -165,19 +186,23 @@ const postsSlice = createSlice({
       })
       // Update Post
       .addCase(updatePost.fulfilled, (state, action) => {
-        const index = state.posts.findIndex(p => p.id === action.payload.id)
+        const index = state.posts.findIndex(p => p._id === action.payload._id)
         if (index !== -1) {
-          state.posts[index] = action.payload
+          state.posts[index] = {
+            ...state.posts[index],
+            ...action.payload,
+            createdBy: action.payload.createdBy || state.posts[index].createdBy
+          }
         }
       })
       // Delete Post
       .addCase(deletePost.fulfilled, (state, action) => {
-        state.posts = state.posts.filter(p => p.id !== action.payload)
+        state.posts = state.posts.filter(p => p._id !== action.payload)
       })
       // Update post reactions (from reactions slice)
       .addCase(addPostReaction.fulfilled, (state, action) => {
         const { postId, reactions, userReactions } = action.payload
-        const postIndex = state.posts.findIndex(p => p.id === postId)
+        const postIndex = state.posts.findIndex(p => p._id === postId)
         if (postIndex !== -1) {
           // Create a new post object only if reactions changed
           const currentPost = state.posts[postIndex]

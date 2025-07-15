@@ -3,7 +3,6 @@ import { AppDispatch, RootState } from '../store/store'
 import { 
   addPostReaction, 
   addCommentReaction, 
-  fetchReactionTypes,
   updatePostReactions,
   updateCommentReactions
 } from '../store/slices/reactionsSlice'
@@ -19,27 +18,18 @@ import { Reactions, UserReaction } from '@/types/comments'
 
 export const useReactions = () => {
   const dispatch = useDispatch<AppDispatch>()
-  const { reactionTypes, loading, error, postReactions, commentReactions } = useSelector((state: RootState) => state.reactions)
+  const { postReactions, commentReactions } = useSelector((state: RootState) => state.reactions)
   const { comments } = useSelector((state: RootState) => state.comments)
   const { posts } = useSelector((state: RootState) => state.posts)
   const pendingReactionsRef = useRef<Set<string>>(new Set())
 
-  // Fetch reaction types on mount
-  useEffect(() => {
-    if (reactionTypes.length === 0) {
-      dispatch(fetchReactionTypes())
-    }
-  }, [dispatch, reactionTypes.length])
-
   // Add/remove post reaction
   const handlePostReaction = useCallback(async (
     postId: string,
-    userId: string,
-    username: string,
     reaction: string
   ) => {
     // Create a unique key for this reaction attempt
-    const reactionKey = `${postId}-${userId}-${reaction}`
+    const reactionKey = `${postId}-${reaction}`
     
     // Check if this reaction is already pending
     if (pendingReactionsRef.current.has(reactionKey)) {
@@ -51,28 +41,23 @@ export const useReactions = () => {
     pendingReactionsRef.current.add(reactionKey)
     
     try {
-      console.log('🚀 handlePostReaction called:', { postId, userId, username, reaction })
+      console.log('🚀 handlePostReaction called:', { postId, reaction })
       
       const result = await dispatch(addPostReaction({
         postId,
-        userId,
-        username,
-        reaction
+        reaction,
+        token: localStorage.getItem('token') || ''
       })).unwrap()
       
       console.log('✅ addPostReaction result:', result)
       
       // Update reactions slice state immediately for better UX
       if (result) {
-        console.log('🔄 Updating reactions slice with:', result)
         dispatch(updatePostReactions({
           postId,
           reactions: result.reactions,
           userReactions: result.userReactions
         }))
-        
-        // Also update the posts slice state to keep them in sync
-        console.log('🔄 Updating posts slice with:', { id: postId, data: { reactions: result.reactions, userReactions: result.userReactions } })
         dispatch(editPost({
           id: postId,
           data: {
@@ -82,7 +67,6 @@ export const useReactions = () => {
         }))
       }
       
-      console.log('🎉 handlePostReaction completed successfully')
       return { success: true, data: result }
     } catch (error) {
       console.error('❌ Failed to add post reaction:', error)
@@ -117,7 +101,8 @@ export const useReactions = () => {
         commentId,
         userId,
         username,
-        reaction
+        reaction,
+        token: localStorage.getItem('token') || ''
       })).unwrap()
       
       // Update reactions slice state immediately for better UX
@@ -163,7 +148,7 @@ export const useReactions = () => {
         throw new Error('Reply not found')
       }
 
-      const currentReactions = reply.reactions || { like: 0, love: 0, wow: 0, funny: 0, dislike: 0 }
+      const currentReactions = reply.reactions || { like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 }
       const currentUserReactions = reply.userReactions || []
       
       // Check if user already reacted
@@ -255,18 +240,15 @@ export const useReactions = () => {
 
   // Get reactions for a post from Redux state
   const getPostReactions = useCallback((postId: string) => {
-    return postReactions[postId] || { reactions: { like: 0, love: 0, wow: 0, funny: 0, dislike: 0 }, userReactions: [] }
+    return postReactions[postId] || { reactions: { like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 }, userReactions: [] }
   }, [postReactions])
 
   // Get reactions for a comment from Redux state
   const getCommentReactions = useCallback((commentId: string) => {
-    return commentReactions[commentId] || { reactions: { like: 0, love: 0, wow: 0, funny: 0, dislike: 0 }, userReactions: [] }
+    return commentReactions[commentId] || { reactions: { like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 }, userReactions: [] }
   }, [commentReactions])
 
   return {
-    reactionTypes,
-    loading,
-    error,
     handlePostReaction,
     handleCommentReaction,
     handleReplyReaction,
