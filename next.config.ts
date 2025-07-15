@@ -1,11 +1,12 @@
-import { NextConfig } from 'next';
+
+import { type NextConfig } from 'next';
 import withNextIntl from 'next-intl/plugin';
 
 const withIntl = withNextIntl();
 
 const nextConfig: NextConfig = {
     images: {
-        domains: ['github.com'],
+      domains: ['images.pexels.com', 'github.com'],
     },
 };
 
