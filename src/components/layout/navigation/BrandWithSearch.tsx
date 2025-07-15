@@ -1,24 +1,21 @@
 "use client";
 import Logo from "@/components/Logo";
-import { NavigationMenu } from "@/components/ui/navigation-menu";
 import Link from "next/link";
 import React from "react";
 import { NavBarSearchInput } from "./NavBarSearchInput";
-import { useParams } from "next/navigation";
+import { SheetD } from "../sidebar/Sheet";
 
 export default function BrandWithSearch() {
-  const { locale } = useParams();
-  const isRTL = locale === "ar";
 
   return (
-    <NavigationMenu
-      dir={isRTL ? "rtl" : "ltr"}
+    <div
       className="flex items-center justify-start gap-4 px-1 py-2 rounded-md"
     >
+      <SheetD />
       <Link href="/" className="flex items-center">
         <Logo className="h-10 w-auto" />
       </Link>
       <NavBarSearchInput />
-    </NavigationMenu>
+    </div>
   );
 }

@@ -1,30 +1,35 @@
-import { AppSidebar } from "@/components/layout/sidebar/AppSidebar";
+
+import { Sidebar } from "@/components/layout/sidebar/Sidebar";
 import CreatePostWrapper from "@/components/post/CreatePostWrapper";
 import PostsListContainer from "@/components/post/PostsListContainer";
-import { SidebarProvider } from "@/components/ui/sidebar";
 import { useTranslations } from "next-intl";
+import Container from "@/components/Container";
 
 export default function Home() {
   const t = useTranslations();
 
   return (
-    <div className="container mx-auto">
-      <SidebarProvider>
-        <div className="grid grid-cols-12 gap-4 w-full">
-          <div className="col-span-3">
-            <AppSidebar />
-          </div>
-          <div className="col-span-6">
-            <main className="w-full space-y-6 my-6">
-              <CreatePostWrapper />
-              <PostsListContainer />
-            </main>
-          </div>
-          <div className="col-span-3">
-
-          </div>
+    <Container>
+      <div className="grid grid-cols-12 gap-6">
+        {/* Left Sidebar (visible on desktop, hidden on mobile) */}
+        <div className="md:col-span-4 xl:col-span-3 hidden md:block">
+          <Sidebar />
         </div>
-      </SidebarProvider>
-    </div>
+
+        {/* Main Content */}
+        <div className="col-span-12 md:col-span-8 xl:col-span-6">
+          <main className="w-full space-y-6">
+            <CreatePostWrapper />
+            <PostsListContainer />
+          </main>
+        </div>
+
+        {/* Right Sidebar - Placeholder or content */}
+        <div className="lg:col-span-3 hidden xl:block ">
+          {/* Optional right sidebar content */}
+          Right Sidebar
+        </div>
+      </div>
+    </Container>
   );
 }
