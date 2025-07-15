@@ -1,7 +1,7 @@
 import type { User } from './user';
 
 export interface UserReaction {
-  userId: User; // now a populated user object!
+  userId: string; // changed from User to string for compatibility
   username: string;
   reaction: string;
   createdAt: string;
