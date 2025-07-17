@@ -6,10 +6,8 @@ import {
   PencilIcon,
   TrashIcon,
   FlagIcon,
-  CheckIcon,
   XIcon,
   ChevronDown,
-  ShieldCheck
 } from 'lucide-react'
 import ReplyForm from './ReplyForm'
 import CommentEditor from './CommentEditor'
@@ -40,43 +38,13 @@ import {
   addReplyAsync,
   deleteCommentOrReplyAsync,
   editCommentOrReplyAsync,
-  updateCommentReactionsAsync, // <-- add this import
-  updateReplyReactionsAsync, // <-- add this import
   fetchReplies
 } from '@/store/slices/commentsSlice'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { Comment, Reply, User } from '@/types/comments'
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
 import Link from 'next/link'
 import AdminBadge from '../AdminBadge'
 
-// Define types for different reply structures
-interface ApiReply {
-  _id?: string;
-  id?: string | number;
-  parentCommentId?: string;
-  postId?: string;
-  user?: {
-    _id?: string;
-    name?: string;
-    username?: string;
-  };
-  createdBy?: any;
-  content?: {
-    text?: string;
-    code?: {
-      code?: string;
-      language?: string;
-    };
-  };
-  text?: string;
-  code?: string;
-  codeLang?: string;
-  createdAt?: string | Date;
-  reactions?: any;
-  userReactions?: any[];
-  role?: string;
-}
 
 // Define CommentContent type
 interface CommentContent {
@@ -258,45 +226,6 @@ export default function CommentItem({
     setOpenDelete(false)
   }
 
-  // Handle view replies click
-  const handleViewReplies = () => {
-    if (has_id(comment)) {
-      // Fetch replies only when viewing
-      dispatch(fetchReplies(comment._id))
-        .unwrap()
-        .then(() => {
-          setShowReplies(true);
-          // Show 2 more replies in addition to what's already visible
-          setVisibleReplies(prev => Math.max(prev + 2, 2));
-        });
-    }
-  };
-
-  // Reaction handler
-  const handleReact = (reaction: string) => {
-    const commentId = has_id(comment) ? comment._id : String((comment as any).id);
-    
-    if (!commentId) {
-      console.error('Cannot add reaction: No valid comment ID');
-      return;
-    }
-    
-    if (isReply) {
-      // For replies, we need the parent comment ID
-      dispatch(updateReplyReactionsAsync({
-        parentCommentId: rootCommentId,
-        replyId: commentId,
-        reaction
-      }))
-    } else {
-      // For top-level comments
-      dispatch(updateCommentReactionsAsync({
-        commentId,
-        reaction
-      }))
-    }
-  }
-
   return (
     <div className="flex gap-3 items-start">
       <UserAvatar src={hasCreatedBy(comment) ? (comment.createdBy.avatar || '') : ''} firstName={hasCreatedBy(comment) ? (comment.createdBy.firstName || '') : ((comment as any).user?.name || '')} />
@@ -422,7 +351,7 @@ export default function CommentItem({
         )}
 
         {/* Replies Section */}
-        <div className="mt-4 space-y-2">
+        <div className={`${(comment as Comment).replies?.length > 0 && visibleReplies > 0 ? 'mt-4' : ''} space-y-2`}>
           {/* Show replies */}
           {visibleRepliesList.map((replyData, index) => (
             <div key={replyData._id || `reply-${index}`} className="reply-item">

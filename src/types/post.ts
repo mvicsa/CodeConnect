@@ -39,4 +39,5 @@ export interface PostType {
   updatedAt: string;
   reactions: Reactions;
   userReactions: UserReaction[];
+  hasAiSuggestions?: boolean;
 }

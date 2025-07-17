@@ -1,7 +1,7 @@
 import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card'
 import Link from 'next/link'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
-import { EllipsisVerticalIcon, FlagIcon, MessageCircleMore, PencilIcon, SendIcon, TrashIcon } from 'lucide-react'
+import { BotIcon, EllipsisVerticalIcon, FlagIcon, MessageCircleMore, PencilIcon, SendIcon, TrashIcon } from 'lucide-react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import ReactionMenu from '../ReactionsMenu'
@@ -28,9 +28,10 @@ import {
 } from '../ui/alert-dialog'
 import { toast } from 'sonner';
 import AdminBadge from '../AdminBadge'
+import AIBadge from '../AiBadge'
 
 const Post = memo(function Post({ post }: { post: PostType }) {
-  const { _id, text, image, video, code, codeLang, tags, createdBy, createdAt, reactions, userReactions } = post;
+  const { _id, text, image, video, code, codeLang, tags, createdBy, createdAt, reactions, userReactions, hasAiSuggestions } = post;
   const t = useTranslations();
   const dispatch = useDispatch<AppDispatch>();
   const [showComments, setShowComments] = useState(false);
@@ -164,7 +165,7 @@ const Post = memo(function Post({ post }: { post: PostType }) {
             { tags && <Tags tags={ tags } /> }
           </CardContent>
           <CardFooter className='flex flex-col items-start gap-3'>
-            <div className='flex items-center gap-4'>
+            <div className='flex items-center gap-4 w-full'>
               <ReactionMenu 
                 postId={_id}
                 reactions={reactions}
@@ -177,12 +178,17 @@ const Post = memo(function Post({ post }: { post: PostType }) {
                 className='flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer'
               >
                 <MessageCircleMore className='size-5' />
-                {commentsCount > 0 && <span className="text-sm font-medium">{commentsCount}</span>}
+                {(commentsCount > 0 || hasAiSuggestions) && <span className="text-sm font-medium">{commentsCount + (hasAiSuggestions ? 1 : 0)}</span>}
               </button>
               <SendIcon className='size-5 text-muted-foreground' />
+              {hasAiSuggestions && (
+                <span className='ms-auto'>
+                  <BotIcon className='size-5 text-primary' />
+                </span>
+              )}
             </div>
-            <div className={`w-full border-t border-border ${showComments ? 'block' : 'hidden'}`}>
-              <CommentSection postId={_id} />
+            <div className={`w-full border-t border-border pt-4 ${showComments ? 'block' : 'hidden'}`}>
+              <CommentSection postId={_id} hasAiSuggestions={hasAiSuggestions} />
             </div>
           </CardFooter>
       </Card>

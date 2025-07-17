@@ -96,9 +96,9 @@ export default function CommentEditor({
   }
 
   return (
-    <div className="border-0 shadow-none my-4">
+    <div className="border-0 shadow-none">
         {/* Text Editor */}
-        <div className="relative mb-3">
+        <div className="relative">
           <Textarea
             value={content.text}
             onChange={(e) => setContent(prev => ({ ...prev, text: e.target.value }))}
