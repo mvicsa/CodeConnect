@@ -7,7 +7,7 @@ import { fetchComments, addCommentAsync } from '@/store/slices/commentsSlice'
 import CommentItem from './CommentItem'
 import CommentEditor from './CommentEditor'
 import { MessageCircle, ChevronDown } from 'lucide-react'
-import { Comment, CommentContent } from '@/types/comments'
+import { Comment } from '@/types/comments'
 import { Button } from '../ui/button'
 
 interface CommentSectionProps {
@@ -18,42 +18,47 @@ interface CommentSectionProps {
 const CommentSection = memo(function CommentSection({ postId, className = '' }: CommentSectionProps) {
   const dispatch = useDispatch<AppDispatch>()
   const { comments, loading } = useSelector((state: RootState) => state.comments)
-  const [activeReplyId, setActiveReplyId] = useState<number | null>(null)
+  const [activeReplyId, setActiveReplyId] = useState<string | null>(null)
   const [mentionUser, setMentionUser] = useState('')
   const [visibleComments, setVisibleComments] = useState(3) // Show 3 comments initially
 
-  // Filter comments for this specific post - memoize to prevent unnecessary re-renders
-  const postComments = useMemo(() => 
-    comments.filter(comment => comment.postId === postId), 
-    [comments, postId]
-  )
+  const user = useSelector((state: RootState) => state.auth.user)
+
+  // Filter comments for this specific post
+  const postComments = useMemo(() => {
+    return comments.filter(comment => comment.postId === postId);
+  }, [comments, postId]);
 
   // Get visible comments based on pagination
-  const visibleCommentsList = useMemo(() => 
-    postComments.slice(0, visibleComments), 
-    [postComments, visibleComments]
-  )
+  const visibleCommentsList = useMemo(() => {
+    return postComments.slice(0, visibleComments);
+  }, [postComments, visibleComments]);
 
   // Check if there are more comments to load
   const hasMoreComments = postComments.length > visibleComments
 
   useEffect(() => {
     // Fetch comments when component mounts
-    dispatch(fetchComments())
-  }, [dispatch])
+    dispatch(fetchComments(postId))
+      .unwrap()
+      .then()
+      .catch(error => {
+        console.error('Failed to fetch comments:', error);
+      });
+  }, [dispatch, postId]);
 
-  const handleAddComment = async (content: CommentContent) => {
+  const handleAddComment = async (content: { text: string, code: string, codeLang: string }) => {
     try {
-      const newComment: Omit<Comment, 'id'> = {
-        postId,
-        user: { name: 'You', username: 'you' },
-        content,
+      const newComment = {
+        postId: postId, // use the prop directly
+        createdBy: user?._id,
+        text: content.text,
+        code: content.code,
+        codeLang: content.codeLang,
         createdAt: new Date(),
         reactions: { like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 },
-        userReactions: [],
-        replies: []
+        userReactions: []
       }
-
       await dispatch(addCommentAsync(newComment))
       console.log('Comment added successfully')
     } catch (error) {
@@ -65,7 +70,7 @@ const CommentSection = memo(function CommentSection({ postId, className = '' }: 
     setVisibleComments(prev => prev + 3) // Load 3 more comments
   }
 
-  if (loading) {
+  if (loading && postComments.length === 0) {
     return (
       <div className={`space-y-4 ${className}`}>
         <div className="animate-pulse">
@@ -82,20 +87,21 @@ const CommentSection = memo(function CommentSection({ postId, className = '' }: 
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Comment Form */}
-      <CommentEditor
-        initialValue={{ text: '' }}
-        onSubmit={handleAddComment}
-        placeholder="Write a comment..."
-      />
-
+      { user && (
+        <CommentEditor
+          initialValue={{ text: '', code: '', codeLang: '' }}
+          onSubmit={handleAddComment}
+          placeholder="Write a comment..."
+        />
+      )}
       {/* Comments List */}
-      <div className="space-y-4">
+      <div className="space-y-4 mt-4">
         {visibleCommentsList.map((comment) => (
           <CommentItem
-            key={comment.id}
+            key={comment._id}
             comment={comment}
             activeReplyId={activeReplyId}
-            setActiveReplyId={(id) => setActiveReplyId(id as number | null)}
+            setActiveReplyId={(id) => setActiveReplyId(id)}
             mentionUser={mentionUser}
             setMentionUser={setMentionUser}
           />
@@ -103,7 +109,7 @@ const CommentSection = memo(function CommentSection({ postId, className = '' }: 
       </div>
 
       {/* Load More Button */}
-      {hasMoreComments && (
+      {postComments.length > 0 && hasMoreComments && (
         <div className="flex justify-center pt-2">
           <Button
             variant="ghost"
@@ -118,9 +124,9 @@ const CommentSection = memo(function CommentSection({ postId, className = '' }: 
       )}
 
       {/* No Comments */}
-      {postComments.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          <MessageCircle className="size-8 mx-auto mb-2 opacity-50" />
+      {postComments.length === 0 && !loading && (
+        <div className="text-center py-6 text-muted-foreground">
+          <MessageCircle className="size-8 mx-auto mb-3 opacity-50" />
           <p>No comments yet. Be the first to comment!</p>
         </div>
       )}

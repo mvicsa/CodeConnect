@@ -1,9 +1,8 @@
 import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card'
 import Link from 'next/link'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
-import { EllipsisVerticalIcon, FlagIcon, MessageCircleMore, PencilIcon, SendIcon, ShieldCheck, TrashIcon } from 'lucide-react'
+import { EllipsisVerticalIcon, FlagIcon, MessageCircleMore, PencilIcon, SendIcon, TrashIcon } from 'lucide-react'
 import Image from 'next/image'
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '../ui/hover-card'
 import { useTranslations } from 'next-intl'
 import ReactionMenu from '../ReactionsMenu'
 import VideoPlayer from '../VideoPlayer'
@@ -28,6 +27,7 @@ import {
   AlertDialogTitle,
 } from '../ui/alert-dialog'
 import { toast } from 'sonner';
+import AdminBadge from '../AdminBadge'
 
 const Post = memo(function Post({ post }: { post: PostType }) {
   const { _id, text, image, video, code, codeLang, tags, createdBy, createdAt, reactions, userReactions } = post;
@@ -37,6 +37,8 @@ const Post = memo(function Post({ post }: { post: PostType }) {
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const { user } = useSelector((state: RootState) => state.auth)
   
   // Get comments count for this post
   const { comments } = useSelector((state: RootState) => state.comments)
@@ -100,60 +102,60 @@ const Post = memo(function Post({ post }: { post: PostType }) {
       <Card className='w-full  gap-4 shadow-none dark:border-transparent'>
           <CardHeader>
               <CardTitle className='flex items-center gap-2'>
-                <Link href="#">
+                <Link href={`/profile/${createdBy?.username}`}>
                   <UserAvatar src={createdBy?.avatar} firstName={createdBy?.firstName} />
                 </Link>
                 <div>
                   <div className='align-middle'>
-                    <Link href="#" className='text-lg font-medium me-1'>
+                    <Link href={`/profile/${createdBy?.username}`} className='text-lg font-medium me-1'>
                       {createdBy?.firstName || ''}  {createdBy?.lastName || ''}
                     </Link>
                     {createdBy?.role === 'admin' && (
-                      <HoverCard>
-                        <HoverCardTrigger>
-                          <ShieldCheck className='size-5 text-primary inline-flex mb-1' />
-                        </HoverCardTrigger>
-                        <HoverCardContent className='text-sm w-auto p-2 uppercase'>
-                          {createdBy?.role || ''}
-                        </HoverCardContent>
-                      </HoverCard>
+                      <AdminBadge role={createdBy?.role} size='sm' />
                     )}
                   </div>
                   <div className='flex items-center font-light gap-2'>
-                    <Link href="#" className='text-sm text-muted-foreground'>@{createdBy?.username || ''}</Link>
+                    <Link href={`/profile/${createdBy?.username}`} className='text-sm text-muted-foreground'>@{createdBy?.username || ''}
+                    </Link>
                     <div className='w-1 h-1 bg-primary rounded-full' />
                     <p className='text-sm text-primary'>{createdAt ? new Date(createdAt).toLocaleString() : ''}</p>
                   </div>
                 </div>
               </CardTitle>
               <CardAction>
-                <DropdownMenu modal={false}>
-                  <DropdownMenuTrigger className='cursor-pointer outline-none'>
-                    <EllipsisVerticalIcon className='size-4 text-muted-foreground' />
-                  </DropdownMenuTrigger>
-                    <DropdownMenuContent align='end'>
-                      <DropdownMenuItem className='cursor-pointer' onClick={handleEdit}>
-                        <PencilIcon className='size-4' />
-                        { t('edit') }
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        className='cursor-pointer' 
-                        onClick={handleDelete}
-                      >
-                        <TrashIcon className='size-4' />
-                        { t('delete') }
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className='cursor-pointer'>
-                        <FlagIcon className='size-4' />
-                        { t('report') }
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                {user && (
+                  <DropdownMenu modal={false}>
+                    <DropdownMenuTrigger className='cursor-pointer outline-none'>
+                      <EllipsisVerticalIcon className='size-4 text-muted-foreground' />
+                    </DropdownMenuTrigger>
+                      <DropdownMenuContent align='end'>
+                        {user?._id === createdBy?._id && (
+                          <>
+                            <DropdownMenuItem className='cursor-pointer' onClick={handleEdit}>
+                              <PencilIcon className='size-4' />
+                              { t('edit') }
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className='cursor-pointer' 
+                              onClick={handleDelete}
+                            >
+                              <TrashIcon className='size-4' />
+                              { t('delete') }
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        <DropdownMenuItem className='cursor-pointer'>
+                          <FlagIcon className='size-4' />
+                          { t('report') }
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </CardAction>
           </CardHeader>
           <CardContent className='flex flex-col gap-4'>
             { text && <p>{ text }</p> }
-            { image && <Image src="https://github.com/shadcn.png" alt="Shadcn" width={500} height={500} className='w-full max-h-96 rounded-lg object-cover' /> }
+            { image && <Image src={image} alt={text || ''} width={500} height={500} className='w-full max-h-96 rounded-lg object-cover' /> }
             { video && <VideoPlayer source={video} /> }
             { code && <CodeBlock
               code={ code }
@@ -167,11 +169,11 @@ const Post = memo(function Post({ post }: { post: PostType }) {
                 postId={_id}
                 reactions={reactions}
                 userReactions={userReactions || []}
-                currentUserId="user1"
-                currentUsername="you"
+                currentUserId={createdBy?._id}
+                currentUsername={createdBy?.username}
               />
               <button 
-                onClick={toggleComments}
+                onClick={ toggleComments }
                 className='flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer'
               >
                 <MessageCircleMore className='size-5' />
@@ -195,13 +197,13 @@ const Post = memo(function Post({ post }: { post: PostType }) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelDelete} disabled={isDeleting}>
+            <AlertDialogCancel onClick={handleCancelDelete} disabled={isDeleting} className='cursor-pointer'>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleConfirmDelete} 
               disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-danger hover:bg-danger/90 cursor-pointer"
             >
               {isDeleting ? 'Deleting...' : 'Delete Post'}
             </AlertDialogAction>

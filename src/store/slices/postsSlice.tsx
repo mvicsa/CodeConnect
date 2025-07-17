@@ -3,7 +3,8 @@ import axios from 'axios'
 import { PostType } from '@/types/post'
 import { addPostReaction } from './reactionsSlice'
 
-const API_URL = 'http://localhost:5000/posts'
+// Use environment variable for API URL
+const API_URL = `${process.env.NEXT_PUBLIC_API_URL}/posts`
 
 type PostsState = {
   posts: PostType[]
@@ -47,9 +48,9 @@ export const fetchPostsByTag = createAsyncThunk<PostType[], { tag: string; page?
 )
 
 // Fetch posts by user
-export const fetchPostsByUser = createAsyncThunk<PostType[], { userId: string; page?: number; limit?: number }>(
+export const fetchPostsByUser = createAsyncThunk<PostType[], { userId: string; page?: number; limit?: number; refresh?: boolean }>(
   'posts/fetchPostsByUser',
-  async ({ userId, page = 1, limit = 10 }) => {
+  async ({ userId, page = 1, limit = 10, refresh = false }) => {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) })
     const url = `${API_URL}/user/${userId}?${params.toString()}`
     const response = await axios.get(url)
@@ -136,8 +137,6 @@ const postsSlice = createSlice({
         const { refresh = false, page: requestedPage = 1 } = action.meta.arg
         const newPosts = action.payload
         
-        console.log('fetchPosts.fulfilled:', { refresh, requestedPage, newPostsLength: newPosts.length })
-        
         if (refresh) {
           // Refresh mode - replace all posts and ensure proper sorting
           state.posts = newPosts
@@ -148,7 +147,6 @@ const postsSlice = createSlice({
           state.posts.sort((a: PostType, b: PostType) => {
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           })
-          console.log('Refresh mode - posts updated:', state.posts.length)
         } else {
           // Pagination mode - append posts at the end without resorting
           // This maintains the scroll position and prevents posts from jumping around
@@ -172,7 +170,6 @@ const postsSlice = createSlice({
         const limit = action.meta.arg.limit || 10
         // If we got the full limit, there might be more
         state.hasMore = newPosts.length === limit
-        console.log('hasMore updated:', state.hasMore)
 
       })
               .addCase(fetchPosts.rejected, (state, action) => {
@@ -227,6 +224,41 @@ const postsSlice = createSlice({
           }
         }
       })
+    .addCase(fetchPostsByUser.pending, (state, action) => {
+      if (action.meta.arg.refresh || action.meta.arg.page === 1) {
+        state.loading = true
+        state.error = null
+      } else {
+        // Don't show full loading for pagination
+        state.error = null
+      }
+    })
+    .addCase(fetchPostsByUser.fulfilled, (state, action) => {
+      const { page: requestedPage = 1, limit = 10, refresh = requestedPage === 1 } = action.meta.arg
+      const newPosts = action.payload
+      
+      if (refresh || requestedPage === 1) {
+        // Refresh mode - replace all posts
+        state.posts = newPosts
+        state.page = 1
+        state.loading = false
+      } else {
+        // Pagination mode - append posts
+        const existingIds = new Set(state.posts.map(post => post._id))
+        const uniqueNewPosts = newPosts.filter(post => !existingIds.has(post._id))
+        
+        state.posts = [...state.posts, ...uniqueNewPosts]
+        state.page = requestedPage + 1
+      }
+      
+      // Check if we have more posts
+      state.hasMore = newPosts.length === limit
+      state.loading = false
+    })
+    .addCase(fetchPostsByUser.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.error.message || 'Failed to fetch user posts';
+    });
   }
 })
 

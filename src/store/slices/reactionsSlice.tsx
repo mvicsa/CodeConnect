@@ -1,6 +1,9 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import axios from 'axios'
 
+// Backend URL configuration
+const API_URL = `${process.env.NEXT_PUBLIC_API_URL}`
+
 // Types
 export interface ReactionType {
   id: string
@@ -37,15 +40,24 @@ export const addPostReaction = createAsyncThunk(
   'reactions/addPostReaction',
   async ({ postId, reaction, token }: { postId: string; reaction: string; token: string }) => {
     try {
+      // Use the original POST endpoint which should handle toggling on the backend
       const response = await axios.post(
-        `http://localhost:5000/posts/${postId}/reactions`,
+        `${API_URL}/posts/${postId}/reactions`,
         { reaction },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      
+      console.log('✅ Post reaction API response:', response.data);
       return response.data;
     } catch (error: any) {
       if (error.response) {
         console.error('Backend error:', error.response.data);
+        console.error('Backend status:', error.response.status);
+        console.error('Backend headers:', error.response.headers);
+      } else if (error.request) {
+        console.error('No response received:', error.request);
+      } else {
+        console.error('Error setting up request:', error.message);
       }
       throw error;
     }
@@ -54,84 +66,25 @@ export const addPostReaction = createAsyncThunk(
 
 export const addCommentReaction = createAsyncThunk(
   'reactions/addCommentReaction',
-  async ({ commentId, userId, username, reaction, token }: {
-    commentId: string
-    userId: string
-    username: string
-    reaction: string
-    token: string
-  }) => {
-    // Get current comment
-    const commentResponse = await axios.get(`http://localhost:5000/comments/${commentId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    const comment = commentResponse.data
-    
-    // Check if user already reacted - handle duplicates properly
-    const existingReactions = comment.userReactions?.filter(
-      (ur: UserReaction) => ur.userId === userId
-    ) || []
-    
-    // Remove any duplicate reactions for this user (safety check)
-    const uniqueUserReactions = (comment.userReactions || []).filter((reaction: UserReaction, index: number, self: UserReaction[]) => 
-      index === self.findIndex((r: UserReaction) => r.userId === reaction.userId)
-    )
-
-    let updatedUserReactions = [...uniqueUserReactions]
-    let updatedReactions = { ...comment.reactions }
-
-    // Check if user already has this reaction type
-    const userHasThisReaction = existingReactions.some((ur: UserReaction) => ur.reaction === reaction)
-    const userHasAnyReaction = existingReactions.length > 0
-
-    if (userHasAnyReaction) {
-      // Remove ALL existing reactions for this user (clean up duplicates)
-      existingReactions.forEach((existingReaction: UserReaction) => {
-        const previousReaction = existingReaction.reaction
-        updatedReactions[previousReaction as keyof Reactions] = Math.max(0, updatedReactions[previousReaction as keyof Reactions] - 1)
-      })
-      
-      // Remove all user reactions for this user
-      updatedUserReactions = updatedUserReactions.filter(ur => ur.userId !== userId)
-      
-      // If user clicked the same reaction type, don't add it back (toggle off)
-      if (!userHasThisReaction) {
-        // Add new reaction type
-        updatedUserReactions.push({
-          userId,
-          username,
-          reaction,
-          createdAt: new Date().toISOString()
-        })
-        updatedReactions[reaction as keyof Reactions] = (updatedReactions[reaction as keyof Reactions] || 0) + 1
-      }
-    } else {
-      // Add new reaction
-      updatedUserReactions.push({
-        userId,
-        username,
-        reaction,
-        createdAt: new Date().toISOString()
-      })
-      updatedReactions[reaction as keyof Reactions] = (updatedReactions[reaction as keyof Reactions] || 0) + 1
-    }
-
-    // Update comment
-    const updateResponse = await axios.put(`http://localhost:5000/comments/${commentId}`, {
-      ...comment,
-      reactions: updatedReactions,
-      userReactions: updatedUserReactions
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-
-    return {
-      commentId,
-      reactions: updatedReactions,
-      userReactions: updatedUserReactions
+  async ({ commentId, reaction, token }: { commentId: string; reaction: string; token: string }) => {
+    try {
+      const response = await axios.post(
+        `${API_URL}/comments/${commentId}/reactions`,
+        { reaction },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      // Assuming backend returns updated comment
+      return {
+        commentId,
+        reactions: response.data.reactions,
+        userReactions: response.data.userReactions
+      };
+    } catch (error) {
+      // handle error
+      throw error;
     }
   }
-)
+);
 
 // Initial state
 const initialState: ReactionState = {

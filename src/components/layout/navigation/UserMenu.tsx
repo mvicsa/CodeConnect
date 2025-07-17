@@ -41,11 +41,11 @@ export default function UserMenu() {
   return (
     <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger className="flex items-center gap-2 !px-1 cursor-pointer hover:bg-card rounded-lg whitespace-nowrap">
-        <Avatar className="w-7 h-7 rounded-full flex items-center justify-center">
+        <Avatar className="rounded-full flex items-center justify-center">
           <AvatarImage
             src={user.avatar || "/user.png"}
             alt={user.username || user.email}
-            className="h-8 w-8 rounded-full"
+            className="h-7 w-7 rounded-full flex-shrink-0"
           />
           <AvatarFallback>
             {user.username?.[0]?.toUpperCase() ||
@@ -53,7 +53,7 @@ export default function UserMenu() {
               "?"}
           </AvatarFallback>
         </Avatar>
-        <span className="hidden md:block text-sm font-medium">{user.username}</span>
+        <span className="hidden md:block text-sm font-medium">{user.firstName}</span>
         <ChevronDown
           className={`w-4 h-4 transition-transform duration-300 hidden md:block ${
             open ? "rotate-180" : ""
@@ -61,16 +61,16 @@ export default function UserMenu() {
         />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem className="cursor-pointer">
-          <Link href="/profile" className="flex items-center gap-2">
-            <UserIcon className="w-4 h-4" />
-            <span>Profile</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem className="cursor-pointer">
+            <DropdownMenuItem className="cursor-pointer p-0">
+              <Link href="/profile" className="flex items-center gap-2 w-full px-2 py-1.5">
+                <UserIcon className="w-4 h-4" />
+                <span>Profile</span>
+              </Link>
+          </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer p-0">
           <button
             onClick={() => dispatch(logout())}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 w-full px-2 py-1.5 cursor-pointer"
           >
             <LogOutIcon className="w-4 h-4" />
             <span>Logout</span>

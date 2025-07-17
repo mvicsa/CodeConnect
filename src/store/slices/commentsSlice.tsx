@@ -1,8 +1,9 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import axios from 'axios'
-import { Comment, Reply, CommentContent, Reactions, UserReaction } from '@/types/comments'
+import { Comment, Reply, Reactions, UserReaction } from '@/types/comments'
 
-const API_URL = 'http://localhost:3001/comments'
+// Backend URL configuration
+const API_URL = `${process.env.NEXT_PUBLIC_API_URL}/comments`
 
 interface CommentsState {
   comments: Comment[]
@@ -16,328 +17,487 @@ const initialState: CommentsState = {
   error: null,
 }
 
-// ✅ Fetch all comments
-export const fetchComments = createAsyncThunk<Comment[]>(
+// ✅ Fetch all comments by id /post/:id (only top-level comments)
+export const fetchComments = createAsyncThunk<Comment[], string>(
   'comments/fetchComments',
-  async () => {
+  async (postId) => {
     try {
-      const response = await axios.get<Comment[]>(API_URL)
-      console.log('Fetched comments:', response.data)
-      return response.data
+
+      // Get all comments for the post
+      const response = await axios.get<Comment[]>(`${API_URL}/post/${postId}`);
+
+      // For each comment, get its replies count
+      const processedComments = await Promise.all(response.data.map(async (comment) => {
+        try {
+          // Just get the replies to know how many there are
+          const repliesResponse = await axios.get<Reply[]>(`${API_URL}/replies/${comment._id}`);
+          return {
+            ...comment,
+            // Initialize empty replies array but set the correct length
+            replies: new Array(repliesResponse.data.length).fill(null)
+          };
+        } catch (error) {
+          return {
+            ...comment,
+            replies: []
+          };
+        }
+      }));
+
+      return processedComments;
     } catch (error) {
-      console.error('Error fetching comments:', error)
-      throw error
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          throw new Error('Unauthorized - Please log in again');
+        }
+      }
+      throw error;
     }
   }
-)
+);
 
 // ✅ Add new comment
-export const addCommentAsync = createAsyncThunk<Comment, Omit<Comment, 'id'>>(
-    'comments/addCommentAsync',
-    async (newComment) => {
+export const addCommentAsync = createAsyncThunk<Comment, {
+  text?: string,
+  code?: string,
+  codeLang?: string,
+  postId: string,
+  createdBy: string
+}>(
+  'comments/addCommentAsync',
+  async (commentData) => {
     try {
-      // Ensure the comment has the proper structure
-      const commentToAdd = {
-        ...newComment,
-        content: newComment.content || { text: '' },
-        replies: newComment.replies || [],
-        createdAt: newComment.createdAt || new Date(),
-        reactions: newComment.reactions || { like: 0, love: 0, wow: 0, funny: 0, dislike: 0 },
-        userReactions: newComment.userReactions || []
-      }
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No authorization token found');
+
+      const response = await axios.post<Comment>(
+        API_URL,
+        {
+          text: commentData.text,
+          code: commentData.code || '',
+          codeLang: commentData.codeLang || '',
+          postId: commentData.postId
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       
-      console.log('Adding comment:', commentToAdd)
-      const response = await axios.post<Comment>(API_URL, commentToAdd)
-      console.log('Comment added successfully:', response.data)
-      return response.data
+      return {
+        ...response.data,
+        replies: [] // Initialize empty replies array
+      };
     } catch (error) {
-      console.error('Error adding comment:', error)
-      throw error
+      console.error('Error adding comment:', error);
+      throw error;
     }
   }
-)
+);
 
 // ✅ Add reply to comment
-export const addReplyAsync = createAsyncThunk<Comment, Reply>(
+export const addReplyAsync = createAsyncThunk<Reply, {
+  parentCommentId: string,
+  text: string,
+  code?: string,
+  codeLang?: string,
+  postId: string
+}>(
   'comments/addReplyAsync',
-  async (newReply, { getState }) => {
+  async (replyData) => {
     try {
-      const state = getState() as { comments: CommentsState }
-      const parent = state.comments.comments.find(c => c.id === newReply.parentCommentId)
-      if (!parent) throw new Error('Parent comment not found')
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No authorization token found');
 
-      // Ensure the reply has the proper structure
-      const replyToAdd = {
-        ...newReply,
-        content: newReply.content || { text: '' },
-        createdAt: newReply.createdAt || new Date(),
-        reactions: newReply.reactions || { like: 0, love: 0, wow: 0, funny: 0, dislike: 0 },
-        userReactions: newReply.userReactions || [],
-        replies: newReply.replies || []
-      }
-
-      const updatedReplies = [replyToAdd, ...parent.replies]
-      const updatedComment = { ...parent, replies: updatedReplies }
-
-      console.log('Adding reply to comment:', parent.id, replyToAdd)
-      const response = await axios.put<Comment>(`${API_URL}/${parent.id}`, updatedComment)
-      console.log('Reply added successfully:', response.data)
-      return response.data
+      const response = await axios.post<Reply>(
+        API_URL,
+        {
+          parentCommentId: replyData.parentCommentId,
+          text: replyData.text,
+          code: replyData.code || '',
+          codeLang: replyData.codeLang || '',
+          postId: replyData.postId
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      
+      return response.data;
     } catch (error) {
-      console.error('Error adding reply:', error)
-      throw error
+      console.error('Error adding reply:', error);
+      throw error;
     }
   }
-)
+);
 
 // ✅ Edit comment or reply
-export const editCommentOrReplyAsync = createAsyncThunk<Comment, { id: number | string; content: CommentContent }>(
+export const editCommentOrReplyAsync = createAsyncThunk<Comment, { id: string; data: { text?: string; code?: string; codeLang?: string; postId: string; createdBy: string } }>(
   'comments/editCommentOrReplyAsync',
-  async ({ id, content }, { getState }) => {
+  async ({ id, data }) => {
     try {
-      const state = getState() as { comments: CommentsState }
-      const allComments = state.comments.comments
-
-      // Check if it's a top-level comment
-      const isComment = allComments.find(c => c.id === id)
-
-      if (isComment) {
-        // Edit top-level comment
-        console.log('Editing comment:', id, content)
-        const commentToEdit = allComments.find(c => c.id === id)
-        if (!commentToEdit) throw new Error('Comment not found')
-        
-        const updatedComment = { ...commentToEdit, content }
-        const response = await axios.put<Comment>(`${API_URL}/${id}`, updatedComment)
-        console.log('Comment edited successfully:', response.data)
-        return response.data
-      }
-
-      // If it's a reply, find the parent comment
-      const parentComment = allComments.find(c => 
-        c.replies && c.replies.some(r => r.id === id)
-      )
-      
-      if (!parentComment) {
-        throw new Error('Comment or reply not found')
-      }
-
-      // Update the reply within the parent comment
-      const updatedReplies = parentComment.replies.map(r =>
-        r.id === id ? { ...r, content } : r
-      )
-
-      const updatedComment = { ...parentComment, replies: updatedReplies }
-      console.log('Editing reply in comment:', parentComment.id, id, content)
-      const response = await axios.put<Comment>(`${API_URL}/${parentComment.id}`, updatedComment)
-      console.log('Reply edited successfully:', response.data)
-      return response.data
+      const token = localStorage.getItem('token');
+      const response = await axios.put<Comment>(
+        `${API_URL}/${id}`,
+        {
+          text: data.text,
+          code: data.code || '',
+          codeLang: data.codeLang || '',
+          postId: data.postId,
+          createdBy: data.createdBy,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      return response.data;
     } catch (error) {
-      console.error('Error editing comment/reply:', error)
-      throw error
+      console.error('Error editing comment:', error);
+      throw error;
     }
   }
 )
 
 // ✅ Delete comment or reply
 export const deleteCommentOrReplyAsync = createAsyncThunk<
-  number | string,
-  number | string,
-  { state: { comments: CommentsState } }
->('comments/deleteCommentOrReplyAsync', async (idToDelete, { getState }) => {
+  string,
+  string
+>('comments/deleteCommentOrReplyAsync', async (idToDelete) => {
   try {
-    const state = getState()
-    const allComments = state.comments.comments
-
-    const isTopLevel = allComments.some((c) => c.id === idToDelete)
-
-    if (isTopLevel) {
-      // Delete top-level comment
-      console.log('Deleting comment:', idToDelete)
-      await axios.delete(`${API_URL}/${idToDelete}`)
-      console.log('Comment deleted successfully')
-      return idToDelete
-    } else {
-      // Delete a reply
-      const parentComment = allComments.find((c) =>
-        c.replies?.some((r) => r.id === idToDelete)
-      )
-      if (!parentComment) throw new Error('Parent comment not found')
-
-      const updatedReplies = parentComment.replies.filter((r) => r.id !== idToDelete)
-      const updatedComment = { ...parentComment, replies: updatedReplies }
-
-      console.log('Deleting reply from comment:', parentComment.id, idToDelete)
-      await axios.put(`${API_URL}/${parentComment.id}`, updatedComment)
-      console.log('Reply deleted successfully')
-      return idToDelete
-    }
+    const token = localStorage.getItem('token');
+    await axios.delete(`${API_URL}/${idToDelete}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    console.log('Comment/reply deleted successfully');
+    return idToDelete;
   } catch (error) {
-    console.error('Error deleting comment/reply:', error)
-    throw error
+    console.error('Error deleting comment/reply:', error);
+    throw error;
   }
 })
 
 // ✅ Update comment reactions
 export const updateCommentReactionsAsync = createAsyncThunk<
-  { commentId: number | string; reactions: Reactions; userReactions: UserReaction[] },
-  { commentId: number | string; reactions: Reactions; userReactions: UserReaction[] }
->('comments/updateCommentReactionsAsync', async ({ commentId, reactions, userReactions }) => {
-  try {
-    console.log('Updating comment reactions:', commentId, reactions)
-    
-    // Get the current comment first
-    const commentResponse = await axios.get<Comment>(`${API_URL}/${commentId}`)
-    const currentComment = commentResponse.data
-    
-    // Update with full comment data
-    const updatedComment = { ...currentComment, reactions, userReactions }
-    const response = await axios.put<Comment>(`${API_URL}/${commentId}`, updatedComment)
-    console.log('Comment reactions updated successfully:', response.data)
-    return { commentId, reactions, userReactions }
-  } catch (error) {
-    console.error('Error updating comment reactions:', error)
-    throw error
+  Comment,
+  { commentId: string; reaction: string }
+>(
+  'comments/updateCommentReactionsAsync',
+  async ({ commentId, reaction }) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post<Comment>(
+        `${API_URL}/${commentId}/reactions`,
+        { reaction },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      // Return the full updated comment
+      return response.data;
+    } catch (error) {
+      console.error('Error updating comment reactions:', error);
+      throw error;
+    }
   }
-})
+);
 
 // ✅ Update reply reactions
 export const updateReplyReactionsAsync = createAsyncThunk<
-  { parentCommentId: number | string; replyId: number | string; reactions: Reactions; userReactions: UserReaction[] },
-  { parentCommentId: number | string; replyId: number | string; reactions: Reactions; userReactions: UserReaction[] }
->('comments/updateReplyReactionsAsync', async ({ parentCommentId, replyId, reactions, userReactions }) => {
-  try {
-    // Get the parent comment
-    const parentResponse = await axios.get<Comment>(`${API_URL}/${parentCommentId}`)
-    const parentComment = parentResponse.data
-
-    // Update the specific reply
-    const updatedReplies = parentComment.replies.map(reply =>
-      reply.id === replyId
-        ? { ...reply, reactions, userReactions }
-        : reply
-    )
-
-    const updatedComment = { ...parentComment, replies: updatedReplies }
-
-    console.log('Updating reply reactions:', parentCommentId, replyId, reactions)
-    const response = await axios.put<Comment>(`${API_URL}/${parentCommentId}`, updatedComment)
-    console.log('Reply reactions updated successfully:', response.data)
-    
-    return { parentCommentId, replyId, reactions, userReactions }
-  } catch (error) {
-    console.error('Error updating reply reactions:', error)
-    throw error
+  Comment,
+  { parentCommentId: string; replyId: string; reaction: string }
+>(
+  'comments/updateReplyReactionsAsync',
+  async ({ parentCommentId, replyId, reaction }) => {
+    try {
+      const token = localStorage.getItem('token');
+      // Use the same endpoint as comment reactions but pass the replyId
+      const response = await axios.post<Comment>(
+        `${API_URL}/${replyId}/reactions`,
+        { 
+          reaction,
+          parentCommentId // Include parentCommentId in the request body
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      // Return the full updated comment with updated replies
+      return response.data;
+    } catch (error) {
+      console.error('Error updating reply reactions:', error);
+      throw error;
+    }
   }
-})
+);
+
+// Helper function to normalize reply data
+const normalizeReply = (reply: any): Reply => {
+  // Convert Date objects to ISO strings to ensure serializability
+  const serializeDate = (date: any): string => {
+    if (!date) return new Date().toISOString();
+    if (date instanceof Date) return date.toISOString();
+    if (typeof date === 'string') return date;
+    return new Date().toISOString();
+  };
+
+  // Create a base reply object with default values
+  const baseReply: Reply = {
+    _id: reply._id || reply.id || `temp-${Date.now()}`,
+    parentCommentId: reply.parentCommentId || '',
+    createdBy: {
+      _id: 'unknown',
+      firstName: 'Unknown',
+      lastName: '',
+      username: 'user',
+      avatar: '',
+      email: '',
+      createdAt: serializeDate(new Date()),
+      updatedAt: serializeDate(new Date())
+    },
+    text: '',
+    code: '',
+    codeLang: '',
+    createdAt: serializeDate(reply.createdAt),
+    postId: reply.postId || '',
+    reactions: { like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 },
+    userReactions: []
+  };
+
+  // Handle createdBy field
+  if (reply.createdBy) {
+    // If createdBy is already a proper object
+    baseReply.createdBy = {
+      _id: reply.createdBy._id || 'unknown',
+      firstName: reply.createdBy.firstName || reply.createdBy.name || 'Unknown',
+      lastName: reply.createdBy.lastName || '',
+      username: reply.createdBy.username || 'user',
+      avatar: reply.createdBy.avatar || '',
+      email: reply.createdBy.email || '',
+      createdAt: serializeDate(reply.createdBy.createdAt),
+      updatedAt: serializeDate(reply.createdBy.updatedAt)
+    };
+  } else if (reply.user) {
+    // If user field is available instead
+    baseReply.createdBy = {
+      _id: reply.user._id || 'unknown',
+      firstName: reply.user.name || reply.user.firstName || 'Unknown',
+      lastName: reply.user.lastName || '',
+      username: reply.user.username || 'user',
+      avatar: reply.user.avatar || '',
+      email: reply.user.email || '',
+      createdAt: serializeDate(new Date()),
+      updatedAt: serializeDate(new Date())
+    };
+  }
+
+  // Handle content field
+  if (reply.content && typeof reply.content === 'object') {
+    baseReply.text = reply.content.text || reply.text || '';
+    baseReply.code = reply.content.code?.code || reply.code || '';
+    baseReply.codeLang = reply.content.code?.language || reply.codeLang || '';
+  } else {
+    baseReply.text = reply.text || '';
+    baseReply.code = reply.code || '';
+    baseReply.codeLang = reply.codeLang || '';
+  }
+
+  // Handle reactions
+  if (reply.reactions) {
+    baseReply.reactions = {
+      like: reply.reactions.like || 0,
+      love: reply.reactions.love || 0,
+      wow: reply.reactions.wow || 0,
+      funny: reply.reactions.funny || 0,
+      dislike: reply.reactions.dislike || 0,
+      happy: reply.reactions.happy || 0
+    };
+  }
+
+  // Handle userReactions
+  if (Array.isArray(reply.userReactions)) {
+    baseReply.userReactions = reply.userReactions.map((ur: any) => ({
+      userId: typeof ur.userId === 'string' ? {
+        _id: ur.userId,
+        firstName: ur.username || 'User',
+        lastName: '',
+        username: ur.username || 'user',
+        avatar: '',
+        email: '',
+        createdAt: serializeDate(new Date()),
+        updatedAt: serializeDate(new Date())
+      } : ur.userId,
+      username: ur.username || (typeof ur.userId === 'object' ? ur.userId.username : 'user'),
+      reaction: ur.reaction || 'like',
+      createdAt: serializeDate(ur.createdAt)
+    }));
+  }
+
+  return baseReply;
+};
+
+// ✅ Fetch replies for a specific comment
+export const fetchReplies = createAsyncThunk<Reply[], string>(
+  'comments/fetchReplies',
+  async (parentCommentId) => {
+    try {
+      const response = await axios.get<Reply[]>(`${API_URL}/replies/${parentCommentId}`);
+
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching replies:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Axios error details:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message
+        });
+      }
+      return []; // Return empty array on error to prevent UI breaking
+    }
+  }
+);
 
 const commentsSlice = createSlice({
   name: 'comments',
   initialState,
-  reducers: {
-    // Update comment reactions in local state
-    updateCommentReactions: (state, action: PayloadAction<{
-      commentId: number | string
-      reactions: Reactions
-      userReactions: UserReaction[]
-    }>) => {
-      const { commentId, reactions, userReactions } = action.payload
-      const comment = state.comments.find(c => c.id === commentId)
-      if (comment) {
-        comment.reactions = reactions
-        comment.userReactions = userReactions
-        console.log('Comment reactions updated in local state:', commentId, reactions)
-      } else {
-        console.warn('Comment not found for reaction update:', commentId)
-      }
-    },
-    // Update reply reactions in local state
-    updateReplyReactions: (state, action: PayloadAction<{
-      parentCommentId: number | string
-      replyId: number | string
-      reactions: Reactions
-      userReactions: UserReaction[]
-    }>) => {
-      const { parentCommentId, replyId, reactions, userReactions } = action.payload
-      const parentComment = state.comments.find(c => c.id === parentCommentId)
-      if (parentComment) {
-        const reply = parentComment.replies.find(r => r.id === replyId)
-        if (reply) {
-          reply.reactions = reactions
-          reply.userReactions = userReactions
-        }
-      }
-    }
-  },
+  reducers: {},
   extraReducers: (builder) => {
     builder
+      // Handle fetchComments
       .addCase(fetchComments.pending, (state) => {
-        state.loading = true
-        state.error = null
+        state.loading = true;
+        state.error = null;
       })
       .addCase(fetchComments.fulfilled, (state, action) => {
-        state.loading = false
-        state.comments = action.payload
-        console.log('Comments loaded into state:', action.payload.length, 'comments')
+        state.loading = false;
+        // Keep existing comments for other posts and add new ones
+        const existingComments = state.comments.filter(
+          comment => comment.postId !== action.meta.arg
+        );
+        state.comments = [...existingComments, ...action.payload];
       })
       .addCase(fetchComments.rejected, (state, action) => {
-        state.loading = false
-        state.error = action.error.message || 'Failed to fetch comments'
-        console.error('Failed to fetch comments:', action.error)
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch comments';
       })
-      .addCase(addCommentAsync.fulfilled, (state, action) => {
-        state.comments.unshift(action.payload)
-        console.log('Comment added to state:', action.payload)
-      })
-      .addCase(addReplyAsync.fulfilled, (state, action) => {
-        const updated = action.payload
-        const index = state.comments.findIndex(c => c.id === updated.id)
-        if (index !== -1) {
-          state.comments[index] = updated
-          console.log('Reply added to state in comment:', updated.id)
-        }
-      })
-      .addCase(editCommentOrReplyAsync.fulfilled, (state, action) => {
-        const updated = action.payload
-        const index = state.comments.findIndex(c => c.id === updated.id)
-        if (index !== -1) {
-          state.comments[index] = updated
-          console.log('Comment/reply edited in state:', updated.id)
-        }
-      })
-      .addCase(deleteCommentOrReplyAsync.fulfilled, (state, action) => {
-        const idToDelete = action.payload
-        state.comments = state.comments.filter((c) => c.id !== idToDelete)
-        for (const comment of state.comments) {
-          if (comment.replies) {
-            comment.replies = comment.replies.filter((r) => r.id !== idToDelete)
-          }
-        }
-        console.log('Comment/reply deleted from state:', idToDelete)
-      })
-      .addCase(updateCommentReactionsAsync.fulfilled, (state, action) => {
-        const { commentId, reactions, userReactions } = action.payload
-        const comment = state.comments.find(c => c.id === commentId)
-        if (comment) {
-          comment.reactions = reactions
-          comment.userReactions = userReactions
-          console.log('Comment reactions updated in state:', commentId)
-        }
-      })
-      .addCase(updateReplyReactionsAsync.fulfilled, (state, action) => {
-        const { parentCommentId, replyId, reactions, userReactions } = action.payload
-        const parentComment = state.comments.find(c => c.id === parentCommentId)
+      
+      // Handle fetchReplies
+      .addCase(fetchReplies.fulfilled, (state, action) => {
+        const parentCommentId = action.meta.arg;
+        // Find the parent comment and update its replies
+        const parentComment = state.comments.find(c => c._id === parentCommentId);
         if (parentComment) {
-          const reply = parentComment.replies.find(r => r.id === replyId)
-          if (reply) {
-            reply.reactions = reactions
-            reply.userReactions = userReactions
-            console.log('Reply reactions updated in state:', parentCommentId, replyId)
-          }
+          parentComment.replies = action.payload;
         }
       })
-  }
-})
+      
+      // Handle addCommentAsync
+      .addCase(addCommentAsync.fulfilled, (state, action) => {
+        state.comments.unshift(action.payload);
+      })
+      
+      // Handle addReplyAsync
+      .addCase(addReplyAsync.fulfilled, (state, action) => {
+        const parentCommentId = action.meta.arg.parentCommentId;
+        const parentComment = state.comments.find(c => c._id === parentCommentId);
+        if (parentComment) {
+          // Add new reply at the beginning of the array
+          parentComment.replies.unshift(action.payload);
+        }
+      })
 
-export const { updateCommentReactions, updateReplyReactions } = commentsSlice.actions
-export default commentsSlice.reducer
+      // Handle editCommentOrReplyAsync
+      .addCase(editCommentOrReplyAsync.fulfilled, (state, action) => {
+        const updatedComment = action.payload;
+        // Check if it's a top-level comment
+        const commentIndex = state.comments.findIndex(c => c._id === updatedComment._id);
+        if (commentIndex !== -1) {
+          // Update the comment while preserving its replies
+          const existingReplies = state.comments[commentIndex].replies;
+          state.comments[commentIndex] = {
+            ...updatedComment,
+            replies: existingReplies
+          } as Comment;
+        } else {
+          // It's a reply, find the parent comment and update the reply
+          state.comments = state.comments.map(comment => {
+            if (comment.replies?.some(reply => reply?._id === updatedComment._id)) {
+              return {
+                ...comment,
+                replies: comment.replies.map(reply =>
+                  reply._id === updatedComment._id ? updatedComment as Reply : reply
+                )
+              };
+            }
+            return comment;
+          });
+        }
+      })
+
+      // Handle deleteCommentOrReplyAsync
+      .addCase(deleteCommentOrReplyAsync.fulfilled, (state, action) => {
+        const deletedId = action.payload;
+        // Check if it's a top-level comment
+        const commentIndex = state.comments.findIndex(c => c._id === deletedId);
+        if (commentIndex !== -1) {
+          // Remove the comment
+          state.comments.splice(commentIndex, 1);
+        } else {
+          // It's a reply, find the parent comment and remove the reply
+          state.comments = state.comments.map(comment => {
+            if (comment.replies?.some(reply => reply?._id === deletedId)) {
+              return {
+                ...comment,
+                replies: comment.replies.filter(reply => reply._id !== deletedId)
+              };
+            }
+            return comment;
+          });
+        }
+      })
+
+      // Handle updateCommentReactionsAsync
+      .addCase(updateCommentReactionsAsync.fulfilled, (state, action) => {
+        const updatedComment = action.payload;
+        const commentIndex = state.comments.findIndex(c => c._id === updatedComment._id);
+        if (commentIndex !== -1) {
+          // Update the comment while preserving its replies
+          const existingReplies = state.comments[commentIndex].replies;
+          state.comments[commentIndex] = {
+            ...updatedComment,
+            replies: existingReplies
+          } as Comment;
+        }
+      })
+
+      // Handle updateReplyReactionsAsync
+      .addCase(updateReplyReactionsAsync.fulfilled, (state, action) => {
+        const updatedReply = action.payload;
+        // Find the parent comment and update the specific reply
+        state.comments = state.comments.map(comment => {
+          if (comment.replies?.some(reply => reply?._id === updatedReply._id)) {
+            return {
+              ...comment,
+              replies: comment.replies.map(reply =>
+                reply._id === updatedReply._id ? updatedReply as Reply : reply
+              )
+            };
+          }
+          return comment;
+        });
+      });
+  }
+});
+
+export default commentsSlice.reducer;

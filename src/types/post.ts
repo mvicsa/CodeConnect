@@ -1,7 +1,7 @@
 import type { User } from './user';
 
 export interface UserReaction {
-  userId: string; // changed from User to string for compatibility
+  userId: User; // changed back to User object to match usage
   username: string;
   reaction: string;
   createdAt: string;

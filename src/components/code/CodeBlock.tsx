@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, memo } from 'react'
-import { createHighlighter } from 'shiki'
 import { Copy, Check, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
 import { Button } from '../ui/button'
+import { highlightCode as shikiHighlightCode } from '@/lib/shiki'
 
 interface CodeBlockProps {
   code: string
@@ -28,7 +28,6 @@ const CodeBlock = memo(function CodeBlock({
   const [isExpanded, setIsExpanded] = useState(false)
   const [needsExpand, setNeedsExpand] = useState(false)
   const [contentHeight, setContentHeight] = useState<string>('auto')
-  const highlighterRef = useRef<any>(null)
   const codeRef = useRef<HTMLPreElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -41,79 +40,8 @@ const CodeBlock = memo(function CodeBlock({
 
     setIsHighlighting(true)
     try {
-      const htmlEl = document.documentElement
-      const isDark = htmlEl.classList.contains('dark')
-      const themeName = isDark ? 'code-dark' : 'code-light'
-
-      // Check if we need to create a new highlighter (language or theme changed)
-      const needsNewHighlighter = !highlighterRef.current || 
-        !highlighterRef.current.getLoadedLanguages().includes(lang) ||
-        !highlighterRef.current.getLoadedThemes().includes(themeName)
-
-      if (needsNewHighlighter) {
-        // Dispose old highlighter if it exists
-        if (highlighterRef.current) {
-          try {
-            highlighterRef.current.dispose()
-          } catch (error) {
-            console.warn('Error disposing highlighter:', error)
-          }
-        }
-
-        try {
-          const themePath = `/themes/${themeName}.json`
-          const response = await fetch(themePath)
-          
-          if (!response.ok) {
-            throw new Error(`Failed to load theme: ${response.status} ${response.statusText}`)
-          }
-          
-          const customTheme = await response.json()
-
-          highlighterRef.current = await createHighlighter({
-            langs: [lang || 'javascript'],
-            themes: [{ name: themeName, ...customTheme }],
-          })
-        } catch (themeError) {
-          console.error('Failed to load theme, using fallback:', themeError)
-          // Use a simple fallback theme
-          const fallbackTheme = {
-            name: themeName,
-            type: (isDark ? 'dark' : 'light') as 'dark' | 'light',
-            settings: [
-              {
-                scope: ['comment'],
-                settings: { foreground: isDark ? '#6a9955' : '#008000' }
-              },
-              {
-                scope: ['string'],
-                settings: { foreground: isDark ? '#ce9178' : '#a31515' }
-              },
-              {
-                scope: ['keyword'],
-                settings: { foreground: isDark ? '#569cd6' : '#0000ff' }
-              }
-            ],
-            fg: isDark ? '#d4d4d4' : '#000000',
-            bg: isDark ? '#1e1e1e' : '#ffffff'
-          }
-
-          highlighterRef.current = await createHighlighter({
-            langs: [lang || 'javascript'],
-            themes: [fallbackTheme],
-          })
-        }
-      }
-
-      if (!highlighterRef.current) {
-        throw new Error('Failed to create highlighter')
-      }
-
-      const html = highlighterRef.current.codeToHtml(code, {
-        lang: lang || 'javascript',
-        theme: themeName,
-      })
-
+      // Use the shared highlighter utility instead of managing our own instance
+      const html = await shikiHighlightCode(code, lang || 'javascript')
       setHighlightedHtml(html)
     } catch (error) {
       console.error('Failed to highlight code:', error)
@@ -133,7 +61,12 @@ const CodeBlock = memo(function CodeBlock({
     const htmlEl = document.documentElement
     const observer = new MutationObserver(() => {
       if (code.trim()) {
-        highlightCode(code, language)
+        // Debounce theme change highlighting to prevent race conditions
+        const timeoutId = setTimeout(() => {
+          highlightCode(code, language)
+        }, 100)
+        
+        return () => clearTimeout(timeoutId)
       }
     })
 
@@ -142,15 +75,15 @@ const CodeBlock = memo(function CodeBlock({
       attributeFilter: ['class'],
     })
 
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+    }
   }, [code, language, highlightCode])
 
-  // Cleanup highlighter on unmount
+  // Cleanup highlighter on unmount - no longer needed as we use the shared instance
   useEffect(() => {
     return () => {
-      if (highlighterRef.current) {
-        highlighterRef.current.dispose()
-      }
+      // Nothing to clean up here anymore
     }
   }, [])
 
@@ -165,7 +98,6 @@ const CodeBlock = memo(function CodeBlock({
           const needsExpandButton = scrollHeight > clientHeight
           setNeedsExpand(needsExpandButton)
           setContentHeight(`${scrollHeight}px`)
-          console.log('CodeBlock height check:', { scrollHeight, clientHeight, needsExpandButton })
         }
       }, 100) // Increased timeout to ensure highlighting is complete
     }

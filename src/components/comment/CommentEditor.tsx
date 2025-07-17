@@ -1,60 +1,85 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Textarea } from '../ui/textarea'
 import { Button } from '../ui/button'
 import { Code, Send } from 'lucide-react'
-import { CommentContent } from '@/types/comments'
 import CodeEditor from '../code/CodeEditor'
 
 interface CommentEditorProps {
-  initialValue?: CommentContent
-  onSubmit: (content: CommentContent) => void
+  initialValue?: { text: string, code: string, codeLang: string }
+  onSubmit: (content: { text: string, code: string, codeLang: string }) => void
   placeholder?: string
   showCodeToggle?: boolean
 }
 
 export default function CommentEditor({
-  initialValue = { text: '' },
+  initialValue = { text: '', code: '', codeLang: '' },
   onSubmit,
   placeholder = "Write a comment...",
   showCodeToggle = true
 }: CommentEditorProps) {
-  const [content, setContent] = useState<CommentContent>(initialValue)
+  const [content, setContent] = useState({
+    text: initialValue.text || '',
+    code: initialValue.code || '',
+    codeLang: initialValue.codeLang || 'javascript'
+  })
   const [showCodeEditor, setShowCodeEditor] = useState(!!initialValue.code)
-  const [codeLanguage, setCodeLanguage] = useState(initialValue.code?.language || 'javascript')
+  const [codeLanguage, setCodeLanguage] = useState(initialValue.codeLang || 'javascript')
+  const [syntaxError, setSyntaxError] = useState<string | null>(null)
+
+  // Update content when initialValue changes
+  useEffect(() => {
+    setContent({
+      text: initialValue.text || '',
+      code: initialValue.code || '',
+      codeLang: initialValue.codeLang || 'javascript'
+    })
+    setShowCodeEditor(!!initialValue.code)
+    setCodeLanguage(initialValue.codeLang || 'javascript')
+  }, [initialValue])
 
   const handleSubmit = () => {
-    if (!content.text.trim() && !content.code?.code.trim()) return
+    if (!content.text.trim() && (!content.code || !content.code.trim())) return
+    
+    // Don't submit if there's a syntax error
+    if (syntaxError) {
+      return;
+    }
     
     // Clean up empty code blocks
     const cleanContent = {
       text: content.text.trim(),
-      code: content.code?.code.trim() ? content.code : undefined
+      code: content.code && content.code.trim() ? content.code.trim() : '',
+      codeLang: content.codeLang || 'javascript'
     }
-    
     onSubmit(cleanContent)
-    setContent({ text: '' })
+    setContent({ text: '', code: '', codeLang: 'javascript' })
     setShowCodeEditor(false)
+    setSyntaxError(null)
   }
 
   const handleAddCode = () => {
     setShowCodeEditor(true)
     setContent(prev => ({
       ...prev,
-      code: { code: '', language: 'javascript' }
+      code: '',
+      codeLang: 'javascript'
     }))
+    setSyntaxError(null)
   }
 
   const handleRemoveCode = () => {
     setShowCodeEditor(false)
-    setContent(prev => ({ ...prev, code: undefined }))
+    setContent(prev => ({ ...prev, code: '' }))
+    setSyntaxError(null)
   }
 
   const updateCode = (code: string) => {
     setContent(prev => ({
       ...prev,
-      code: { code, language: codeLanguage }
+      code: code,
+      codeLang: codeLanguage
     }))
   }
 
@@ -62,8 +87,12 @@ export default function CommentEditor({
     setCodeLanguage(language)
     setContent(prev => ({
       ...prev,
-      code: prev.code ? { ...prev.code, language } : undefined
+      codeLang: language
     }))
+  }
+
+  const handleCodeError = (error: string | null) => {
+    setSyntaxError(error);
   }
 
   return (
@@ -91,7 +120,7 @@ export default function CommentEditor({
               size="sm"
               onClick={handleSubmit}
               className="h-8 w-8 p-0"
-              disabled={!content.text.trim() && !content.code?.code.trim()}
+              disabled={(!content.text.trim() && (!content.code || !content.code.trim())) || !!syntaxError}
             >
               <Send className="size-4" />
             </Button>
@@ -101,11 +130,12 @@ export default function CommentEditor({
         {/* Code Editor */}
         {showCodeEditor && (
           <CodeEditor
-            value={content.code?.code || ''}
+            value={content.code || ''}
             onChange={updateCode}
-            language={codeLanguage}
+            language={content.codeLang || codeLanguage}
             onLanguageChange={updateLanguage}
             onRemove={handleRemoveCode}
+            onError={handleCodeError}
             rows={5}
           />
         )}

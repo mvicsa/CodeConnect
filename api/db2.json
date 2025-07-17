@@ -1328,6 +1328,52 @@
       },
       "userReactions": [],
       "replies": []
+    },
+    {
+      "id": "01c9",
+      "postId": "687772b3ea5d032334cf5eb6",
+      "user": {
+        "name": "You",
+        "username": "you"
+      },
+      "content": {
+        "text": "Test"
+      },
+      "createdAt": "2025-07-16T10:10:18.173Z",
+      "reactions": {
+        "like": 0,
+        "love": 0,
+        "wow": 0,
+        "funny": 0,
+        "dislike": 0,
+        "happy": 0
+      },
+      "userReactions": [],
+      "replies": [
+        {
+          "postId": "687772b3ea5d032334cf5eb6",
+          "parentCommentId": "01c9",
+          "user": {
+            "name": "You",
+            "username": "you"
+          },
+          "content": {
+            "text": "@you 2"
+          },
+          "createdAt": "2025-07-16T10:10:28.333Z",
+          "replies": [],
+          "id": 1752660628333,
+          "reactions": {
+            "like": 0,
+            "love": 0,
+            "wow": 0,
+            "funny": 0,
+            "dislike": 0,
+            "happy": 0
+          },
+          "userReactions": []
+        }
+      ]
     }
   ],
   "reactionTypes": [

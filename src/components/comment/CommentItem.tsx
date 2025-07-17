@@ -9,6 +9,7 @@ import {
   CheckIcon,
   XIcon,
   ChevronDown,
+  ShieldCheck
 } from 'lucide-react'
 import ReplyForm from './ReplyForm'
 import CommentEditor from './CommentEditor'
@@ -33,15 +34,75 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog'
 import { useTranslations } from 'next-intl'
-import { useDispatch } from 'react-redux'
-import { AppDispatch } from '@/store/store'
+import { useDispatch, useSelector } from 'react-redux'
+import { AppDispatch, RootState } from '@/store/store'
 import {
   addReplyAsync,
   deleteCommentOrReplyAsync,
   editCommentOrReplyAsync,
+  updateCommentReactionsAsync, // <-- add this import
+  updateReplyReactionsAsync, // <-- add this import
+  fetchReplies
 } from '@/store/slices/commentsSlice'
-import { useState, useMemo } from 'react'
-import { Comment, Reply, CommentContent } from '@/types/comments'
+import { useState, useMemo, useEffect } from 'react'
+import { Comment, Reply, User } from '@/types/comments'
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
+import Link from 'next/link'
+import AdminBadge from '../AdminBadge'
+
+// Define types for different reply structures
+interface ApiReply {
+  _id?: string;
+  id?: string | number;
+  parentCommentId?: string;
+  postId?: string;
+  user?: {
+    _id?: string;
+    name?: string;
+    username?: string;
+  };
+  createdBy?: any;
+  content?: {
+    text?: string;
+    code?: {
+      code?: string;
+      language?: string;
+    };
+  };
+  text?: string;
+  code?: string;
+  codeLang?: string;
+  createdAt?: string | Date;
+  reactions?: any;
+  userReactions?: any[];
+  role?: string;
+}
+
+// Define CommentContent type
+interface CommentContent {
+  text: string;
+  code: string;
+  codeLang: string;
+}
+
+// Update User interface to include role
+interface ExtendedUser extends User {
+  role?: string;
+}
+
+// Helper type guards
+function hasCreatedBy(obj: any): obj is { createdBy: any } {
+  return obj && typeof obj === 'object' && 'createdBy' in obj && obj.createdBy;
+}
+function has_id(obj: any): obj is { _id: string } {
+  return obj && typeof obj === 'object' && '_id' in obj && obj._id;
+}
+
+function isCommentWithReplies(obj: Comment | Reply): obj is Comment {
+  return 'replies' in obj && Array.isArray(obj.replies);
+}
+
+// Remove the normalizeReply function
 
 export default function CommentItem({
   comment,
@@ -52,110 +113,216 @@ export default function CommentItem({
   rootId = null,
 }: {
   comment: Comment | Reply
-  activeReplyId: number | string | null
-  setActiveReplyId: (id: number | string | null) => void
+  activeReplyId: string | null
+  setActiveReplyId: (id: string | null) => void
   mentionUser: string
   setMentionUser: (user: string) => void
-  rootId?: number | string | null
+  rootId?:  string | null
 }) {
   const t = useTranslations()
   const dispatch = useDispatch<AppDispatch>()
   const [openDelete, setOpenDelete] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
-  const [editValue, setEditValue] = useState<CommentContent>(comment.content)
+  const [editValue, setEditValue] = useState<CommentContent>({
+    text: comment.text || '',
+    code: comment.code || '',
+    codeLang: comment.codeLang || '',
+  })
   const [showReplies, setShowReplies] = useState(false)
-  const [visibleReplies, setVisibleReplies] = useState(2) // Show 2 replies initially
+  const [visibleReplies, setVisibleReplies] = useState(0) // Start with 0 visible replies
 
   const isReply = !!comment.parentCommentId
-  const rootCommentId = rootId || comment.id
+  const commentId = has_id(comment) ? comment._id : (comment as any).id
+  const rootCommentId = rootId || String(commentId)
+  const { user } = useSelector((state: RootState) => state.auth);
 
   // Get visible replies based on pagination
   const visibleRepliesList = useMemo(() => {
-    if (!comment.replies || comment.replies.length === 0) return []
-    return comment.replies.slice(0, visibleReplies)
-  }, [comment.replies, visibleReplies])
-
-  // Check if there are more replies to load
-  const hasMoreReplies = comment.replies && comment.replies.length > visibleReplies
-
-  const handleReplyClick = () => {
-    setMentionUser(comment.user.username)
-    setActiveReplyId(rootCommentId)
-  }
-
-  const shouldShowReplyForm = activeReplyId === comment.id && !isReply
-
-  const handleReplySubmit = async (text: string) => {
-    const newReply: Reply = {
-      postId: comment.postId,
-      parentCommentId: rootCommentId,
-      user: { name: 'You', username: 'you' },
-      content: { text },
-      createdAt: new Date(),
-      replies: [],
-      id: Date.now(),
-      reactions: { like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 },
-      userReactions: []
+    if (!isCommentWithReplies(comment) || !comment.replies || comment.replies.length === 0) {
+      return [];
     }
 
-    await dispatch(addReplyAsync(newReply))
-    setActiveReplyId(null)
-    setMentionUser('')
+    // Always show replies in reverse chronological order (newest first)
+    const sortedReplies = [...comment.replies];
+    return sortedReplies.slice(0, Math.max(visibleReplies, 0)).filter(Boolean) as Reply[];
+  }, [comment, visibleReplies]);
+
+  // Check if there are more replies to load
+  const hasMoreReplies = isCommentWithReplies(comment) && 
+    comment.replies.length > visibleRepliesList.length;
+
+  const handleReplyClick = () => {
+    // If this is a reply, trigger the reply form on the parent comment
+    if (isReply) {
+      setMentionUser((hasCreatedBy(comment) ? comment.createdBy?.username : '') || '')
+      setActiveReplyId(rootCommentId)
+    } else {
+      setMentionUser((hasCreatedBy(comment) ? comment.createdBy?.username : '') || '')
+      setActiveReplyId(String(commentId))
+    }
   }
 
-  const handleEditSubmit = async (content: CommentContent) => {
-    if (content.text !== comment.content.text || content.code !== comment.content.code) {
+  const shouldShowReplyForm = !isReply && activeReplyId === String(commentId)
+
+  const handleLoadMoreReplies = () => {
+    if (!showReplies) {
+      // First time loading replies
+      if (has_id(comment)) {
+        dispatch(fetchReplies(comment._id))
+          .unwrap()
+          .then(() => {
+            setShowReplies(true);
+            setVisibleReplies(2);
+          });
+      }
+    } else {
+      // Loading more replies
+      setVisibleReplies(prev => prev + 2);
+    }
+  }
+
+  const handleReplySubmit = async (text: string) => {
+    // Always use rootCommentId for adding replies, whether replying to a comment or a reply
+    const parentId = rootCommentId;
+    
+    if (!parentId) {
+      console.error('Cannot add reply: No valid parent comment ID');
+      return;
+    }
+    
+    try {
+      const result = await dispatch(addReplyAsync({
+        parentCommentId: parentId,
+        text: text,
+        postId: comment.postId,
+        code: '',
+        codeLang: ''
+      })).unwrap();
+      
+      setActiveReplyId(null);
+      setMentionUser('');
+      // Ensure the new reply is visible by increasing visibleReplies if needed
+      setVisibleReplies(prev => Math.max(prev + 1, 1));
+    } catch (error) {
+      console.error('Failed to add reply:', error);
+    }
+  }
+
+  const handleEditSubmit = async (editValue: { text: string, code: string, codeLang: string }) => {
+    if (
+      editValue.text !== comment.text ||
+      editValue.code !== comment.code ||
+      editValue.codeLang !== comment.codeLang
+    ) {
       try {
-        console.log('Editing comment:', comment.id, 'with content:', content)
-        await dispatch(editCommentOrReplyAsync({ id: comment.id, content }))
-        console.log('Edit successful')
+        await dispatch(editCommentOrReplyAsync({
+          id: String(commentId),
+          data: {
+            text: editValue.text,
+            code: editValue.code,
+            codeLang: editValue.codeLang,
+            postId: comment.postId,
+            createdBy: (hasCreatedBy(comment) ? comment.createdBy : (comment as any).user?._id) || ''
+          }
+        }))
+        
+        // Force update local state to ensure UI reflects changes immediately
+        setEditValue({
+          text: editValue.text,
+          code: editValue.code,
+          codeLang: editValue.codeLang,
+        })
+        
+        // If this is a reply, fetch the parent comment's replies again to ensure UI updates
+        if (isReply && rootCommentId) {
+          dispatch(fetchReplies(rootCommentId))
+        }
       } catch (error) {
-        console.error('Edit failed:', error)
+        console.error('Error editing comment/reply:', error)
       }
     }
     setIsEditing(false)
   }
 
   const handleEditCancel = () => {
-    setEditValue(comment.content)
+    setEditValue({
+      text: comment.text || '',
+      code: comment.code || '',
+      codeLang: comment.codeLang || '',
+    })
     setIsEditing(false)
   }
 
   const handleDelete = async () => {
-    await dispatch(deleteCommentOrReplyAsync(comment.id))
+    await dispatch(deleteCommentOrReplyAsync(String(commentId)))
     setOpenDelete(false)
   }
 
+  // Handle view replies click
   const handleViewReplies = () => {
-    setShowReplies(true)
-  }
+    if (has_id(comment)) {
+      // Fetch replies only when viewing
+      dispatch(fetchReplies(comment._id))
+        .unwrap()
+        .then(() => {
+          setShowReplies(true);
+          // Show 2 more replies in addition to what's already visible
+          setVisibleReplies(prev => Math.max(prev + 2, 2));
+        });
+    }
+  };
 
-  const handleLoadMoreReplies = () => {
-    setVisibleReplies(prev => prev + 2) // Load 2 more replies
+  // Reaction handler
+  const handleReact = (reaction: string) => {
+    const commentId = has_id(comment) ? comment._id : String((comment as any).id);
+    
+    if (!commentId) {
+      console.error('Cannot add reaction: No valid comment ID');
+      return;
+    }
+    
+    if (isReply) {
+      // For replies, we need the parent comment ID
+      dispatch(updateReplyReactionsAsync({
+        parentCommentId: rootCommentId,
+        replyId: commentId,
+        reaction
+      }))
+    } else {
+      // For top-level comments
+      dispatch(updateCommentReactionsAsync({
+        commentId,
+        reaction
+      }))
+    }
   }
 
   return (
     <div className="flex gap-3 items-start">
-      <UserAvatar />
+      <UserAvatar src={hasCreatedBy(comment) ? (comment.createdBy.avatar || '') : ''} firstName={hasCreatedBy(comment) ? (comment.createdBy.firstName || '') : ((comment as any).user?.name || '')} />
 
       <div className="flex-1 overflow-hidden">
         <div className="bg-accent p-3 rounded-xl relative">
-          {!isEditing && (
+          {!isEditing && user && (
             <div className="absolute top-2 end-2">
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger className="cursor-pointer outline-none">
                   <EllipsisVerticalIcon className="size-4 text-muted-foreground" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                    <PencilIcon className="size-4" />
-                    {t('edit')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setOpenDelete(true)}>
-                    <TrashIcon className="size-4" />
-                    {t('delete')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
+                  { user?._id === comment.createdBy._id && (
+                    <>
+                      <DropdownMenuItem onClick={() => setIsEditing(true)} className='cursor-pointer'>
+                        <PencilIcon className="size-4" />
+                        {t('edit')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setOpenDelete(true)} className='cursor-pointer'>
+                        <TrashIcon className="size-4" />
+                        {t('delete')}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuItem className='cursor-pointer'>
                     <FlagIcon className="size-4" />
                     {t('report')}
                   </DropdownMenuItem>
@@ -164,8 +331,19 @@ export default function CommentItem({
             </div>
           )}
 
-          <p className="font-semibold text-sm">{comment.user.name}</p>
-          
+          <div className="font-semibold text-sm">
+            {hasCreatedBy(comment) && (
+              <>
+                <Link href={`/profile/${comment.createdBy.username}`} className='hover:underline transition-all duration-300 me-1'>
+                  { comment.createdBy.firstName }
+                  { comment.createdBy.lastName && ' ' + comment.createdBy.lastName }
+                </Link>
+                { (comment.createdBy as ExtendedUser).role === 'admin' && (
+                  <AdminBadge role={(comment.createdBy as ExtendedUser).role || ''} size='xs' />
+                ) }
+              </>
+            )}
+          </div>
           {isEditing ? (
             <div className="mt-2">
               <CommentEditor
@@ -182,13 +360,32 @@ export default function CommentItem({
             </div>
           ) : (
             <div className="mt-1 space-y-2">
-              {comment.content.text && (
-                <p className="text-sm">{comment.content.text}</p>
+              {comment.text && (
+                <bdi className='block'>
+                  <p className="text-sm">
+                    {comment.text.split(' ').map((word, index) => {
+                      if (word.startsWith('@')) {
+                        const username = word.slice(1); // Remove @ symbol
+                        return (
+                          <span key={index}>
+                            <Link 
+                              href={`/profile/${username}`}
+                              className="text-primary hover:underline"
+                            >
+                              {word}
+                            </Link>{' '}
+                          </span>
+                        );
+                      }
+                      return word + ' ';
+                    })}
+                  </p>
+                </bdi>
               )}
-              {comment.content.code && (
+              {comment.code && (
                 <CodeBlock 
-                  code={comment.content.code.code} 
-                  language={comment.content.code.language} 
+                  code={comment.code} 
+                  language={comment.codeLang || 'javascript'} 
                 />
               )}
             </div>
@@ -199,30 +396,24 @@ export default function CommentItem({
           <div className="flex gap-3 text-xs text-muted-foreground mt-2 items-center">
             <ReactionMenu 
               size="sm"
-              commentId={isReply ? undefined : comment.id.toString()}
+              commentId={String(commentId)}
               parentCommentId={isReply ? rootCommentId : undefined}
-              replyId={isReply ? comment.id : undefined}
-              reactions={{
-                like: 0,
-                love: 0,
-                wow: 0,
-                funny: 0,
-                dislike: 0,
-                happy: 0,
-                ...comment.reactions
-              }}
+              replyId={isReply ? String(commentId) : undefined}
+              reactions={comment.reactions}
               userReactions={comment.userReactions}
-              currentUserId="user1"
-              currentUsername="you"
+              currentUserId={user?._id}
+              currentUsername={user?.username || ''}
             />
-            <button onClick={handleReplyClick} className="cursor-pointer">
-              <ReplyIcon className="size-4" />
-            </button>
-            <span>1h ago</span>
+            { user && (
+              <button onClick={handleReplyClick} className="cursor-pointer">
+                <ReplyIcon className="size-4" />
+              </button>
+            )}
+            <span>{new Date(comment.createdAt || '').toLocaleString()}</span>
           </div>
         )}
 
-        {!isReply && shouldShowReplyForm && (
+        {shouldShowReplyForm && (
           <ReplyForm
             key={mentionUser}
             initialValue={`@${mentionUser} `}
@@ -230,51 +421,40 @@ export default function CommentItem({
           />
         )}
 
-        {/* View Replies Button (Facebook-style) */}
-        {!isReply && comment.replies && comment.replies.length > 0 && !showReplies && (
-          <div className="mt-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleViewReplies}
-              className="text-muted-foreground hover:text-foreground text-xs px-2 py-1 h-auto"
-            >
-              View {comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}
-            </Button>
-          </div>
-        )}
-
         {/* Replies Section */}
-        {!isReply && showReplies && comment.replies && comment.replies.length > 0 && (
-          <div className="mt-3 space-y-2 ms-5">
-            {visibleRepliesList.map((reply, index) => (
+        <div className="mt-4 space-y-2">
+          {/* Show replies */}
+          {visibleRepliesList.map((replyData, index) => (
+            <div key={replyData._id || `reply-${index}`} className="reply-item">
               <CommentItem
-                key={reply.id}
-                comment={reply}
+                comment={replyData}
                 activeReplyId={activeReplyId}
                 setActiveReplyId={setActiveReplyId}
                 mentionUser={mentionUser}
                 setMentionUser={setMentionUser}
                 rootId={rootCommentId}
               />
-            ))}
-            
-            {/* Load More Replies Button */}
-            {hasMoreReplies && (
-              <div className="flex justify-start pt-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLoadMoreReplies}
-                  className="text-muted-foreground hover:text-foreground text-xs px-2 py-1 h-auto"
-                >
-                  <ChevronDown className="size-3 mr-1" />
-                  Load More Replies ({comment.replies!.length - visibleReplies} more)
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
+            </div>
+          ))}
+          
+          {/* Single Load More Button */}
+          {!isReply && hasMoreReplies && (
+            <div className="flex justify-start pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLoadMoreReplies}
+                className="text-muted-foreground hover:text-foreground text-xs px-2 py-1 h-auto"
+              >
+                <ChevronDown className="size-3 mr-1" />
+                {!showReplies 
+                  ? `View ${comment.replies.length - visibleRepliesList.length} ${comment.replies.length - visibleRepliesList.length === 1 ? 'reply' : 'replies'}`
+                  : `Load More Replies (${comment.replies.length - visibleRepliesList.length} more)`
+                }
+              </Button>
+            </div>
+          )}
+        </div>
 
         {/* Delete Dialog */}
         <AlertDialog open={openDelete} onOpenChange={setOpenDelete}>
@@ -286,8 +466,8 @@ export default function CommentItem({
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete}>
+              <AlertDialogCancel className='cursor-pointer'>{t('cancel')}</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} className='bg-danger hover:bg-danger/90 cursor-pointer'>
                 {t('delete')}
               </AlertDialogAction>
             </AlertDialogFooter>
