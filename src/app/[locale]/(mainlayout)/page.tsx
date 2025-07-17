@@ -5,7 +5,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { Button } from "@/components/ui/button";
 import { Heart } from "lucide-react";
 import { useTranslations } from "next-intl";
-import NotificationPage from "@/components/Notification";
+import NotificationPage from "@/components/notification";
 export default function Home() {
   const t = useTranslations();
 

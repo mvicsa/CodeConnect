@@ -10,17 +10,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 import {
-    initialNotifications, loadMoreNotificationsAPI, markNotificationAsReadAPI, markAllNotificationsAsReadAPI,
-    deleteNotificationAPI, getBadgeVariant, getNotificationBackground, filterOptions
+    initialNotifications,
+    loadMoreNotificationsAPI,
+    markNotificationAsReadAPI,
+    markAllNotificationsAsReadAPI,
+    deleteNotificationAPI
 } from '@/services/staticAPI';
-
-type NotificationType = 'success' | 'info' | 'warning' | 'error';
-type FilterType = 'all' | 'unread' | 'read' | NotificationType;
 
 const NotificationPage = () => {
     const [showNotifications, setShowNotifications] = useState(false);
     const [notifications, setNotifications] = useState(initialNotifications);
-    const [filter, setFilter] = useState<FilterType>('all');
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [hasMore, setHasMore] = useState<boolean>(true);
@@ -74,25 +73,14 @@ const NotificationPage = () => {
     };
 
     const filteredNotifications = notifications.filter(notif => {
-        const matchesFilter = filter === 'all' ||
-            (filter === 'unread' && !notif.read) ||
-            (filter === 'read' && notif.read) ||
-            notif.type === filter;
-
-        const matchesSearch = notif.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        return notif.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             notif.message.toLowerCase().includes(searchTerm.toLowerCase());
-
-        return matchesFilter && matchesSearch;
     });
 
     const unreadCount = notifications.filter(notif => !notif.read).length;
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
         setSearchTerm(e.target.value);
-    };
-
-    const handleFilterChange = (filterType: FilterType): void => {
-        setFilter(filterType);
     };
 
     return (
@@ -166,20 +154,6 @@ const NotificationPage = () => {
                                     aria-label="Search notifications"
                                 />
                             </div>
-
-                            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                                {filterOptions.map((filterType) => (
-                                    <Button
-                                        key={filterType}
-                                        variant={filter === filterType ? "default" : "outline"}
-                                        size="sm"
-                                        onClick={() => handleFilterChange(filterType)}
-                                        className="capitalize whitespace-nowrap"
-                                    >
-                                        {filterType === 'all' ? 'All' : filterType}
-                                    </Button>
-                                ))}
-                            </div>
                         </div>
 
                         <ScrollArea className="flex-1 px-6 overflow-y-auto">
@@ -193,7 +167,7 @@ const NotificationPage = () => {
                                         <p className="text-muted-foreground text-sm">
                                             {searchTerm.trim() ?
                                                 'No notifications match your search' :
-                                                'You have no notifications in this category'}
+                                                'You have no notifications'}
                                         </p>
                                     </div>
                                 ) : (
@@ -202,12 +176,13 @@ const NotificationPage = () => {
                                         return (
                                             <Card
                                                 key={notification.id}
-                                                className={`group transition-all duration-200 hover:shadow-md ${getNotificationBackground(notification)}`}
+                                                className={`group transition-all duration-200 hover:shadow-md ${!notification.read ? 'bg-muted/50 border-muted' : ''
+                                                    }`}
                                             >
                                                 <CardContent className="p-4">
                                                     <div className="flex items-start gap-3">
-                                                        <div className={`p-2 rounded-lg ${notification.color} bg-current/10 flex-shrink-0`}>
-                                                            <IconComponent className={`h-5 w-5 ${notification.color}`} />
+                                                        <div className="p-2 rounded-lg bg-muted flex-shrink-0">
+                                                            <IconComponent className="h-5 w-5" />
                                                         </div>
 
                                                         <div className="flex-1 min-w-0">
@@ -234,10 +209,6 @@ const NotificationPage = () => {
                                                             </p>
 
                                                             <div className="flex items-center gap-2">
-                                                                <Badge variant={getBadgeVariant(notification.type)} className="text-xs">
-                                                                    {notification.type}
-                                                                </Badge>
-
                                                                 <div className="flex-1" />
 
                                                                 {!notification.read && (

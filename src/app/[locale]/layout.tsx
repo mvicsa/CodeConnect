@@ -8,6 +8,7 @@ import ReduxProvider from "@/store/Provider";
 import { MainNavBar } from "@/components/layout/navigation/MainNavBar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/sidebar/AppSidebar";
+import  NotificationPage  from "@/components/notification";
 // import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 const josefinSans = Josefin_Sans({
