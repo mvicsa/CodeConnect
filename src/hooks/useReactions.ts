@@ -2,19 +2,17 @@ import { useDispatch, useSelector } from 'react-redux'
 import { AppDispatch, RootState } from '../store/store'
 import { 
   addPostReaction, 
-  addCommentReaction, 
   updatePostReactions,
   updateCommentReactions
 } from '../store/slices/reactionsSlice'
 import { 
   updateCommentReactionsAsync,
-  updateReplyReactionsAsync,
-  updateCommentReactions as updateCommentReactionsLocal,
-  updateReplyReactions as updateReplyReactionsLocal
+  updateReplyReactionsAsync
 } from '../store/slices/commentsSlice'
 import { editPost } from '../store/slices/postsSlice'
-import { useCallback, useEffect, useRef } from 'react'
-import { Reactions, UserReaction } from '@/types/comments'
+import { useCallback, useRef } from 'react'
+import { Reactions, UserReaction as CommentUserReaction, User } from '@/types/comments'
+import { UserReaction as ReactionUserReaction } from '../store/slices/reactionsSlice'
 
 export const useReactions = () => {
   const dispatch = useDispatch<AppDispatch>()
@@ -80,12 +78,10 @@ export const useReactions = () => {
   // Add/remove comment reaction
   const handleCommentReaction = useCallback(async (
     commentId: string,
-    userId: string,
-    username: string,
     reaction: string
   ) => {
     // Create a unique key for this reaction attempt
-    const reactionKey = `comment-${commentId}-${userId}-${reaction}`
+    const reactionKey = `comment-${commentId}-${reaction}`
     
     // Check if this reaction is already pending
     if (pendingReactionsRef.current.has(reactionKey)) {
@@ -97,27 +93,25 @@ export const useReactions = () => {
     pendingReactionsRef.current.add(reactionKey)
     
     try {
-      const result = await dispatch(addCommentReaction({
+      const result = await dispatch(updateCommentReactionsAsync({
         commentId,
-        userId,
-        username,
-        reaction,
-        token: localStorage.getItem('token') || ''
+        reaction
       })).unwrap()
       
       // Update reactions slice state immediately for better UX
       if (result) {
-        dispatch(updateCommentReactions({
-          commentId,
-          reactions: result.reactions,
-          userReactions: result.userReactions
+        // Convert CommentUserReaction[] to ReactionUserReaction[]
+        const convertedUserReactions: ReactionUserReaction[] = result.userReactions.map(ur => ({
+          userId: ur.userId._id,
+          username: ur.username,
+          reaction: ur.reaction,
+          createdAt: ur.createdAt
         }))
-        
-        // Also update the comments slice state to keep them in sync
-        dispatch(updateCommentReactionsLocal({
-          commentId: result.commentId,
+
+        dispatch(updateCommentReactions({
+          commentId: result._id,
           reactions: result.reactions,
-          userReactions: result.userReactions
+          userReactions: convertedUserReactions
         }))
       }
       
@@ -133,91 +127,56 @@ export const useReactions = () => {
 
   // Add/remove reply reaction
   const handleReplyReaction = useCallback(async (
-    parentCommentId: number | string,
-    replyId: number | string,
-    userId: string,
-    username: string,
+    parentCommentId: string,
+    replyId: string,
     reaction: string
   ) => {
+    // Create a unique key for this reaction attempt
+    const reactionKey = `reply-${parentCommentId}-${replyId}-${reaction}`
+    
+    // Check if this reaction is already pending
+    if (pendingReactionsRef.current.has(reactionKey)) {
+      console.log('🚫 Reply reaction already pending:', reactionKey)
+      return { success: false, error: 'Reaction already pending' }
+    }
+    
+    // Add to pending set
+    pendingReactionsRef.current.add(reactionKey)
+    
     try {
-      // Find the current reply to get its reactions
-      const parentComment = comments.find(c => c.id === parentCommentId)
-      const reply = parentComment?.replies.find(r => r.id === replyId)
-      
-      if (!reply) {
-        throw new Error('Reply not found')
-      }
-
-      const currentReactions = reply.reactions || { like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 }
-      const currentUserReactions = reply.userReactions || []
-      
-      // Check if user already reacted
-      const existingReactionIndex = currentUserReactions.findIndex(
-        ur => ur.userId === userId
-      )
-
-      let updatedUserReactions = [...currentUserReactions]
-      let updatedReactions = { ...currentReactions }
-
-      if (existingReactionIndex >= 0) {
-        // Remove previous reaction
-        const previousReaction = updatedUserReactions[existingReactionIndex].reaction
-        updatedReactions[previousReaction as keyof Reactions] = Math.max(0, updatedReactions[previousReaction as keyof Reactions] - 1)
-        
-        // Update or remove reaction
-        if (updatedUserReactions[existingReactionIndex].reaction === reaction) {
-          // Remove reaction if same type
-          updatedUserReactions.splice(existingReactionIndex, 1)
-        } else {
-          // Change reaction type
-          updatedUserReactions[existingReactionIndex] = {
-            userId,
-            username,
-            reaction,
-            createdAt: new Date().toISOString()
-          }
-          updatedReactions[reaction as keyof Reactions] = (updatedReactions[reaction as keyof Reactions] || 0) + 1
-        }
-      } else {
-        // Add new reaction
-        updatedUserReactions.push({
-          userId,
-          username,
-          reaction,
-          createdAt: new Date().toISOString()
-        })
-        updatedReactions[reaction as keyof Reactions] = (updatedReactions[reaction as keyof Reactions] || 0) + 1
-      }
-
-      // Update in Redux store
-      await dispatch(updateReplyReactionsAsync({
+      const result = await dispatch(updateReplyReactionsAsync({
         parentCommentId,
         replyId,
-        reactions: updatedReactions,
-        userReactions: updatedUserReactions
-      }))
+        reaction
+      })).unwrap()
+      
+      // Update reactions slice state immediately for better UX
+      if (result) {
+        // The result is now the updated reply itself
+        // Convert CommentUserReaction[] to ReactionUserReaction[]
+        const convertedUserReactions: ReactionUserReaction[] = result.userReactions.map(ur => ({
+          userId: ur.userId._id,
+          username: ur.username,
+          reaction: ur.reaction,
+          createdAt: ur.createdAt
+        }))
 
-      // Update local state immediately for better UX
-      dispatch(updateReplyReactionsLocal({
-        parentCommentId,
-        replyId,
-        reactions: updatedReactions,
-        userReactions: updatedUserReactions
-      }))
-
-      return { 
-        success: true, 
-        data: { 
-          replyId, 
-          reactions: updatedReactions, 
-          userReactions: updatedUserReactions 
-        } 
+        dispatch(updateCommentReactions({
+          commentId: replyId,
+          reactions: result.reactions,
+          userReactions: convertedUserReactions
+        }))
       }
+      
+      return { success: true, data: result }
     } catch (error) {
       console.error('Failed to add reply reaction:', error)
       return { success: false, error }
+    } finally {
+      // Remove from pending set
+      pendingReactionsRef.current.delete(reactionKey)
     }
-  }, [dispatch, comments])
+  }, [dispatch])
 
   // Get current user's reaction
   const getCurrentUserReaction = useCallback((

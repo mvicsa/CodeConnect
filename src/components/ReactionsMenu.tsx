@@ -9,6 +9,8 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import type { UserReaction } from '@/types/post';
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 // Map your existing reaction images to the database structure
 const reactionImageMap = {
@@ -47,8 +49,8 @@ export default function ReactionsMenu({
   replyId,
   reactions = { like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 },
   userReactions = [],
-  currentUserId = "user1",
-  currentUsername = "you"
+  currentUserId,
+  currentUsername
 }: ReactionsMenuProps) {
   const { 
     handlePostReaction, 
@@ -62,11 +64,25 @@ export default function ReactionsMenu({
   const lastReactionRef = useRef<{ postId?: string; commentId?: string; replyId?: string | number; reaction: string; timestamp: number } | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  const { user } = useSelector((state: RootState) => state.auth);
+
   // Get current user's reaction
-  const currentUserReactionType = userReactions.find(
-    ur => ur.userId && typeof ur.userId === 'object' && ur.userId._id === currentUserId
-  )?.reaction || null;
+  const currentUserReaction = userReactions.find(
+    ur => ur.userId._id === user?._id
+  );
+  const currentUserReactionType = currentUserReaction?.reaction || null;
   const selectedReaction = currentUserReactionType ? reactionImageMap[currentUserReactionType as keyof typeof reactionImageMap] : null;
+
+  // Helper function to check if user has reacted
+  const hasUserReacted = (userId: string, reactionType?: string) => {
+    if (!userId) return false; // No user logged in
+    const userReaction = userReactions.find(ur => ur.userId._id === userId);
+    if (!reactionType) return !!userReaction; // Check if user has any reaction
+    return userReaction?.reaction === reactionType; // Check specific reaction type
+  };
+
+  // Check if current user has reacted
+  const isCurrentUserReacted = hasUserReacted(currentUserId || '');
 
   // Calculate total reactions
   const totalReactions = Object.values(reactions).reduce((sum, count) => sum + count, 0);
@@ -84,6 +100,16 @@ export default function ReactionsMenu({
 
   const handleSelectReaction = async (reactionName: string) => {
     if (!currentUserId || isReactionLoading) return;
+
+    // Debug: Check if user already has this reaction
+    const currentReaction = userReactions.find(ur => ur.userId._id === currentUserId);
+    console.log('🎯 Reaction Toggle Debug:', {
+      reactionName,
+      currentUserId,
+      currentReaction: currentReaction?.reaction,
+      willToggle: currentReaction?.reaction === reactionName,
+      userReactions: userReactions.map(ur => ({ userId: ur.userId._id, reaction: ur.reaction }))
+    });
 
     // Prevent duplicate rapid clicks
     const now = Date.now();
@@ -109,29 +135,20 @@ export default function ReactionsMenu({
       timestamp: now
     };
 
-    console.log('🎯 ReactionMenu: handleSelectReaction called:', { 
-      reactionName, 
-      postId, 
-      commentId, 
-      parentCommentId, 
-      replyId,
-      currentUserId,
-      currentUsername 
-    });
-
     setIsReactionLoading(true);
     try {
       let result;
       
       if (postId) {
-        console.log('📝 Processing POST reaction');
         result = await handlePostReaction(postId, reactionName);
       } else if (commentId && !replyId) {
-        console.log('💬 Processing COMMENT reaction');
-        result = await handleCommentReaction(commentId, currentUserId, currentUsername, reactionName);
+        result = await handleCommentReaction(commentId, reactionName);
       } else if (replyId && parentCommentId) {
-        console.log('↩️ Processing REPLY reaction');
-        result = await handleReplyReaction(parentCommentId, replyId, currentUserId, currentUsername, reactionName);
+        result = await handleReplyReaction(
+          String(parentCommentId), 
+          String(replyId), 
+          reactionName
+        );
       }
 
       console.log('📊 Reaction result:', result);
@@ -154,61 +171,68 @@ export default function ReactionsMenu({
   return (
     <div className="flex items-center gap-2">
       {/* Reaction Button */}
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <div className={`w-${size === "sm" ? "4" : "5"} h-${size === "sm" ? "4" : "5"} cursor-pointer flex items-center justify-center ${isReactionLoading ? 'opacity-50' : ''}`}>
-            {selectedReaction ? (
-              <Image
-                src={selectedReaction}
-                alt={currentUserReactionType || "reaction"}
-                width={30}
-                height={30}
-              />
-            ) : (
-              <Heart className={`size-${size === "sm" ? "4" : "5"} text-muted-foreground hover:text-foreground transition-colors`} />
-            )}
-          </div>
-        </PopoverTrigger>
-        <PopoverContent
-          className="w-auto border p-2 flex items-center gap-2 rounded-full"
-          align="start"
-          side="top"
-        >
-          {Object.entries(reactionImageMap).map(([reactionName, imageSrc]) => (
-            <button
-              key={reactionName}
-              onClick={() => handleSelectReaction(reactionName)}
-              disabled={isReactionLoading}
-              className={`cursor-pointer hover:scale-95 transition-all duration-300 outline-none ${size === "sm" ? "w-5 h-5" : "w-6 h-6"} ${isReactionLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              title={reactionName}
-            >
-              <Image
-                src={imageSrc}
-                alt={reactionName}
-                width={30}
-                height={30}
-              />
-            </button>
-          ))}
-        </PopoverContent>
-      </Popover>
+      { user ? (
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <div className={`w-${size === "sm" ? "4" : "5"} h-${size === "sm" ? "4" : "5"} cursor-pointer flex items-center justify-center ${isReactionLoading ? 'opacity-50' : ''}`}>
+              {/* if user is logged in and has a reaction, show the reaction button */}
+              {selectedReaction ? (
+                <Image
+                  src={selectedReaction}
+                  alt={currentUserReactionType || "reaction"}
+                  width={30}
+                  height={30}
+                />
+              ) : (
+                <Heart className={`size-${size === "sm" ? "4" : "5"} text-muted-foreground hover:text-foreground transition-colors`} />
+              )}
+            </div>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-auto border p-2 flex items-center gap-2 rounded-full"
+            align="start"
+            side="top"
+          >
+            {Object.entries(reactionImageMap).map(([reactionName, imageSrc]) => (
+              <button
+                key={reactionName}
+                onClick={() => handleSelectReaction(reactionName)}
+                disabled={isReactionLoading}
+                className={`cursor-pointer hover:scale-95 transition-all duration-300 outline-none ${size === "sm" ? "w-5 h-5" : "w-6 h-6"} ${isReactionLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title={reactionName}
+              >
+                <Image
+                  src={imageSrc}
+                  alt={reactionName}
+                  width={30}
+                  height={30}
+                />
+              </button>
+            ))}
+          </PopoverContent>
+        </Popover>
+      ) : (
+        <Heart className={`size-${size === "sm" ? "4" : "5"} text-muted-foreground hover:text-foreground transition-colors`} />
+      )}
+      
 
       {/* Reaction Count Badge & Dialog */}
-      {totalReactions > 0 && (
+      {totalReactions > 0 && user && (
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <div className="cursor-pointer select-none" onClick={() => setDialogOpen(true)}>
-              <span className="inline-flex items-center hover:underline">
+              <span className="inline-flex items-center hover:underline text-sm">
                 {totalReactions}
               </span>
             </div>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md" dir="rtl">
             <DialogHeader>
               <DialogTitle>Reactions</DialogTitle>
             </DialogHeader>
-            <Tabs defaultValue={allUsers.length > 0 ? "all" : reactionTypeList.find(rt => reactions[rt] > 0) || "all"} className="w-full mt-2">
-              <TabsList>
+            {/* Tabs */}
+            <Tabs defaultValue={allUsers.length > 0 ? "all" : reactionTypeList.find(rt => reactions[rt] > 0) || "all"} className="w-full">
+              <TabsList className="mb-2">
                 {allUsers.length > 0 && <TabsTrigger value="all">All ({allUsers.length})</TabsTrigger>}
                 {reactionTypeList.filter(rt => reactions[rt] > 0).map((rt) => (
                   <TabsTrigger key={rt} value={rt}>
@@ -219,47 +243,58 @@ export default function ReactionsMenu({
                   </TabsTrigger>
                 ))}
               </TabsList>
+
               {/* All Tab */}
               {allUsers.length > 0 && (
-                <TabsContent value="all">
-                  <div className="flex flex-col gap-2 mt-2">
-                    {allUsers.map((u, idx) => (
-                      <div key={u.userId + u.reaction + idx} className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={u.userId.avatar} alt={u.userId._id} />
-                          <AvatarFallback className="text-xs">{`${u.userId?.firstName?.charAt(0)?.toUpperCase() || ''}${u.userId?.lastName ? u.userId.lastName.charAt(0).toUpperCase() : ''}`}</AvatarFallback>
-                        </Avatar>
-                        <Image src={reactionImageMap[u.reaction as keyof typeof reactionImageMap]} alt={u.reaction} width={20} height={20} />
-                        <span className="font-medium">{u.userId?.firstName || ''} {u.userId?.lastName || ''}</span>
-                        <span className="text-xs text-muted-foreground">({u.reaction})</span>
-                      </div>
-                    ))}
-                  </div>
-                </TabsContent>
+                <div className="max-h-[300px] overflow-y-auto">
+                  <TabsContent value="all">
+                    <div className="flex flex-col gap-2">
+                      {allUsers.map((u, idx) => (
+                        <div key={u.userId._id + u.reaction + idx} className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={u.userId.avatar} alt={u.userId._id} />
+                            <AvatarFallback className="text-xs">{u.userId.firstName.charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <Image src={reactionImageMap[u.reaction as keyof typeof reactionImageMap]} alt={u.reaction} width={20} height={20} />
+                          <span className="text-sm">{u.userId?.firstName || ''} {u.userId?.lastName || ''}</span>
+                          <span className="text-xs text-muted-foreground">({u.reaction})</span>
+                        </div>
+                      ))}
+                    </div>
+                  </TabsContent>
+                </div>
               )}
-              {/* Per-reaction Tabs */}
-              {reactionTypeList.filter(rt => reactions[rt] > 0).map((rt) => (
-                <TabsContent key={rt} value={rt}>
-                  <div className="flex flex-col gap-2 mt-2">
-                    {usersByReaction[rt].map((u, idx) => (
-                      <div key={u.userId + u.reaction + idx} className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={u.userId.avatar} alt={u.userId._id} />
-                          <AvatarFallback className="text-xs">{`${u.userId?.firstName?.charAt(0)?.toUpperCase() || ''}${u.userId?.lastName ? u.userId.lastName.charAt(0).toUpperCase() : ''}`}</AvatarFallback>
-                        </Avatar>
-                        <Image src={reactionImageMap[rt]} alt={rt} width={20} height={20} />
-                        <span className="font-medium">{u.userId?.firstName || ''} {u.userId?.lastName || ''}</span>
-                        <span className="text-xs text-muted-foreground">({u.reaction})</span>
-                      </div>
-                    ))}
-                  </div>
-                </TabsContent>
-              ))}
+
+              {/* Individual Reaction Type Tabs */}
+              <div className="max-h-[300px] overflow-y-auto -mt-2">
+                {reactionTypeList.filter(rt => reactions[rt] > 0).map((reactionType) => (
+                  <TabsContent key={reactionType} value={reactionType}>
+                    <div className="flex flex-col gap-2">
+                      {usersByReaction[reactionType].map((u, idx) => (
+                        <div key={u.userId._id + u.reaction + idx} className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={u.userId.avatar} alt={u.userId._id} />
+                            <AvatarFallback className="text-xs">{u.userId.firstName.charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <Image src={reactionImageMap[u.reaction as keyof typeof reactionImageMap]} alt={u.reaction} width={20} height={20} />
+                          <span className="text-sm">{u.userId?.firstName || ''} {u.userId?.lastName || ''}</span>
+                          <span className="text-xs text-muted-foreground">({u.reaction})</span>
+                        </div>
+                      ))}
+                    </div>
+                  </TabsContent>
+                ))}
+              </div>
             </Tabs>
           </DialogContent>
         </Dialog>
       )}
 
+      { totalReactions > 0 && !user && (
+        <span className="text-sm text-muted-foreground">
+          {totalReactions}
+        </span>
+      )}
 
     </div>
   );

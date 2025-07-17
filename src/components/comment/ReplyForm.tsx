@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import CommentEditor from './CommentEditor'
-import { Button } from '../ui/button'
-import { X } from 'lucide-react'
+import { useSelector } from 'react-redux'
+import { RootState } from '@/store/store'
 
 interface ReplyFormProps {
   initialValue: string
@@ -21,10 +21,9 @@ export default function ReplyForm({
   className = ''
 }: ReplyFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { user } = useSelector((state: RootState) => state.auth);
 
-  const [commentContent, setCommentContent] = useState<{ text: string; code?: { code: string; language: string } }>({ text: initialValue })
-
-  const handleSubmit = async (content: { text: string; code?: { code: string; language: string } }) => {
+  const handleSubmit = async (content: { text: string; code: string; codeLang: string }) => {
     if (!content.text.trim()) return
     
     setIsSubmitting(true)
@@ -44,13 +43,15 @@ export default function ReplyForm({
   }
 
   return (
-    <div className={`mt-3 space-y-3 ${className}`}>
-      <CommentEditor
-        initialValue={{ text: initialValue }}
-        onSubmit={handleSubmit}
-        placeholder={placeholder}
-        showCodeToggle={false}
-      />
-    </div>
+    user && (
+      <div className={`mt-3 space-y-3 ${className}`}>
+        <CommentEditor
+          initialValue={{ text: initialValue, code: '', codeLang: '' }}
+          onSubmit={handleSubmit}
+          placeholder={placeholder}
+          showCodeToggle={false}
+        />
+      </div>
+    )
   )
 } 

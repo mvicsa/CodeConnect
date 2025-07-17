@@ -16,7 +16,7 @@ interface AuthState {
   initialized: boolean;
 }
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const initialState: AuthState = {
   user: null,
@@ -30,7 +30,7 @@ export const login = createAsyncThunk(
   'auth/login',
   async (data: { email: string; password: string }, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth/login`, data);
+      const response = await axios.post(`${API_URL}/auth/login`, data);
       return response.data;
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.message || 'Login failed');
@@ -45,7 +45,7 @@ export const register = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth/register`, data);
+      const response = await axios.post(`${API_URL}/auth/register`, data);
       return response.data;
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.message || 'Registration failed');
@@ -61,7 +61,7 @@ export const fetchProfile = createAsyncThunk(
       const state = getState() as { auth: AuthState };
       const token = state.auth.token || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
       if (!token) throw new Error('No token');
-      const response = await axios.get(`${API_BASE_URL}/auth/profile`, {
+      const response = await axios.get(`${API_URL}/auth/profile`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
@@ -76,7 +76,7 @@ export const githubLogin = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       // Redirect to backend GitHub OAuth endpoint
-      window.location.href = 'http://localhost:5000/auth/github';
+      window.location.href = `${API_URL}/auth/github`;
     } catch (err: any) {
       return rejectWithValue('GitHub login failed');
     }

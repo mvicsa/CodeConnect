@@ -1,12 +1,13 @@
 'use client'
 
-import { useDispatch } from 'react-redux'
-import { AppDispatch } from '@/store/store'
+import { useDispatch, useSelector } from 'react-redux'
+import { AppDispatch, RootState } from '@/store/store'
 import { fetchPosts } from '@/store/slices/postsSlice'
 import PostForm from './PostForm'
 
 export default function CreatePostWrapper() {
   const dispatch = useDispatch<AppDispatch>()
+  const { user } = useSelector((state: RootState) => state.auth)
 
   const handleCancel = () => {
     // Handle cancel if needed
@@ -18,10 +19,12 @@ export default function CreatePostWrapper() {
   }
 
   return (
-    <PostForm 
-      mode="create"
-      onCancel={handleCancel}
-      onSuccess={handleSuccess}
-    />
+    user && (
+      <PostForm 
+        mode="create"
+        onCancel={handleCancel}
+        onSuccess={handleSuccess}
+      />
+    )
   )
 } 

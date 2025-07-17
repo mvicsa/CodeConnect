@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useDispatch } from 'react-redux'
-import { AppDispatch } from '@/store/store'
+import { useDispatch, useSelector } from 'react-redux'
+import { AppDispatch, RootState } from '@/store/store'
 import { createPost, updatePost } from '@/store/slices/postsSlice'
 import { Card, CardContent, CardHeader } from '../ui/card'
 import { Button } from '../ui/button'
@@ -47,6 +47,7 @@ type PostContent = {
 
 export default function PostForm({ mode, post, onCancel, onSuccess, className = '' }: PostFormProps) {
   const dispatch = useDispatch<AppDispatch>()
+  const { user } = useSelector((state: RootState) => state.auth)
   
   const [content, setContent] = useState<PostContent>({
     text: post?.text || '',
@@ -273,7 +274,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
     <Card className={`w-full dark:border-none shadow-none gap-4 ${className}`}>
       <CardHeader>
         <div className="flex items-center gap-3">
-          <UserAvatar src={post?.createdBy?.avatar} firstName={post?.createdBy?.firstName} />
+          <UserAvatar src={isEditMode ? post?.createdBy?.avatar : user?.avatar} firstName={isEditMode ? post?.createdBy?.firstName : user?.firstName} />
           <div className="flex-1">
             <h3 className="font-semibold">{isEditMode ? 'Edit Post' : 'Create Post'}</h3>
             <p className="text-sm text-muted-foreground">

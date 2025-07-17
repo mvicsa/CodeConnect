@@ -5,10 +5,9 @@ import { createHighlighter } from 'shiki'
 import { useSelector } from 'react-redux'
 import { RootState } from '../../store/store'
 import { Button } from '../ui/button'
-import { Badge } from '../ui/badge'
-import { Textarea } from '../ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Code, X } from 'lucide-react'
+import { Textarea } from '../ui/textarea'
 
 interface CodeEditorProps {
   value: string
@@ -19,9 +18,8 @@ interface CodeEditorProps {
   rows?: number
   onRemove?: () => void
   showRemoveButton?: boolean
+  onError?: (error: string | null) => void
 }
-
-
 
 export default function CodeEditor({
   value,
@@ -30,7 +28,8 @@ export default function CodeEditor({
   onLanguageChange,
   rows = 3,
   onRemove,
-  showRemoveButton = true
+  showRemoveButton = true,
+  onError
 }: CodeEditorProps) {
   const programmingLanguages = useSelector((state: RootState) => state.programmingLanguages?.languages || [])
   const [highlightedHtml, setHighlightedHtml] = useState('')
@@ -144,8 +143,6 @@ export default function CodeEditor({
     }
   }, [])
 
-
-
   // Highlight when value or language changes with debouncing
   useEffect(() => {
     // Clear previous timeout
@@ -164,8 +161,6 @@ export default function CodeEditor({
       }
     }
   }, [value, language, highlightCode])
-
-
 
   // Watch for theme changes like CodeBlock
   useEffect(() => {
@@ -263,8 +258,6 @@ export default function CodeEditor({
     setCursorPosition(e.currentTarget.selectionStart)
   }
 
-
-
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -315,7 +308,7 @@ export default function CodeEditor({
           className="relative resize-none !bg-transparent border-0 rounded-lg outline-none z-50 !text-sm text-transparent w-full overflow-x-auto overflow-y-hidden"
           style={{
             color: 'transparent !important',
-            caretColor: '#3b82f6',
+            caretColor: 'var(--primary)',
             whiteSpace: 'pre',
             lineHeight: '1.501 !important',
             fontFamily: 'var(--font-family)',

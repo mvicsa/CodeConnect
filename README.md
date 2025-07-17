@@ -1,108 +1,150 @@
-# CodeConnect - Real-Time Chat System
+# CodeConnect
 
-A modern, feature-rich real-time chat application built with Next.js, TypeScript, and Tailwind CSS. Supports both private and group chats with real-time features like typing indicators, read receipts, and message actions.
+![CodeConnect Logo](public/logo-dark.svg)
+
+A modern social platform for developers to connect, share code, and collaborate. Built with Next.js, TypeScript, Redux, and Tailwind CSS.
 
 ## 🚀 Features
 
-### Real-Time Chat
-- **Private Chats**: One-on-one conversations with friends
-- **Group Chats**: Multi-participant conversations with member management
-- **Real-Time Messaging**: Instant message delivery and synchronization
-- **Typing Indicators**: See when others are typing in real-time
-- **Read Receipts**: Know when your messages have been read
-- **Message Actions**: Reply, copy, and delete messages
+### Social Platform
+- **Posts Feed**: Share updates, code snippets, images, and videos
+- **Comments & Replies**: Engage with other developers through comments
+- **Reactions**: Express yourself with a variety of reaction emojis
+- **User Profiles**: Showcase your work and connect with others
+
+### Code Sharing
+- **Syntax Highlighting**: Beautiful code highlighting with Shiki
+- **Multiple Languages**: Support for all major programming languages
+- **Code Editor**: Built-in code editor for creating and editing code snippets
+- **Copy Code**: Easily copy code to clipboard
+
+### Media Sharing
+- **Image Upload**: Share images in your posts
+- **Video Support**: Embed and play videos
+- **Responsive Media**: Optimized for all device sizes
+
+### Chat System
+- **Real-Time Chat**: Connect with other developers instantly
+- **Private Messaging**: One-on-one conversations
+- **Chat Interface**: Modern, intuitive chat experience
 
 ### User Experience
 - **Dark/Light Theme**: Seamless theme switching with system preference detection
-- **Internationalization**: Full Arabic and English language support
+- **Internationalization**: Full Arabic and English language support with next-intl
 - **Responsive Design**: Works perfectly on desktop, tablet, and mobile
-- **Search Functionality**: Find chats and messages quickly
-- **Emoji Support**: Rich emoji picker integration
-- **Message Status**: Visual indicators for sent, delivered, and read messages
+- **RTL Support**: Full right-to-left language support
+- **Accessibility**: Designed with accessibility in mind
 
-### Advanced Features
-- **Message Replies**: Reply to specific messages in conversations
-- **Copy Messages**: Easy message copying to clipboard
-- **Delete Messages**: Remove your own messages
-- **Group Management**: View group members and details
-- **Online Status**: Real-time user status indicators
-- **Unread Counts**: Track unread messages per chat
+### Authentication
+- **Social Login**: Sign in with GitHub
+- **Email Authentication**: Traditional email and password authentication
+- **Password Recovery**: Secure password reset functionality
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Next.js 14 with App Router
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS with shadcn/ui components
-- **State Management**: React hooks with custom state management
-- **Internationalization**: next-intl
-- **Emoji**: emoji-button library
-- **Icons**: Lucide React
+- **Framework**: [Next.js 15](https://nextjs.org/) with App Router
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) with [shadcn/ui](https://ui.shadcn.com/) components
+- **State Management**: [Redux Toolkit](https://redux-toolkit.js.org/) with [React Redux](https://react-redux.js.org/)
+- **Authentication**: [NextAuth.js](https://next-auth.js.org/)
+- **Internationalization**: [next-intl](https://next-intl-docs.vercel.app/)
+- **Code Highlighting**: [Shiki](https://shiki.matsu.io/)
+- **Icons**: [Lucide React](https://lucide.dev/guide/packages/lucide-react)
+- **UI Components**: [Radix UI](https://www.radix-ui.com/)
+- **Notifications**: [Sonner](https://sonner.emilkowal.ski/)
+- **Media Player**: [Plyr React](https://github.com/chintan9/plyr-react)
 
 ## 📁 Project Structure
 
 ```
-src/
-├── app/
-│   └── [locale]/
-│       └── chat/
-│           └── page.tsx          # Chat page
-├── components/
-│   ├── ChatInterface.tsx         # Main chat interface
-│   ├── ChatSidebar.tsx          # Chat list sidebar
-│   ├── ChatWindow.tsx           # Chat window component
-│   ├── MessageActions.tsx       # Message action buttons
-│   └── notification.tsx         # Notification system
-├── hooks/
-│   └── useChat.ts              # Chat logic and state management
-├── types/
-│   └── chat.ts                 # TypeScript interfaces
-├── messages/
-│   ├── en.json                 # English translations
-│   └── ar.json                 # Arabic translations
-└── lib/
-    └── utils.ts                # Utility functions
+CodeConnect/
+├── api/                        # Mock API data
+├── public/                     # Static assets
+│   ├── logo-dark.svg           # Dark mode logo
+│   ├── logo-light.svg          # Light mode logo
+│   ├── reactions/              # Reaction emoji images
+│   └── themes/                 # Code editor themes
+├── src/
+│   ├── app/                    # Next.js App Router
+│   │   └── [locale]/           # Internationalization routes
+│   │       ├── (auth)/         # Authentication pages
+│   │       ├── (mainlayout)/   # Main application pages
+│   │       ├── auth/           # Auth callback routes
+│   │       └── chat/           # Chat interface
+│   ├── components/             # React components
+│   │   ├── auth/               # Authentication components
+│   │   ├── code/               # Code editor components
+│   │   ├── comment/            # Comment system components
+│   │   ├── layout/             # Layout components
+│   │   ├── post/               # Post components
+│   │   └── ui/                 # UI components
+│   ├── config/                 # Configuration files
+│   ├── constants/              # Constants and enums
+│   ├── hooks/                  # Custom React hooks
+│   ├── i18n/                   # Internationalization setup
+│   ├── lib/                    # Utility functions
+│   ├── messages/               # Translation files
+│   ├── store/                  # Redux store
+│   │   └── slices/             # Redux slices
+│   ├── styles/                 # Global styles
+│   └── types/                  # TypeScript types
 ```
 
-## 🎯 Key Components
+## 🔑 Key Components
 
-### ChatInterface
-The main container component that orchestrates the chat experience, handling mobile responsiveness and chat selection.
+### Post System
+- **Post.tsx**: Displays individual posts with reactions, comments, and media
+- **PostForm.tsx**: Create and edit posts with support for code, images, and videos
+- **PostsList.tsx**: Renders the feed of posts with infinite scrolling
 
-### ChatSidebar
-Displays the list of chats (both private and group) with search functionality, unread counts, and user status indicators.
+### Code Components
+- **CodeBlock.tsx**: Displays code with syntax highlighting and copy functionality
+- **CodeEditor.tsx**: Interactive code editor with language selection
 
-### ChatWindow
-The main chat area showing messages, typing indicators, and message input with emoji support.
+### Comment System
+- **CommentSection.tsx**: Displays and manages comments on posts
+- **CommentItem.tsx**: Individual comment with replies and actions
+- **ReplyForm.tsx**: Interface for replying to comments
 
-### useChat Hook
-Manages all chat-related state including:
-- Chat previews and active chat
-- Message sending and receiving
-- Typing indicators
-- Search functionality
-- Real-time updates
+### Authentication
+- **LoginForm.tsx**: Email/password login form
+- **RegisterForm.tsx**: New user registration
+- **ForgotPasswordForm.tsx**: Password recovery
+
+### Layout
+- **MainNavBar.tsx**: Main navigation with user menu and search
+- **AppSidebar.tsx**: Application sidebar with navigation links
+- **RtlProvider.tsx**: Handles right-to-left layout switching
 
 ## 🔧 Getting Started
 
-1. **Install Dependencies**
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/yourusername/codeconnect.git
+   cd codeconnect
+   ```
+
+2. **Install Dependencies**
    ```bash
    npm install
    ```
 
-2. **Run Development Server**
+3. **Run Development Server**
    ```bash
    npm run dev
    ```
 
-3. **Open Browser**
+4. **Open Browser**
    Navigate to `http://localhost:3000`
 
 ## 🌐 Internationalization
 
 The app supports both English and Arabic languages with automatic locale detection:
 
-- **English**: `/en/chat`
-- **Arabic**: `/ar/chat`
+- **English**: `/en`
+- **Arabic**: `/ar`
+
+Language switching is available through the language switcher component in the navigation bar.
 
 ## 🎨 Theming
 
@@ -110,46 +152,85 @@ The application supports both dark and light themes with automatic system prefer
 
 ## 📱 Responsive Design
 
-The chat interface is fully responsive:
-- **Desktop**: Side-by-side chat list and window
-- **Mobile**: Stacked layout with navigation between chat list and active chat
+The interface is fully responsive:
+- **Desktop**: Full-featured experience with sidebar
+- **Tablet**: Adapted layout with collapsible sidebar
+- **Mobile**: Mobile-optimized interface with bottom navigation
 
-## 🔮 Future Enhancements
+## 🔒 Authentication
 
-- **WebSocket Integration**: Real-time backend connectivity
-- **File Sharing**: Image and document sharing
-- **Voice Messages**: Audio message support
-- **Video Calls**: Integrated video calling
-- **Message Encryption**: End-to-end encryption
-- **Push Notifications**: Browser notifications
-- **Message Reactions**: Emoji reactions to messages
-- **Message Threading**: Nested conversation threads
+### Local Authentication
+- Email/password registration and login
+- Password recovery via email
 
-## 🚀 Backend Integration
+### Social Authentication
+- GitHub OAuth integration
+- More providers can be added through NextAuth.js
 
-The frontend is designed to easily integrate with backend services:
+## 💾 Data Management
 
-### API Endpoints (to be implemented)
-- `GET /api/chats` - Fetch chat list
-- `GET /api/chats/:id/messages` - Fetch chat messages
-- `POST /api/chats/:id/messages` - Send message
-- `POST /api/chats/:id/typing` - Update typing status
-- `PUT /api/messages/:id/read` - Mark message as read
-- `POST /api/groups` - Create group chat
-- `PUT /api/groups/:id/members` - Manage group members
+The application uses Redux for state management:
+- **authSlice**: User authentication state
+- **postsSlice**: Posts data and operations
+- **commentsSlice**: Comments and replies
+- **reactionsSlice**: Post reactions
+- **programmingLanguagesSlice**: Available programming languages
 
-### WebSocket Events (to be implemented)
-- `message:send` - Send new message
-- `message:receive` - Receive new message
-- `typing:start` - User started typing
-- `typing:stop` - User stopped typing
-- `status:update` - User status change
-- `read:update` - Message read status
+## 🧩 UI Components
+
+Built with shadcn/ui and Radix UI primitives:
+- **Button**: Various button styles and variants
+- **Dialog**: Modal dialogs and popups
+- **Dropdown**: Dropdown menus
+- **Tabs**: Tabbed interfaces
+- **Card**: Content containers
+- **Avatar**: User avatars
+- **Form Controls**: Inputs, textareas, selects, etc.
+
+## 📋 Environment Variables
+
+Create a `.env.local` file with the following variables:
+
+```
+# API URLs
+NEXT_PUBLIC_API_URL=your_api_url
+```
+
+## 🚀 Deployment
+
+### Build for Production
+```bash
+npm run build
+```
+
+### Start Production Server
+```bash
+npm start
+```
+
+## 🧪 Future Enhancements
+
+- **Real-time Notifications**: Push notifications for interactions
+- **Advanced Code Collaboration**: Real-time collaborative code editing
+- **User Groups**: Create and join developer groups
+- **Video Calls**: Integrated video calling for pair programming
+- **AI Code Assistant**: AI-powered code suggestions and reviews
+- **Analytics Dashboard**: Insights on post engagement and profile visits
+- **Custom Themes**: User-defined theme customization
 
 ## 📄 License
 
-This project is part of a graduation project and is licensed under the MIT License.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 👥 Contributing
+## 👥 Contributors
 
-This is a graduation project showcasing modern web development practices with a focus on real-time communication features.
+- [Your Name](https://github.com/mvicsa) - Lead Developer
+- [Team Member 1](https://github.com/teammember1) - Frontend Developer
+- [Team Member 2](https://github.com/teammember2) - UI/UX Designer
+
+## 🙏 Acknowledgements
+
+- [Next.js Team](https://nextjs.org/) for the amazing framework
+- [Vercel](https://vercel.com/) for hosting and deployment
+- [shadcn/ui](https://ui.shadcn.com/) for the beautiful UI components
+- All open-source contributors whose libraries made this project possible

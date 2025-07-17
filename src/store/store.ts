@@ -4,23 +4,12 @@ import commentsReducer from './slices/commentsSlice'
 import postReducer from './slices/postsSlice'
 import programmingLanguagesReducer from './slices/programmingLanguagesSlice'
 import reactionsReducer from './slices/reactionsSlice'
-import { updateCommentReactions } from './slices/commentsSlice'
 import { editPost } from './slices/postsSlice'
 import authReducer from './slices/authSlice'
 
 // Middleware to sync reactions between slices
 const reactionSyncMiddleware = (store: any) => (next: any) => (action: any) => {
   const result = next(action)
-  
-  // If a comment reaction was added, sync it to the comments slice
-  if (action.type === 'reactions/addCommentReaction/fulfilled') {
-    const { commentId, reactions, userReactions } = action.payload
-    store.dispatch(updateCommentReactions({
-      commentId,
-      reactions,
-      userReactions
-    }))
-  }
   
   // If a post reaction was added, sync it to the posts slice
   if (action.type === 'reactions/addPostReaction/fulfilled') {
@@ -47,7 +36,27 @@ export const store = configureStore({
     auth: authReducer
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(reactionSyncMiddleware)
+    getDefaultMiddleware({
+      serializableCheck: {
+        // Ignore these action types
+        ignoredActions: [
+          'comments/fetchReplies/pending',
+          'comments/fetchReplies/fulfilled',
+          'comments/addReplyAsync/pending',
+          'comments/addReplyAsync/fulfilled',
+          'comments/updateCommentReactionsAsync/pending',
+          'comments/updateCommentReactionsAsync/fulfilled',
+          'comments/updateReplyReactionsAsync/pending',
+          'comments/updateReplyReactionsAsync/fulfilled'
+        ],
+        // Ignore these field paths in the state
+        ignoredPaths: [
+          'comments.comments.replies',
+          'comments.comments.createdAt',
+          'comments.comments.updatedAt'
+        ]
+      }
+    }).concat(reactionSyncMiddleware)
 })
 
 export type RootState = ReturnType<typeof store.getState>

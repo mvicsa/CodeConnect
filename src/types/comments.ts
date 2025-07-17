@@ -1,20 +1,18 @@
+import type { User as UserType } from './user'
+
 export type User = {
-  name: string
+  _id: string
+  firstName: string
+  lastName: string
+  avatar: string
   username: string
-}
-
-export type CodeBlock = {
-  code: string
-  language: string
-}
-
-export type CommentContent = {
-  text: string
-  code?: CodeBlock
+  email: string
+  createdAt: Date | string
+  updatedAt: Date | string
 }
 
 export type UserReaction = {
-  userId: string
+  userId: UserType
   username: string
   reaction: string
   createdAt: string
@@ -30,23 +28,26 @@ export type Reactions = {
 }
 
 export type Reply = {
-  id: number | string
-  parentCommentId: number | string
-  user: User
-  content: CommentContent
-  createdAt: Date
+  _id: string
+  parentCommentId: string
+  createdBy: User
+  text?: string
+  code?: string
+  codeLang?: string
+  createdAt: Date | string
   postId: string
-  replies: Reply[]
-  reactions?: Reactions
-  userReactions?: UserReaction[]
+  reactions: Reactions
+  userReactions: UserReaction[]
 }
 
 export type Comment = {
-  id: number | string
-  user: User
-  content: CommentContent
-  parentCommentId?: number | string
-  createdAt: Date
+  _id: string
+  createdBy: User
+  text?: string
+  code?: string
+  codeLang?: string
+  parentCommentId?: string
+  createdAt: Date | string
   postId: string
   reactions: Reactions
   userReactions: UserReaction[]

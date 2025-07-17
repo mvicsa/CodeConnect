@@ -1,33 +1,43 @@
 'use client'
 
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { AppDispatch, RootState } from '../../store/store'
 import { fetchPosts, fetchPostsByUser } from '../../store/slices/postsSlice'
 import PostsList from './PostsList'
 import { Loader2 } from 'lucide-react'
 
-interface PostsListContainerProps {
-  type?: string;
+interface PostsProfileProps {
   limit?: number;
   page?: number;
   title?: string;
 }
 
-export default function PostsListContainer({ type, limit = 10, page: initialPage = 1, title }: PostsListContainerProps) {
+export default function PostsProfile({ limit = 10, page: initialPage = 1, title='Posts' }: PostsProfileProps) {
   const dispatch = useDispatch<AppDispatch>()
   const { posts, loading, error, hasMore, page } = useSelector((state: RootState) => state.posts)
-
-  // Initial load
+  const { user } = useSelector((state: RootState) => state.auth)
+  const initialFetchDone = useRef(false)
+  const userId = user?._id
+  
+  // Initial load - only fetch once when user ID is available
   useEffect(() => {
-    dispatch(fetchPosts({ page: initialPage, limit, type, refresh: true }))
-  }, [dispatch, type, limit, initialPage])
+    if (userId && !initialFetchDone.current) {
+      dispatch(fetchPostsByUser({ userId, page: initialPage, limit, refresh: true }))
+      initialFetchDone.current = true
+    }
+  }, [dispatch, initialPage, limit, userId])
+
+  // Reset initialFetchDone when user changes
+  useEffect(() => {
+    initialFetchDone.current = false
+  }, [userId])
 
   const loadMorePosts = useCallback(() => {
-    if (hasMore && !loading) {
-      dispatch(fetchPosts({ page: page + 1, limit, type, refresh: false }))
+    if (hasMore && !loading && userId) {
+      dispatch(fetchPostsByUser({ userId, page: page + 1, limit, refresh: false }))
     }
-  }, [dispatch, hasMore, loading, page, limit, type])
+  }, [dispatch, hasMore, loading, page, limit, userId])
 
   // Working infinite scroll
   useEffect(() => {
@@ -45,7 +55,10 @@ export default function PostsListContainer({ type, limit = 10, page: initialPage
   }, [hasMore, loading, loadMorePosts])
 
   const handleRefresh = () => {
-    dispatch(fetchPosts({ page: 1, limit, type, refresh: true }))
+    if (userId) {
+      initialFetchDone.current = true
+      dispatch(fetchPostsByUser({ userId, page: 1, limit, refresh: true }))
+  }
   }
 
   return (
@@ -65,7 +78,7 @@ export default function PostsListContainer({ type, limit = 10, page: initialPage
         </div>
       )}
       {!hasMore && posts.length > 0 && (
-        <div className="text-center pb-8 text-muted-foreground">
+        <div className="text-center py-8 text-muted-foreground">
           <p>You've reached the end of the posts</p>
         </div>
       )}
