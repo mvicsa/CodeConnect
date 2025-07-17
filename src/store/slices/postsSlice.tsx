@@ -179,7 +179,14 @@ const postsSlice = createSlice({
       // Create Post
       .addCase(createPost.fulfilled, (state, action) => {
         // Add new post at the beginning since it's the newest
-        state.posts.unshift(action.payload)
+        const newPost = action.payload
+        
+        // Set hasAiSuggestions to true if the post contains code
+        if (newPost.code && newPost.code.trim()) {
+          newPost.hasAiSuggestions = true
+        }
+        
+        state.posts.unshift(newPost)
       })
       // Update Post
       .addCase(updatePost.fulfilled, (state, action) => {

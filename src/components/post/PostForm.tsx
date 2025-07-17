@@ -30,7 +30,7 @@ interface PostFormProps {
   mode: 'create' | 'edit'
   post?: PostType // Only required for edit mode
   onCancel: () => void
-  onSuccess: () => void
+  onSuccess: (postData?: { code?: string }) => void
   className?: string
 }
 
@@ -91,13 +91,16 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
     setShowVideoUpload(false)
     setContent(prev => ({
       ...prev,
-      code: { code: '', language: 'javascript' }
+      code: { code: '', language: 'javascript' },
+      image: "",
+      video: ""
     }))
   }
 
   const handleRemoveCode = () => {
     setShowCodeEditor(false)
-    setContent(prev => ({ ...prev, code: undefined }))
+    // Set code to empty code object instead of undefined to ensure backend recognizes it as removed
+    setContent(prev => ({ ...prev, code: { code: "", language: "javascript" } }))
   }
 
   const handleCodeChange = (code: string) => {
@@ -118,18 +121,36 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
     setShowImageUpload(true)
     setShowCodeEditor(false)
     setShowVideoUpload(false)
+    // Clear other content types when adding image
+    setContent(prev => ({
+      ...prev,
+      code: { code: "", language: "javascript" },
+      video: ""
+    }))
     fileInputRef.current?.click()
   }
 
   const handleRemoveImage = () => {
     setShowImageUpload(false)
-    setContent(prev => ({ ...prev, image: undefined }))
+    // Set to empty string instead of undefined to ensure backend recognizes it as removed
+    setContent(prev => ({ ...prev, image: "" }))
   }
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file && file.type.startsWith('image/')) {
-      setContent(prev => ({ ...prev, image: file }))
+      // Convert file to base64 immediately to ensure it's in the right format
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => {
+        const base64Image = reader.result as string
+        setContent(prev => ({ ...prev, image: base64Image }))
+        console.log("Image converted to base64 successfully")
+      }
+      reader.onerror = (error) => {
+        console.error("Error converting image to base64:", error)
+        toast.error("Failed to process image. Please try again.")
+      }
       setShowImageUpload(true)
     }
   }
@@ -138,18 +159,36 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
     setShowVideoUpload(true)
     setShowCodeEditor(false)
     setShowImageUpload(false)
+    // Clear other content types when adding video
+    setContent(prev => ({
+      ...prev,
+      code: { code: "", language: "javascript" },
+      image: ""
+    }))
     videoInputRef.current?.click()
   }
 
   const handleRemoveVideo = () => {
     setShowVideoUpload(false)
-    setContent(prev => ({ ...prev, video: undefined }))
+    // Set to empty string instead of undefined to ensure backend recognizes it as removed
+    setContent(prev => ({ ...prev, video: "" }))
   }
 
   const handleVideoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file && file.type.startsWith('video/')) {
-      setContent(prev => ({ ...prev, video: file }))
+      // Convert file to base64 immediately to ensure it's in the right format
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => {
+        const base64Video = reader.result as string
+        setContent(prev => ({ ...prev, video: base64Video }))
+        console.log("Video converted to base64 successfully")
+      }
+      reader.onerror = (error) => {
+        console.error("Error converting video to base64:", error)
+        toast.error("Failed to process video. Please try again.")
+      }
       setShowVideoUpload(true)
     }
   }
@@ -185,27 +224,16 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
 
     setIsSubmitting(true)
     try {
-      // Convert files to base64 for demo (in real app, upload to server)
-      let imageUrl = undefined
-      let videoUrl = undefined
-
-      if (content.image instanceof File) {
-        imageUrl = await fileToBase64(content.image)
-      } else if (typeof content.image === 'string') {
-        imageUrl = content.image
-      }
-
-      if (content.video instanceof File) {
-        videoUrl = await fileToBase64(content.video)
-      } else if (typeof content.video === 'string') {
-        videoUrl = content.video
-      }
+      // Images and videos are already converted to base64 at upload time
+      // Just use the content values directly or empty strings
+      const imageUrl = typeof content.image === 'string' ? content.image : ""
+      const videoUrl = typeof content.video === 'string' ? content.video : ""
 
       if (mode === 'create') {
         const newPost: Omit<PostType, '_id' | 'createdBy' | 'createdAt' | 'updatedAt'> = {
           text: content.text.trim(),
-          code: content.code?.code.trim(),
-          codeLang: content.code?.language,
+          code: content.code?.code ? content.code.code.trim() : "",
+          codeLang: content.code?.language || "",
           image: imageUrl,
           video: videoUrl,
           tags: content.tags,
@@ -225,14 +253,17 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
         setShowImageUpload(false)
         setShowVideoUpload(false)
         setTagInput('')
+        
+        // Pass post data to onSuccess for AI suggestions
+        onSuccess({ code: newPost.code })
       } else {
         // Edit mode
         if (!post) return
 
         const updatedPost: Partial<PostType> = {
           text: content.text.trim(),
-          code: content.code?.code.trim(),
-          codeLang: content.code?.language,
+          code: content.code?.code ? content.code.code.trim() : "",
+          codeLang: content.code?.language || "",
           image: imageUrl,
           video: videoUrl,
           tags: content.tags,
@@ -253,14 +284,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
     }
   }
 
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.readAsDataURL(file)
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = error => reject(error)
-    })
-  }
+  // File to base64 conversion is now done at upload time
 
   const hasContent = content.text.trim() || content.code?.code.trim() || content.image || content.video
 

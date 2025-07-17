@@ -6,6 +6,7 @@ import programmingLanguagesReducer from './slices/programmingLanguagesSlice'
 import reactionsReducer from './slices/reactionsSlice'
 import { editPost } from './slices/postsSlice'
 import authReducer from './slices/authSlice'
+import aiSuggestionsReducer from './slices/aiSuggestionsSlice'
 
 // Middleware to sync reactions between slices
 const reactionSyncMiddleware = (store: any) => (next: any) => (action: any) => {
@@ -33,7 +34,8 @@ export const store = configureStore({
     comments: commentsReducer,
     programmingLanguages: programmingLanguagesReducer,
     reactions: reactionsReducer,
-    auth: authReducer
+    auth: authReducer,
+    aiSuggestions: aiSuggestionsReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

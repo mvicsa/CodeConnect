@@ -35,8 +35,11 @@ const loadTheme = async (themeName: string) => {
 }
 
 // Get or create highlighter with proper synchronization
-export const getHighlighter = async (language: string): Promise<Highlighter> => {
-  const themeName = getCurrentTheme()
+export const getHighlighter = async (
+  language: string, 
+  themeOverride?: 'light' | 'dark' // Add theme override
+): Promise<Highlighter> => {
+  const themeName = themeOverride ? `code-${themeOverride}` : getCurrentTheme();
   
   // If there's already a loading operation, wait for it
   if (loadingPromise) {
@@ -112,23 +115,25 @@ export const getHighlighter = async (language: string): Promise<Highlighter> => 
 }
 
 // Highlight code safely with retry logic
-export const highlightCode = async (code: string, language: string): Promise<string> => {
-  if (!code.trim()) {
-    return ''
-  }
+export const highlightCode = async (
+  code: string, 
+  language: string, 
+  theme?: 'light' | 'dark' // Add theme parameter
+): Promise<string> => {
+  if (!code.trim()) return '';
   
-  const maxRetries = 3
-  let retryCount = 0
+  const maxRetries = 3;
+  let retryCount = 0;
   
   while (retryCount < maxRetries) {
     try {
-      const highlighter = await getHighlighter(language)
-      const themeName = getCurrentTheme()
+      const highlighter = await getHighlighter(language, theme);
+      const themeName = theme ? `code-${theme}` : getCurrentTheme();
       
       return highlighter.codeToHtml(code, {
         lang: language as any,
         theme: themeName,
-      })
+      });
     } catch (error) {
       retryCount++
       console.warn(`Highlighting attempt ${retryCount} failed:`, error)
@@ -143,7 +148,7 @@ export const highlightCode = async (code: string, language: string): Promise<str
     }
   }
   
-  return code
+  return code;
 }
 
 // Cleanup function (call on app unmount)

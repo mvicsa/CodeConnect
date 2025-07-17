@@ -4,20 +4,28 @@ import { useState, useEffect, memo, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { AppDispatch, RootState } from '@/store/store'
 import { fetchComments, addCommentAsync } from '@/store/slices/commentsSlice'
+import { fetchCodeSuggestions } from '@/store/slices/aiSuggestionsSlice'
 import CommentItem from './CommentItem'
 import CommentEditor from './CommentEditor'
 import { MessageCircle, ChevronDown } from 'lucide-react'
 import { Comment } from '@/types/comments'
 import { Button } from '../ui/button'
+import CommentAI from './CommentAI'
 
 interface CommentSectionProps {
   postId: string
   className?: string
+  hasAiSuggestions?: boolean
 }
 
-const CommentSection = memo(function CommentSection({ postId, className = '' }: CommentSectionProps) {
+const CommentSection = memo(function CommentSection({ 
+  postId, 
+  className = '',
+  hasAiSuggestions = false 
+}: CommentSectionProps) {
   const dispatch = useDispatch<AppDispatch>()
   const { comments, loading } = useSelector((state: RootState) => state.comments)
+  const { suggestions } = useSelector((state: RootState) => state.aiSuggestions)
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null)
   const [mentionUser, setMentionUser] = useState('')
   const [visibleComments, setVisibleComments] = useState(3) // Show 3 comments initially
@@ -45,7 +53,17 @@ const CommentSection = memo(function CommentSection({ postId, className = '' }: 
       .catch(error => {
         console.error('Failed to fetch comments:', error);
       });
-  }, [dispatch, postId]);
+      
+    // Fetch AI suggestions if the post has them
+    if (hasAiSuggestions) {
+      dispatch(fetchCodeSuggestions(postId))
+        .unwrap()
+        .then()
+        .catch(error => {
+          console.error('Failed to fetch AI suggestions:', error);
+        });
+    }
+  }, [dispatch, postId, hasAiSuggestions]);
 
   const handleAddComment = async (content: { text: string, code: string, codeLang: string }) => {
     try {
@@ -85,7 +103,7 @@ const CommentSection = memo(function CommentSection({ postId, className = '' }: 
   }
 
   return (
-    <div className={`space-y-4 ${className}`}>
+    <div className={`flex flex-col gap-4 ${className}`}>
       {/* Comment Form */}
       { user && (
         <CommentEditor
@@ -94,19 +112,30 @@ const CommentSection = memo(function CommentSection({ postId, className = '' }: 
           placeholder="Write a comment..."
         />
       )}
+
+      {/* AI Suggestions */}
+      {hasAiSuggestions && (
+        <CommentAI
+          suggestion={suggestions[postId]}
+          postId={postId}
+        />
+      )}
+      
       {/* Comments List */}
-      <div className="space-y-4 mt-4">
-        {visibleCommentsList.map((comment) => (
-          <CommentItem
-            key={comment._id}
-            comment={comment}
-            activeReplyId={activeReplyId}
-            setActiveReplyId={(id) => setActiveReplyId(id)}
-            mentionUser={mentionUser}
-            setMentionUser={setMentionUser}
-          />
-        ))}
-      </div>
+      {postComments.length > 0 && (
+        <div className="space-y-4">
+          {visibleCommentsList.map((comment) => (
+            <CommentItem
+              key={comment._id}
+              comment={comment}
+              activeReplyId={activeReplyId}
+              setActiveReplyId={(id) => setActiveReplyId(id)}
+              mentionUser={mentionUser}
+              setMentionUser={setMentionUser}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Load More Button */}
       {postComments.length > 0 && hasMoreComments && (
@@ -124,7 +153,7 @@ const CommentSection = memo(function CommentSection({ postId, className = '' }: 
       )}
 
       {/* No Comments */}
-      {postComments.length === 0 && !loading && (
+      {postComments.length + (hasAiSuggestions ? 1 : 0) === 0 && !loading && (
         <div className="text-center py-6 text-muted-foreground">
           <MessageCircle className="size-8 mx-auto mb-3 opacity-50" />
           <p>No comments yet. Be the first to comment!</p>
