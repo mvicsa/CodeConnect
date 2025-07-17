@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Bell, Search, Clock, Trash2, Check } from 'lucide-react';
+import { Bell, Search, Clock, Trash2, Check, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,8 @@ import {
     deleteNotificationAPI
 } from '@/services/staticAPI';
 
+import { NotificationFilter } from '@/types/notification';
+
 const NotificationPage = () => {
     const [showNotifications, setShowNotifications] = useState(false);
     const [notifications, setNotifications] = useState(initialNotifications);
@@ -24,6 +26,7 @@ const NotificationPage = () => {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [hasMore, setHasMore] = useState<boolean>(true);
     const [loadCount, setLoadCount] = useState<number>(0);
+    const [filter, setFilter] = useState<NotificationFilter>('all');
 
     const markAsRead = async (id: number): Promise<void> => {
         try {
@@ -72,15 +75,49 @@ const NotificationPage = () => {
         }
     };
 
+    const handleNotificationClick = async (notification: any) => {
+        // Mark as read when clicked
+        if (!notification.read) {
+            await markAsRead(notification.id);
+        }
+
+        // Navigate to the link if it exists
+        if (notification.link) {
+            window.open(notification.link, '_blank');
+        }
+    };
+
     const filteredNotifications = notifications.filter(notif => {
-        return notif.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        // Apply search filter
+        const matchesSearch = notif.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             notif.message.toLowerCase().includes(searchTerm.toLowerCase());
+
+        // Apply status filter
+        const matchesFilter = filter === 'all' ||
+            (filter === 'read' && notif.read) ||
+            (filter === 'unread' && !notif.read);
+
+        return matchesSearch && matchesFilter;
     });
 
     const unreadCount = notifications.filter(notif => !notif.read).length;
+    const readCount = notifications.filter(notif => notif.read).length;
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
         setSearchTerm(e.target.value);
+    };
+
+    const getFilterCount = (filterType: NotificationFilter): number => {
+        switch (filterType) {
+            case 'all':
+                return notifications.length;
+            case 'read':
+                return readCount;
+            case 'unread':
+                return unreadCount;
+            default:
+                return 0;
+        }
     };
 
     return (
@@ -144,6 +181,44 @@ const NotificationPage = () => {
                         </DialogHeader>
 
                         <div className="px-6 pb-4 space-y-4 border-b">
+                            {/* Filter Buttons */}
+                            <div className="flex gap-2">
+                                <Button
+                                    variant={filter === 'all' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setFilter('all')}
+                                    className="flex items-center gap-2"
+                                >
+                                    All
+                                    <Badge variant="secondary" className="text-xs">
+                                        {getFilterCount('all')}
+                                    </Badge>
+                                </Button>
+                                <Button
+                                    variant={filter === 'unread' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setFilter('unread')}
+                                    className="flex items-center gap-2"
+                                >
+                                    Unread
+                                    <Badge variant="secondary" className="text-xs">
+                                        {getFilterCount('unread')}
+                                    </Badge>
+                                </Button>
+                                <Button
+                                    variant={filter === 'read' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setFilter('read')}
+                                    className="flex items-center gap-2"
+                                >
+                                    Read
+                                    <Badge variant="secondary" className="text-xs">
+                                        {getFilterCount('read')}
+                                    </Badge>
+                                </Button>
+                            </div>
+
+                            {/* Search Input */}
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input
@@ -167,7 +242,8 @@ const NotificationPage = () => {
                                         <p className="text-muted-foreground text-sm">
                                             {searchTerm.trim() ?
                                                 'No notifications match your search' :
-                                                'You have no notifications'}
+                                                filter === 'all' ? 'You have no notifications' :
+                                                    `You have no ${filter} notifications`}
                                         </p>
                                     </div>
                                 ) : (
@@ -176,8 +252,9 @@ const NotificationPage = () => {
                                         return (
                                             <Card
                                                 key={notification.id}
-                                                className={`group transition-all duration-200 hover:shadow-md ${!notification.read ? 'bg-muted/50 border-muted' : ''
+                                                className={`group transition-all duration-200 hover:shadow-md cursor-pointer ${!notification.read ? 'bg-muted/50 border-muted' : ''
                                                     }`}
+                                                onClick={() => handleNotificationClick(notification)}
                                             >
                                                 <CardContent className="p-4">
                                                     <div className="flex items-start gap-3">
@@ -191,6 +268,9 @@ const NotificationPage = () => {
                                                                     <h3 className="font-semibold text-sm truncate">
                                                                         {notification.title}
                                                                     </h3>
+                                                                    {notification.link && (
+                                                                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                                                                    )}
                                                                     {!notification.read && (
                                                                         <span className="sr-only">Unread</span>
                                                                     )}
@@ -215,7 +295,10 @@ const NotificationPage = () => {
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="sm"
-                                                                        onClick={() => markAsRead(notification.id)}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            markAsRead(notification.id);
+                                                                        }}
                                                                         className="h-7 text-xs"
                                                                         aria-label={`Mark as read: ${notification.title}`}
                                                                     >
@@ -227,7 +310,10 @@ const NotificationPage = () => {
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="sm"
-                                                                    onClick={() => deleteNotification(notification.id)}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        deleteNotification(notification.id);
+                                                                    }}
                                                                     className="h-7 text-xs opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
                                                                     aria-label={`Delete notification: ${notification.title}`}
                                                                 >

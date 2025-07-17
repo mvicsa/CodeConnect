@@ -19,7 +19,8 @@ export const initialNotifications: Notification[] = [
         message: 'Your payment of $299.99 has been processed successfully.',
         time: '2 minutes ago',
         read: false,
-        icon: CreditCard
+        icon: CreditCard,
+        link: '/payments/history'
     },
     {
         id: 2,
@@ -27,7 +28,8 @@ export const initialNotifications: Notification[] = [
         message: 'Sarah Johnson sent you a message about the upcoming project meeting.',
         time: '5 minutes ago',
         read: false,
-        icon: MessageSquare
+        icon: MessageSquare,
+        link: '/messages/conversation/sarah-johnson'
     },
     {
         id: 3,
@@ -35,7 +37,8 @@ export const initialNotifications: Notification[] = [
         message: 'New login detected from Chrome on Windows. Was this you?',
         time: '1 hour ago',
         read: true,
-        icon: Shield
+        icon: Shield,
+        link: '/account/security'
     },
     {
         id: 4,
@@ -43,7 +46,8 @@ export const initialNotifications: Notification[] = [
         message: 'Team standup meeting starts in 30 minutes.',
         time: '2 hours ago',
         read: false,
-        icon: Calendar
+        icon: Calendar,
+        link: '/calendar/events/team-standup'
     },
     {
         id: 5,
@@ -51,7 +55,8 @@ export const initialNotifications: Notification[] = [
         message: 'Your order #12345 has been delivered successfully.',
         time: '3 hours ago',
         read: true,
-        icon: Package
+        icon: Package,
+        link: '/orders/12345'
     },
     {
         id: 6,
@@ -59,7 +64,8 @@ export const initialNotifications: Notification[] = [
         message: 'Your document could not be saved. Please try again.',
         time: '4 hours ago',
         read: false,
-        icon: Trash2
+        icon: Trash2,
+        link: '/documents/recent'
     }
 ];
 
@@ -98,6 +104,7 @@ export const loadMoreNotificationsAPI = async (
         time: generateTimeText(hours + i),
         read: true,
         icon: [MessageSquare, Check, Clock][i % 3],
+        link: ['/messages/support', '/tasks/completed', '/calendar/appointments'][i % 3]
     }));
 
     return {

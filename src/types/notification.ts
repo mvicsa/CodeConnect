@@ -1,6 +1,4 @@
-
 import { LucideIcon } from 'lucide-react';
-
 
 export interface Notification {
     id: number;
@@ -9,9 +7,12 @@ export interface Notification {
     time: string;
     read: boolean;
     icon: LucideIcon;
+    link?: string; 
 }
 
 export interface LoadMoreResponse {
     notifications: Notification[];
     hasMore: boolean;
 }
+
+export type NotificationFilter = 'all' | 'read' | 'unread';
