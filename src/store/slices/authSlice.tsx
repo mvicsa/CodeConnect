@@ -1,0 +1,189 @@
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import axios from 'axios';
+
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  [key: string]: any;
+}
+
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  loading: boolean;
+  error: string | null;
+  initialized: boolean;
+}
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+const initialState: AuthState = {
+  user: null,
+  token: typeof window !== 'undefined' ? localStorage.getItem('token') : null,
+  loading: false,
+  error: null,
+  initialized: false,
+};
+
+export const login = createAsyncThunk(
+  'auth/login',
+  async (data: { email: string; password: string }, { rejectWithValue }) => {
+    try {
+      const response = await axios.post(`${API_URL}/auth/login`, data);
+      return response.data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || 'Login failed');
+    }
+  }
+);
+
+export const register = createAsyncThunk(
+  'auth/register',
+  async (
+    data: { firstName: string; lastName: string; username: string; email: string; password: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await axios.post(`${API_URL}/auth/register`, data);
+      return response.data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || 'Registration failed');
+    }
+  }
+);
+
+export const fetchProfile = createAsyncThunk(
+  'auth/fetchProfile',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      // Get token from state or localStorage
+      const state = getState() as { auth: AuthState };
+      const token = state.auth.token || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+      if (!token) throw new Error('No token');
+      const response = await axios.get(`${API_URL}/auth/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to fetch profile');
+    }
+  }
+);
+
+export const githubLogin = createAsyncThunk(
+  'auth/githubLogin',
+  async (_, { rejectWithValue }) => {
+    try {
+      // Redirect to backend GitHub OAuth endpoint
+      window.location.href = `${API_URL}/auth/github`;
+    } catch (err: any) {
+      return rejectWithValue('GitHub login failed');
+    }
+  }
+);
+
+export const handleGitHubCallback = createAsyncThunk(
+  'auth/handleGitHubCallback',
+  async (callbackData: { token: string; user: User }, { rejectWithValue }) => {
+    try {
+      return callbackData;
+    } catch (err: any) {
+      return rejectWithValue('GitHub callback failed');
+    }
+  }
+);
+
+const authSlice = createSlice({
+  name: 'auth',
+  initialState,
+  reducers: {
+    logout: (state) => {
+      state.user = null;
+      state.token = null;
+      if (typeof window !== 'undefined') localStorage.removeItem('token');
+    },
+    setUser: (state, action: PayloadAction<User>) => {
+      state.user = action.payload;
+    },
+    setToken: (state, action: PayloadAction<string>) => {
+      state.token = action.payload;
+      if (typeof window !== 'undefined') localStorage.setItem('token', action.payload);
+    },
+    setInitialized: (state, action: PayloadAction<boolean>) => {
+      state.initialized = action.payload;
+    },
+    clearError: (state) => {
+      state.error = null;
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(login.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(login.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        if (typeof window !== 'undefined') localStorage.setItem('token', action.payload.token);
+      })
+      .addCase(login.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(register.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(register.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        if (typeof window !== 'undefined') localStorage.setItem('token', action.payload.token);
+      })
+      .addCase(register.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(fetchProfile.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload.user || action.payload;
+        state.initialized = true;
+      })
+      .addCase(fetchProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+        state.user = null;
+        state.token = null;
+        state.initialized = true;
+        if (typeof window !== 'undefined') localStorage.removeItem('token');
+      })
+      .addCase(githubLogin.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(githubLogin.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(handleGitHubCallback.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        if (typeof window !== 'undefined') localStorage.setItem('token', action.payload.token);
+      })
+      .addCase(handleGitHubCallback.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      });
+  },
+});
+
+export const { logout, setUser, setToken, setInitialized, clearError } = authSlice.actions;
+export default authSlice.reducer; 

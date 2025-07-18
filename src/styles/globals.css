@@ -1,10 +1,62 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "plyr-react/plyr.css";
 
 @custom-variant dark (&:is(.dark *));
 
+:root {
+  --font-family: 'Josefin Sans', 'IBM Plex Sans Arabic';
+}
+
 body {
-  font-family: 'Geist Mono', 'IBM Plex Sans Arabic';
+  font-family: var(--font-family);
+}
+
+code, kbd, samp, pre {
+  font-family: var(--font-family);
+}
+
+/* RTL specific styles */
+html[dir="rtl"] * {
+  letter-spacing: 0;
+}
+
+/* RTL text alignment overrides */
+html[dir="rtl"] .text-left {
+  text-align: right;
+}
+
+html[dir="rtl"] .text-right {
+  text-align: left;
+}
+
+/* RTL margin and padding overrides */
+html[dir="rtl"] .ml-auto {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+html[dir="rtl"] .mr-auto {
+  margin-right: 0;
+  margin-left: auto;
+}
+
+/* RTL flex direction overrides */
+html[dir="rtl"] .flex-row {
+  flex-direction: row-reverse;
+}
+
+/* RTL transform overrides */
+html[dir="rtl"] .rotate-90 {
+  transform: rotate(-90deg);
+}
+
+html[dir="rtl"] .rotate-180 {
+  transform: rotate(180deg);
+}
+
+html[dir="rtl"] .rotate-270 {
+  transform: rotate(270deg);
 }
 
 :root {
@@ -48,6 +100,8 @@ body {
   --danger-foreground: oklch(0.98 0.02 95);
   --info: oklch(66.776% 0.13923 233.715);
   --info-foreground: oklch(0.98 0.02 95);
+  --plyr-color-main: var(--color-primary);
+  --plyr-font-family: var(--font-family);
 }
 
 .dark {
