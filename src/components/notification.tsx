@@ -10,11 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 import {
-    initialNotifications,
-    loadMoreNotificationsAPI,
-    markNotificationAsReadAPI,
-    markAllNotificationsAsReadAPI,
-    deleteNotificationAPI
+    initialNotifications,loadMoreNotificationsAPI,markNotificationAsReadAPI,markAllNotificationsAsReadAPI,deleteNotificationAPI
 } from '@/services/staticAPI';
 
 import { NotificationFilter } from '@/types/notification';

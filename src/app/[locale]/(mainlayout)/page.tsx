@@ -38,6 +38,7 @@ export default function Home() {
         <LanguageSwitcher />
         <ThemeSwitcher />
         <NotificationPage />
+      
       </div>
 
     </>
