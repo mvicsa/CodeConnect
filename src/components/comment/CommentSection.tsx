@@ -8,7 +8,6 @@ import { fetchCodeSuggestions } from '@/store/slices/aiSuggestionsSlice'
 import CommentItem from './CommentItem'
 import CommentEditor from './CommentEditor'
 import { MessageCircle, ChevronDown } from 'lucide-react'
-import { Comment } from '@/types/comments'
 import { Button } from '../ui/button'
 import CommentAI from './CommentAI'
 

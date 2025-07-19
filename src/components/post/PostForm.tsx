@@ -326,6 +326,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
             onChange={(e) => handleTextChange(e.target.value)}
             placeholder="What's on your mind?"
             className="resize-none min-h-[100px]"
+            autoComplete='off'
           />
         </div>
 
@@ -371,7 +372,6 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
               language={content.code?.language || 'javascript'}
               onLanguageChange={handleLanguageChange}
               onRemove={handleRemoveCode}
-              rows={6}
             />
           </div>
         )}

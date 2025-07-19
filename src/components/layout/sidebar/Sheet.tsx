@@ -12,6 +12,7 @@ import {
   Code2,
   Images,
   Video,
+  Presentation,
 } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@ export function SheetD() {
     { name: "Coding", href: "/coding", icon: <Code2 className="w-5 h-5" /> },
     { name: "Images", href: "/images", icon: <Images className="w-5 h-5" /> },
     { name: "Videos", href: "/videos", icon: <Video className="w-5 h-5" /> },
+    { name: "Meeting", href: "/meeting", icon: <Presentation className="w-5 h-5" /> },
     { name: "Bookmarks", href: "/bookmarks", icon: <Bookmark className="w-5 h-5" /> },
     { name: "About", href: "/about", icon: <Info className="w-5 h-5" /> },
   ];
