@@ -1,4 +1,3 @@
-// src/components/ReadMore.tsx
 'use client'
 
 import React, { useState } from 'react'
@@ -32,12 +31,13 @@ const ReadMore: React.FC<ReadMoreProps> = ({
 
   return (
     <div className={className}>
+      
       <ReactMarkdown
         rehypePlugins={[rehypeRaw]}
         components={{
-          code: ({node, className, children, ...props}) => {
+          code: ({children}) => {
             return (
-              <span className="px-1.5 py-0.5 my-0.5 rounded bg-background border border-border dark:border-transparent text-sm inline-block">
+              <span className="px-1 py-0.5 my-0.5 rounded bg-background border border-border dark:border-transparent text-xs inline-block">
                 {children}
               </span>
             )

@@ -104,6 +104,7 @@ export default function CommentEditor({
             onChange={(e) => setContent(prev => ({ ...prev, text: e.target.value }))}
             placeholder={placeholder}
             className="resize-none pe-20 min-h-[80px]"
+            autoComplete='off'
           />
           <div className="absolute bottom-3 end-3 flex gap-2">
             {showCodeToggle && !showCodeEditor && (
@@ -131,12 +132,12 @@ export default function CommentEditor({
         {showCodeEditor && (
           <CodeEditor
             value={content.code || ''}
+            className="mt-3"
             onChange={updateCode}
             language={content.codeLang || codeLanguage}
             onLanguageChange={updateLanguage}
             onRemove={handleRemoveCode}
             onError={handleCodeError}
-            rows={5}
           />
         )}
     </div>

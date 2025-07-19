@@ -8,17 +8,18 @@ import PostsList from './PostsList'
 import { Loader2 } from 'lucide-react'
 
 interface PostsProfileProps {
+  userId?: string;
   limit?: number;
   page?: number;
   title?: string;
 }
 
-export default function PostsProfile({ limit = 10, page: initialPage = 1, title='Posts' }: PostsProfileProps) {
+export default function PostsProfile({ userId: propUserId, limit = 10, page: initialPage = 1, title='Posts' }: PostsProfileProps) {
   const dispatch = useDispatch<AppDispatch>()
   const { posts, loading, error, hasMore, page } = useSelector((state: RootState) => state.posts)
   const { user } = useSelector((state: RootState) => state.auth)
   const initialFetchDone = useRef(false)
-  const userId = user?._id
+  const userId = propUserId || user?._id
   
   // Initial load - only fetch once when user ID is available
   useEffect(() => {
