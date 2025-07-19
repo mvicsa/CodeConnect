@@ -162,12 +162,12 @@ const CodeBlock = memo(function CodeBlock({
             maxHeight: isExpanded ? contentHeight : maxHeight,
             overflowY: 'hidden',
             overflowX: 'auto',
-            whiteSpace: 'pre'
+            whiteSpace: 'pre-wrap'
           }}
         >
           <code
             className="block"
-            style={{ whiteSpace: 'pre' }}
+            style={{ whiteSpace: 'pre-wrap' }}
             dangerouslySetInnerHTML={{ __html: highlightedHtml || code }}
           />
         </pre>
@@ -196,7 +196,7 @@ const CodeBlock = memo(function CodeBlock({
 
         {/* Show highlighting status */}
         {isHighlighting && (
-          <div className="absolute top-0 right-0 flex items-center justify-center w-full h-full text-muted-foreground bg-background">
+          <div className="absolute top-0 right-0 flex items-center justify-center w-full h-full text-muted-foreground bg-background z-20">
             <div className="text-xs px-2 py-1 rounded">
               <Loader2 className="size-5 animate-spin" />
             </div>

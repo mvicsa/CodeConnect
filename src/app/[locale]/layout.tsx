@@ -8,6 +8,7 @@ import { MainNavBar } from "@/components/layout/navigation/MainNavBar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/sidebar/AppSidebar";
 import { RtlProvider } from "@/components/RtlProvider";
+import { Toaster } from "@/components/ui/sonner";
 // import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 const josefinSans = Josefin_Sans({
@@ -67,6 +68,7 @@ export default async function RootLayout({
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
               <RtlProvider>
                 {children}
+                <Toaster />
               </RtlProvider>
             </ThemeProvider>
           </ReduxProvider>

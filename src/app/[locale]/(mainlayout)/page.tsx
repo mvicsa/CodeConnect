@@ -3,6 +3,7 @@ import CreatePostWrapper from "@/components/post/CreatePostWrapper";
 import PostsListContainer from "@/components/post/PostsListContainer";
 import { useTranslations } from "next-intl";
 import Container from "@/components/Container";
+import SuggestedUsers from "@/components/SuggestedUsers";
 
 export default function Home() {
   const t = useTranslations();
@@ -23,10 +24,9 @@ export default function Home() {
           </main>
         </div>
 
-        {/* Right Sidebar - Placeholder or content */}
+        {/* Right Sidebar - Suggested Users */}
         <div className="lg:col-span-3 hidden xl:block ">
-          {/* Optional right sidebar content */}
-          Right Sidebar
+          <SuggestedUsers />
         </div>
       </div>
     </Container>

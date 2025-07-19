@@ -71,6 +71,24 @@ export const fetchProfile = createAsyncThunk(
   }
 );
 
+export const updateProfile = createAsyncThunk(
+  'auth/updateProfile',
+  async (profileData: any, { getState, rejectWithValue }) => {
+    try {
+      const state = getState() as any;
+      const token = state.auth.token;
+      const response = await axios.patch(
+        `${API_URL}/users/me`,
+        profileData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to update profile');
+    }
+  }
+);
+
 export const githubLogin = createAsyncThunk(
   'auth/githubLogin',
   async (_, { rejectWithValue }) => {
@@ -115,6 +133,12 @@ const authSlice = createSlice({
     },
     clearError: (state) => {
       state.error = null;
+    },
+    // Add a new reducer to update following list without fetching profile
+    updateFollowing: (state, action: PayloadAction<string[]>) => {
+      if (state.user) {
+        state.user.following = action.payload;
+      }
     },
   },
   extraReducers: (builder) => {
@@ -181,9 +205,22 @@ const authSlice = createSlice({
       .addCase(handleGitHubCallback.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+      })
+      .addCase(updateProfile.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+        state.user = action.payload;
+      })
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });
 
-export const { logout, setUser, setToken, setInitialized, clearError } = authSlice.actions;
+export const { logout, setUser, setToken, setInitialized, clearError, updateFollowing } = authSlice.actions;
 export default authSlice.reducer; 
