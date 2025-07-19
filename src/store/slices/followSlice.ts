@@ -1,10 +1,11 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
+import type { User } from '@/types/user';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 interface PaginatedListState {
-  items: string[];
+  items: User[];
   loading: boolean;
   error: string | null;
   hasMore: boolean;
@@ -59,11 +60,11 @@ export const fetchFollowing = createAsyncThunk(
 // Follow a user
 export const followUser = createAsyncThunk(
   'follow/followUser',
-  async ({ userId, targetId }: { userId: string; targetId: string }, { rejectWithValue, getState }) => {
+  async (targetId: string, { rejectWithValue, getState }) => {
     try {
       const state: any = getState();
       const token = state.auth.token;
-      const response = await axios.post(`${API_URL}/users/${userId}/follow/${targetId}`, {}, {
+      const response = await axios.post(`${API_URL}/users/follow/${targetId}`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
@@ -76,11 +77,11 @@ export const followUser = createAsyncThunk(
 // Unfollow a user
 export const unfollowUser = createAsyncThunk(
   'follow/unfollowUser',
-  async ({ userId, targetId }: { userId: string; targetId: string }, { rejectWithValue, getState }) => {
+  async (targetId: string, { rejectWithValue, getState }) => {
     try {
       const state: any = getState();
       const token = state.auth.token;
-      const response = await axios.delete(`${API_URL}/users/${userId}/unfollow/${targetId}`, {
+      const response = await axios.delete(`${API_URL}/users/unfollow/${targetId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
@@ -107,7 +108,7 @@ const followSlice = createSlice({
         state.followers.loading = true;
         state.followers.error = null;
       })
-      .addCase(fetchFollowers.fulfilled, (state, action: PayloadAction<{ items: string[]; limit: number; skip: number }>) => {
+      .addCase(fetchFollowers.fulfilled, (state, action: PayloadAction<{ items: User[]; limit: number; skip: number }>) => {
         state.followers.loading = false;
         if (action.payload.skip === 0) {
           state.followers.items = action.payload.items;
@@ -126,7 +127,7 @@ const followSlice = createSlice({
         state.following.loading = true;
         state.following.error = null;
       })
-      .addCase(fetchFollowing.fulfilled, (state, action: PayloadAction<{ items: string[]; limit: number; skip: number }>) => {
+      .addCase(fetchFollowing.fulfilled, (state, action: PayloadAction<{ items: User[]; limit: number; skip: number }>) => {
         state.following.loading = false;
         if (action.payload.skip === 0) {
           state.following.items = action.payload.items;

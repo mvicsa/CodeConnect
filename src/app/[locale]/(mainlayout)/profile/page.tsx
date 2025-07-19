@@ -8,14 +8,16 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/componen
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { RootState } from '@/store/store';
-import { EllipsisVerticalIcon, ShieldCheck, UserPlusIcon } from 'lucide-react';
+import { EllipsisVerticalIcon, Loader2, ShieldCheck, UserPlusIcon } from 'lucide-react';
 import Image from 'next/image';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch } from '@/store/store';
 import { fetchFollowers, fetchFollowing, followUser, unfollowUser, resetFollowers, resetFollowing } from '@/store/slices/followSlice';
 import { useEffect, useCallback, useState } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { fetchProfile } from '@/store/slices/authSlice';
+import Link from 'next/link';
 
 const Page = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -36,16 +38,21 @@ const Page = () => {
   // For other profiles, compare user._id with followers/following
   const isFollowing = false; // Extend this for other profiles
 
+  // Helper: get current user ID
+  const currentUserId = user?._id;
+  // Helper: get following IDs for current user
+  const followingIds = useMemo(() => (user?.following ?? []), [user?.following]);
+
   // Follow/unfollow handlers
   const handleFollow = useCallback(() => {
     if (user?._id) {
-      dispatch(followUser({ userId: user._id, targetId: user._id })); // For now, self-follow (replace with profileId)
+      dispatch(followUser(user._id)); // For now, self-follow (replace with profileId)
     }
   }, [dispatch, user?._id]);
 
   const handleUnfollow = useCallback(() => {
     if (user?._id) {
-      dispatch(unfollowUser({ userId: user._id, targetId: user._id })); // For now, self-unfollow (replace with profileId)
+      dispatch(unfollowUser(user._id)); // For now, self-unfollow (replace with profileId)
     }
   }, [dispatch, user?._id]);
 
@@ -114,11 +121,11 @@ const Page = () => {
           <CardContent className='text-center'>
             <div className='flex items-end justify-center gap-4 -mt-15'>
               <div className='flex flex-col items-center justify-center order-1'>
-                <span className='text-2xl font-bold'>{followers.items.length}</span>
+                <span className='text-2xl font-bold'>{user?.followers?.length ?? 0}</span>
                 <span className='text-sm text-muted-foreground cursor-pointer' onClick={handleOpenFollowers}>Followers</span>
               </div>
               <div className='flex flex-col items-center justify-center order-3'>
-                <span className='text-2xl font-bold'>{following.items.length}</span>
+                <span className='text-2xl font-bold'>{user?.following?.length ?? 0}</span>
                 <span className='text-sm text-muted-foreground cursor-pointer' onClick={handleOpenFollowing}>Following</span>
               </div>
               <div className='order-2'>
@@ -148,34 +155,94 @@ const Page = () => {
         <Dialog open={followersOpen} onOpenChange={setFollowersOpen}>
           <DialogContent>
             <DialogTitle>Followers</DialogTitle>
-            <div className='max-h-80 overflow-y-auto flex flex-col gap-2 my-2'>
-              {followers.items.length === 0 && !followers.loading && <div className='text-center text-muted-foreground'>No followers yet.</div>}
-              {followers.items.map((followerId, idx) => (
-                <div key={followerId + idx} className='p-2 border-b'>{followerId}</div>
-              ))}
-              {followers.loading && <div className='text-center'>Loading...</div>}
+            <div className='max-h-80 overflow-y-auto flex flex-col gap-2'>
+              {followers.items.length === 0 && !followers.loading && 
+                <div className='text-center text-muted-foreground'>No followers yet.</div>
+              }
+              {followers.items.map((u, idx) => {
+                const isSelf = u._id === currentUserId;
+                const isFollowing = followingIds.includes(u._id);
+                return (
+                  <div key={u._id} className='p-2 bg-background border dark:border-transparent flex items-center gap-2'>
+                    <Avatar className='h-8 w-8'>
+                      <AvatarImage src={u.avatar} alt={u.username} />
+                      <AvatarFallback>{u.firstName?.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className='flex-1'>
+                      <div className='font-medium'>{u.firstName} {u.lastName}</div>
+                      <div className='text-xs text-muted-foreground'>@{u.username}</div>
+                    </div>
+                    {!isSelf && (
+                      <Button
+                        size='sm'
+                        variant={isFollowing ? 'outline' : 'default'}
+                        onClick={async () => { await dispatch(isFollowing ? unfollowUser(u._id) : followUser(u._id)); dispatch(fetchProfile()); }}
+                        disabled={followers.loading}
+                        className='cursor-pointer'
+                      >
+                        {isFollowing ? 'Unfollow' : 'Follow'}
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+              {followers.loading && (
+                <div className='text-center'>
+                  <Loader2 className='w-4 h-4 animate-spin' />
+                </div>
+              )}
             </div>
             {followers.hasMore && !followers.loading && (
               <Button onClick={handleLoadMoreFollowers} className='w-full'>Load More</Button>
             )}
-            <Button variant='outline' onClick={handleCloseFollowers} className='w-full mt-2'>Close</Button>
           </DialogContent>
         </Dialog>
         {/* Following Dialog */}
         <Dialog open={followingOpen} onOpenChange={setFollowingOpen}>
           <DialogContent>
             <DialogTitle>Following</DialogTitle>
-            <div className='max-h-80 overflow-y-auto flex flex-col gap-2 my-2'>
+            <div className='max-h-80 overflow-y-auto flex flex-col gap-2 -mx-6 px-6'>
               {following.items.length === 0 && !following.loading && <div className='text-center text-muted-foreground'>Not following anyone yet.</div>}
-              {following.items.map((followingId, idx) => (
-                <div key={followingId + idx} className='p-2 border-b'>{followingId}</div>
-              ))}
-              {following.loading && <div className='text-center'>Loading...</div>}
+              {following.items.map((u, idx) => {
+                const isSelf = u._id === currentUserId;
+                const isFollowing = followingIds.includes(u._id);
+                return (
+                  <div key={u._id} className='p-2 bg-card rounded-lg flex items-center gap-2'>
+                    <Link href={`/profile/${u.username}`}>
+                      <Avatar className='h-8 w-8'>
+                        <AvatarImage src={u.avatar} alt={u.username} />
+                        <AvatarFallback>{u.firstName?.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                    </Link>
+                    <div className='flex-1'>
+                      <Link href={`/profile/${u.username}`}>
+                        <div className='font-medium'>{u.firstName} {u.lastName}</div>
+                        <div className='text-xs text-muted-foreground'>@{u.username}</div>
+                      </Link>
+                    </div>
+                    {!isSelf && (
+                      <Button
+                        size='sm'
+                        variant={isFollowing ? 'outline' : 'default'}
+                        onClick={async () => { await dispatch(isFollowing ? unfollowUser(u._id) : followUser(u._id)); dispatch(fetchProfile()); }}
+                        className='cursor-pointer'
+                        disabled={following.loading}
+                      >
+                        {isFollowing ? 'Unfollow' : 'Follow'}
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+              {following.loading && (
+                <div className='text-center'>
+                  <Loader2 className='w-4 h-4 animate-spin' />
+                </div>
+              )}
             </div>
             {following.hasMore && !following.loading && (
               <Button onClick={handleLoadMoreFollowing} className='w-full'>Load More</Button>
             )}
-            <Button variant='outline' onClick={handleCloseFollowing} className='w-full mt-2'>Close</Button>
           </DialogContent>
         </Dialog>
         <div className='grid grid-cols-12 gap-4'>
