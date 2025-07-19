@@ -180,7 +180,7 @@ const Post = memo(function Post({ post }: { post: PostType }) {
                 <MessageCircleMore className='size-5' />
                 {(commentsCount > 0 || hasAiSuggestions) && <span className="text-sm font-medium">{commentsCount + (hasAiSuggestions ? 1 : 0)}</span>}
               </button>
-              <SendIcon className='size-5 text-muted-foreground' />
+              <SendIcon className='size-5 text-muted-foreground hidden' />
               {hasAiSuggestions && (
                 <span className='ms-auto'>
                   <BotIcon className='size-5 text-primary' />

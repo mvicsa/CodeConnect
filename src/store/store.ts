@@ -8,6 +8,8 @@ import { editPost } from './slices/postsSlice'
 import authReducer from './slices/authSlice'
 import aiSuggestionsReducer from './slices/aiSuggestionsSlice'
 import chatReducer from './slices/chatSlice'
+import followReducer from './slices/followSlice'
+import userReducer from './slices/userSlice';
 
 // Middleware to sync reactions between slices
 const reactionSyncMiddleware = (store: any) => (next: any) => (action: any) => {
@@ -38,6 +40,8 @@ export const store = configureStore({
     auth: authReducer,
     aiSuggestions: aiSuggestionsReducer,
     chat: chatReducer
+    follow: followReducer,
+    user: userReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

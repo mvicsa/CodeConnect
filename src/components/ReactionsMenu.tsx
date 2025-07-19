@@ -221,7 +221,7 @@ export default function ReactionsMenu({
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <div className="cursor-pointer select-none" onClick={() => setDialogOpen(true)}>
-              <span className="inline-flex items-center hover:underline text-sm">
+              <span className={`inline-flex items-center hover:underline text-muted-foreground hover:text-foreground transition-all duration-300 text-sm ${size === "sm" ? "text-xs" : "text-sm"}`}>
                 {totalReactions}
               </span>
             </div>
