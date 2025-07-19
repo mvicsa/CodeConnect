@@ -16,6 +16,7 @@ interface PaginatedListState {
 interface FollowState {
   followers: PaginatedListState;
   following: PaginatedListState;
+  suggested: PaginatedListState;
 }
 
 const defaultPageSize = 20;
@@ -23,6 +24,7 @@ const defaultPageSize = 20;
 const initialState: FollowState = {
   followers: { items: [], loading: false, error: null, hasMore: true, skip: 0, limit: defaultPageSize },
   following: { items: [], loading: false, error: null, hasMore: true, skip: 0, limit: defaultPageSize },
+  suggested: { items: [], loading: false, error: null, hasMore: true, skip: 0, limit: defaultPageSize },
 };
 
 // Paginated fetch followers
@@ -91,6 +93,22 @@ export const unfollowUser = createAsyncThunk(
   }
 );
 
+// Fetch suggested users
+export const fetchSuggestedUsers = createAsyncThunk(
+  'follow/fetchSuggestedUsers',
+  async ({ limit, skip }: { limit?: number; skip?: number } = {}, { rejectWithValue, getState }) => {
+    try {
+      const state: any = getState();
+      const token = state.auth.token;
+      const response = await axios.get(`${API_URL}/users/suggestions?limit=${limit || defaultPageSize}&skip=${skip || 0}`,
+        { headers: { Authorization: `Bearer ${token}` } });
+      return { items: response.data, limit: limit || defaultPageSize, skip: skip || 0 };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to fetch suggestions');
+    }
+  }
+);
+
 const followSlice = createSlice({
   name: 'follow',
   initialState,
@@ -100,6 +118,9 @@ const followSlice = createSlice({
     },
     resetFollowing(state) {
       state.following = { ...initialState.following };
+    },
+    resetSuggested(state) {
+      state.suggested = { ...initialState.suggested };
     },
   },
   extraReducers: (builder) => {
@@ -147,9 +168,28 @@ const followSlice = createSlice({
       })
       .addCase(unfollowUser.fulfilled, (state, action) => {
         // Optionally update state.following/followers if needed
+      })
+      .addCase(fetchSuggestedUsers.pending, (state) => {
+        state.suggested.loading = true;
+        state.suggested.error = null;
+      })
+      .addCase(fetchSuggestedUsers.fulfilled, (state, action: PayloadAction<{ items: User[]; limit: number; skip: number }>) => {
+        state.suggested.loading = false;
+        if (action.payload.skip === 0) {
+          state.suggested.items = action.payload.items;
+        } else {
+          state.suggested.items = [...state.suggested.items, ...action.payload.items];
+        }
+        state.suggested.skip = action.payload.skip + action.payload.items.length;
+        state.suggested.limit = action.payload.limit;
+        state.suggested.hasMore = action.payload.items.length === action.payload.limit;
+      })
+      .addCase(fetchSuggestedUsers.rejected, (state, action) => {
+        state.suggested.loading = false;
+        state.suggested.error = action.payload as string;
       });
   },
 });
 
-export const { resetFollowers, resetFollowing } = followSlice.actions;
+export const { resetFollowers, resetFollowing, resetSuggested } = followSlice.actions;
 export default followSlice.reducer; 
