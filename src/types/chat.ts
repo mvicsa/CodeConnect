@@ -1,64 +1,70 @@
+export enum MessageType {
+  TEXT = 'text',
+  IMAGE = 'image',
+  FILE = 'file',
+}
+
+export enum ChatRoomType {
+  PRIVATE = 'private',
+  GROUP = 'group',
+}
+
 export interface User {
-  id: string;
-  name: string;
-  avatar?: string;
-  status: "online" | "offline" | "away";
-  lastSeen?: Date;
-  isTyping?: boolean;
+  _id: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  avatar: string;
+  email?: string;
 }
 
 export interface Message {
-  id: string;
-  senderId: string;
-  receiverId: string;
+  _id: string;
+  chatRoom: string;
+  sender: User;
+  type: string;
   content: string;
-  timestamp: Date;
-  isRead: boolean;
-  readBy?: string[]; // Array of user IDs who have read the message
-  messageType?: "text" | "image" | "file" | "emoji";
-  replyTo?: Message; // For reply functionality
-  fileData?: {
-    name: string;
-    size: number;
-    type: string;
-    url?: string | null;
-  };
-}
-
-export interface ChatPreview {
-  user?: User; // For private chats
-  group?: Group; // For group chats
-  lastMessage?: Message;
-  unreadCount: number;
-  lastActivity: Date;
-  isGroup: boolean;
-}
-
-export interface Group {
-  id: string;
-  name: string;
-  avatar?: string;
-  participants: User[];
-  adminId: string;
-  createdAt: Date;
-  description?: string;
+  fileUrl: string | null;
+  replyTo: Message | null;
+  seenBy: string[];
+  reactions: any[];
+  deleted: boolean;
+  deletedFor: string[];
+  deletedAt?: string;
+  deletedBy?: string;
+  pinned: boolean;
+  createdAt: string;
 }
 
 export interface ChatRoom {
-  id: string;
-  participants: User[];
+  _id: string;
+  type: ChatRoomType;
+  members: User[];
+  createdBy: User;
+  groupTitle: string | null;
+  groupAvatar: string | null;
+  lastMessage?: Message | null;
   messages: Message[];
-  isTyping?: boolean;
-  typingUsers?: User[]; // Multiple users can be typing
-  isGroup: boolean;
-  group?: Group;
+  unreadCount: number;
+  admins: string[];
+  pinnedMessages: Message[];
+}
+
+export interface ChatPreview {
+  _id: string;
+  type: ChatRoomType;
+  members: User[];
+  createdBy: User;
+  groupTitle: string | null;
+  groupAvatar: string | null;
+  lastMessage?: Message | null;
   unreadCount: number;
 }
 
 export interface TypingIndicator {
   userId: string;
-  userName: string;
   isTyping: boolean;
+  userName?: string;
 }
 
 export interface ChatNotification {

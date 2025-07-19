@@ -7,6 +7,7 @@ import reactionsReducer from './slices/reactionsSlice'
 import { editPost } from './slices/postsSlice'
 import authReducer from './slices/authSlice'
 import aiSuggestionsReducer from './slices/aiSuggestionsSlice'
+import chatReducer from './slices/chatSlice'
 import followReducer from './slices/followSlice'
 import userReducer from './slices/userSlice';
 
@@ -38,6 +39,7 @@ export const store = configureStore({
     reactions: reactionsReducer,
     auth: authReducer,
     aiSuggestions: aiSuggestionsReducer,
+    chat: chatReducer
     follow: followReducer,
     user: userReducer,
   },

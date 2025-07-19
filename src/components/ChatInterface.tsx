@@ -1,42 +1,85 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ChatSidebar from "./ChatSidebar";
 import ChatWindow from "./ChatWindow";
-import { useChat } from "@/hooks/useChat";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '@/store/store';
+import { setActiveRoom } from '@/store/slices/chatSlice';
+import { ChatPreview, ChatRoomType } from "@/types/chat";
 
 const ChatInterface: React.FC = () => {
-  const {
-    chatPreviews,
-    activeChat,
-    isLoading,
-    typingUsers,
-    searchQuery,
-    setSearchQuery,
-    openChat,
-    sendMessage,
-    deleteMessage,
-    startTyping,
-    stopTyping,
-    setActiveChat,
-  } = useChat();
   const [isMobileView, setIsMobileView] = useState(false);
+  const dispatch = useDispatch();
+
+  // Redux selectors for chat state
+  const myUserId = useSelector((state: RootState) => state.auth.user?._id) || 'current-user';
+  const chatRooms = useSelector((state: RootState) => state.chat.rooms);
+  const messages = useSelector((state: RootState) => state.chat.messages);
+  const isConnected = useSelector((state: RootState) => state.chat.connected);
+  const error = useSelector((state: RootState) => state.chat.error);
+  const isLoading = useSelector((state: RootState) => state.chat.loading);
+
+  // Transform chat rooms into previews
+  const chatPreviews: ChatPreview[] = chatRooms.map(room => {
+    const roomMessages = messages[room._id] || [];
+    const unreadCount = roomMessages.filter(m => !m.seenBy.includes(myUserId)).length;
+    return {
+      _id: room._id,
+      type: room.type,
+      members: room.members,
+      createdBy: room.createdBy,
+      groupTitle: room.groupTitle,
+      groupAvatar: room.groupAvatar,
+      lastMessage: room.lastMessage,
+      unreadCount,
+    };
+  });
+
+  const activeChatId = useSelector((state: RootState) => state.chat.activeRoomId);
+  const activeChat = chatRooms.find(r => r._id === activeChatId) || null;
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleChatSelect = (chatId: string) => {
-    openChat(chatId);
+    dispatch(setActiveRoom(chatId));
     setIsMobileView(true);
   };
 
   const handleBackToList = () => {
     setIsMobileView(false);
-    setActiveChat(null);
+    dispatch(setActiveRoom(null));
   };
+
+  // Handle window resize for mobile view
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) { // md breakpoint
+        setIsMobileView(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const t = useTranslations("chat");
 
   return (
     <div className="flex h-screen w-full rounded-3xl bg-background overflow-hidden">
+      {/* Connection status */}
+      {!isConnected && (
+        <div className="absolute top-0 left-0 right-0 bg-destructive text-destructive-foreground p-2 text-center">
+        </div>
+      )}
+
+      {/* Error message */}
+      {error && (
+        <div className="absolute top-0 left-0 right-0 bg-destructive text-destructive-foreground p-2 text-center">
+          {error}
+        </div>
+      )}
+
       {/* Sidebar - Hidden on mobile when chat is open */}
       <div
         className={cn(
@@ -45,13 +88,13 @@ const ChatInterface: React.FC = () => {
         )}
       >
         <ChatSidebar
-          chatPreviews={chatPreviews}
           onChatSelect={handleChatSelect}
           isLoading={isLoading}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          activeChatId={activeChat?.id}
+          activeChatId={activeChat?._id}
           className="h-full"
+          chatPreviews={chatPreviews}
         />
       </div>
 
@@ -64,14 +107,8 @@ const ChatInterface: React.FC = () => {
       >
         {activeChat ? (
           <ChatWindow
-            chatRoom={activeChat}
-            onSendMessage={sendMessage}
-            onDeleteMessage={deleteMessage}
-            onBack={handleBackToList}
-            typingUsers={typingUsers}
-            onStartTyping={startTyping}
-            onStopTyping={stopTyping}
-            className="h-full"
+            onBackToList={handleBackToList}
+            isMobileView={isMobileView}
           />
         ) : (
           <div className="hidden md:flex items-center justify-center h-full bg-sidebar border">
