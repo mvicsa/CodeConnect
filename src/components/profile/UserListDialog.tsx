@@ -123,7 +123,7 @@ const UserListDialog = ({
                   </div>
                 );
                 return (
-                  <div key={u._id} className='p-2 bg-background border dark:border-transparent flex items-center gap-2'>
+                  <div key={u._id} className='p-2 bg-background border dark:border-transparent rounded-lg flex items-center gap-2'>
                     {content}
                   </div>
                 );

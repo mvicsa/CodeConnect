@@ -228,7 +228,9 @@ export default function CommentItem({
 
   return (
     <div className="flex gap-3 items-start">
-      <UserAvatar src={hasCreatedBy(comment) ? (comment.createdBy.avatar || '') : ''} firstName={hasCreatedBy(comment) ? (comment.createdBy.firstName || '') : ((comment as any).user?.name || '')} />
+      <Link href={`/profile/${comment.createdBy.username}`}>
+        <UserAvatar src={hasCreatedBy(comment) ? (comment.createdBy.avatar || '') : ''} firstName={hasCreatedBy(comment) ? (comment.createdBy.firstName || '') : ((comment as any).user?.name || '')} />
+      </Link>
 
       <div className="flex-1">
         <div className="bg-accent p-3 rounded-xl relative">

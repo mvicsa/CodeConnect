@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchUserByUsername } from '@/store/slices/userSlice';
 import { AppDispatch, RootState } from '@/store/store';
+import { Loader2 } from 'lucide-react';
 
 type User = {
   id: number;
@@ -28,7 +29,10 @@ const Page = () => {
     }
   }, [dispatch, params.id]);
 
-  if (loading) return <div className="text-center mt-10">Loading...</div>;
+  if (loading) return <div className="text-center mt-10 flex items-center justify-center">
+    <Loader2 className='w-10 h-10 animate-spin' />
+  </div>;
+
   if (error) return <div className="text-center mt-10 text-red-500">{String(error)}</div>;
   if (!user) return null;
 

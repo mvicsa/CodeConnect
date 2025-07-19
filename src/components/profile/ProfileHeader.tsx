@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { EllipsisVerticalIcon, UserPlusIcon, UserMinus, PencilIcon } from 'lucide-react';
+import { EllipsisVerticalIcon, UserPlusIcon, UserMinus, PencilIcon, Send } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import AdminBadge from '@/components/AdminBadge';
 import Image from 'next/image';
@@ -110,7 +110,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align='end'>
                   <DropdownMenuItem onClick={onEditProfile} className='cursor-pointer'>
-                    <PencilIcon className="w-4 h-4 mr-2" />
+                    <PencilIcon className="w-4 h-4" />
                     Edit Profile
                   </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -158,17 +158,26 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
               )}
             </div>
             <p className='text-lg text-muted-foreground'>@{user?.username || 'username'}</p>
-            {/* Show follow/unfollow button (disabled for self-profile) */}
+
             {!isOwnProfile && user && (
-              <Button
-                className='cursor-pointer self-center !px-6'
-                onClick={isFollowing ? onUnfollow : onFollow}
-                disabled={loading || disabled || !user}
-                variant={isFollowing ? 'destructive' : 'default'}
-              >
-                {isFollowing ? <UserMinus className='w-4 h-4 mr-2' /> : <UserPlusIcon className='w-4 h-4 mr-2' />}
-                {isFollowing ? 'Unfollow' : 'Follow'}
-              </Button>
+              <div className='flex items-center justify-center gap-2 mt-2'>
+                {/* Show follow/unfollow button (disabled for self-profile) */}
+                <>
+                  <Button
+                    className='cursor-pointer self-center'
+                    onClick={isFollowing ? onUnfollow : onFollow}
+                    disabled={loading || disabled || !user}
+                    variant={isFollowing ? 'destructive' : 'default'}
+                  >
+                    {isFollowing ? <UserMinus className='w-4 h-4' /> : <UserPlusIcon className='w-4 h-4' />}
+                    {isFollowing ? 'Unfollow' : 'Follow'}
+                  </Button>
+                  <Button variant='outline' className='cursor-pointer self-center' >
+                    <Send className='w-4 h-4' />
+                    Send Message
+                  </Button>
+                </>
+              </div>
             )}
           </div>
         </CardContent>
