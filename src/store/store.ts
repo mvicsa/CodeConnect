@@ -39,7 +39,7 @@ export const store = configureStore({
     reactions: reactionsReducer,
     auth: authReducer,
     aiSuggestions: aiSuggestionsReducer,
-    chat: chatReducer
+    chat: chatReducer,
     follow: followReducer,
     user: userReducer,
   },
