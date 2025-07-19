@@ -7,12 +7,14 @@ const ChatScrollArea = React.forwardRef<HTMLDivElement, ScrollAreaProps>(
   ({ className, children, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("relative overflow-hidden", className)}
+      className={cn(
+        "relative overflow-y-auto",
+        "scrollbar-thin scrollbar-thumb-accent scrollbar-track-transparent",
+        className
+      )}
       {...props}
     >
-      <div className="h-full w-full rounded-[inherit] overflow-auto">
-        {children}
-      </div>
+      {children}
     </div>
   )
 );

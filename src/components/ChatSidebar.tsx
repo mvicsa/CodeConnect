@@ -1,31 +1,58 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChatInput } from "@/components/ui/chat-input";
 import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
-import { ChatPreview } from "@/types/chat";
+import { ChatPreview, ChatRoomType } from "@/types/chat";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
-import { Search, Users, User } from "lucide-react";
+import { Search, Users } from "lucide-react";
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '@/store/store';
+import { SocketContext } from '@/store/Provider';
+import { setSeen } from '@/store/slices/chatSlice';
 
 interface ChatSidebarProps {
-  chatPreviews: ChatPreview[];
   onChatSelect: (chatId: string) => void;
   isLoading: boolean;
   searchQuery: string;
   onSearchChange: (query: string) => void;
   activeChatId?: string;
   className?: string;
+  chatPreviews: ChatPreview[];
 }
 
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
-  chatPreviews,
   onChatSelect,
   isLoading,
   searchQuery,
   onSearchChange,
   activeChatId,
   className,
+  chatPreviews,
 }) => {
+  const myUserId = useSelector((state: RootState) => state.auth.user?._id);
+  const socket = useContext(SocketContext);
+  const messages = useSelector((state: RootState) => state.chat.messages);
+  const dispatch = useDispatch();
+
+  const handleChatSelect = (chatId: string) => {
+    onChatSelect(chatId);
+    
+    // Mark messages as seen when selecting a chat
+    if (socket && messages[chatId]) {
+      const unseenMessages = messages[chatId].filter(msg => 
+        !msg.seenBy.includes(myUserId || '')
+      );
+      
+      if (unseenMessages.length > 0) {
+        const messageIds = unseenMessages.map(msg => msg._id);
+        socket.emit('chat:seen', { roomId: chatId, messageIds });
+        // Optimistically update Redux so badge disappears instantly
+        dispatch(setSeen({ roomId: chatId, seen: messageIds, userId: myUserId }));
+      }
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "online":
@@ -55,45 +82,48 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   const t = useTranslations("chat");
 
   const renderChatItem = (preview: ChatPreview) => {
-    if (preview.isGroup && preview.group) {
-      const isActive = activeChatId === preview.group.id;
+    const isActive = activeChatId === preview._id;
+    const otherMember = preview.type === ChatRoomType.PRIVATE 
+      ? preview.members.find(m => m._id !== myUserId)
+      : null;
+
+    if (preview.type === ChatRoomType.GROUP) {
       return (
         <div
-          key={preview.group.id}
+          key={preview._id}
           className={cn(
             "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors",
             isActive 
               ? "bg-primary/10 border-l-4 border-l-primary" 
               : "hover:bg-secondary"
           )}
-          onClick={() => onChatSelect(preview.group!.id)}
+          onClick={() => handleChatSelect(preview._id)}
         >
           <div className="relative">
             <Avatar className="h-12 w-12">
               <AvatarImage
-                src={preview.group.avatar}
-                alt={preview.group.name}
+                src={preview.groupAvatar || ''}
+                alt={preview.groupTitle || ''}
               />
               <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
                 <Users className="h-6 w-6" />
               </AvatarFallback>
             </Avatar>
-            <div className="absolute -bottom-0 -right-0 w-3.5 h-3.5 rounded-full border-2 border-background bg-green-500" />
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <p className="text-sm font-medium text-accent-foreground truncate">
-                  {preview.group.name}
+                  {preview.groupTitle}
                 </p>
                 <span className="text-xs text-muted-foreground">
-                  {preview.group.participants.length} members
+                  {preview.members.length} members
                 </span>
               </div>
               {preview.lastMessage && (
                 <p className="text-xs text-muted-foreground">
-                  {formatTime(preview.lastMessage.timestamp)}
+                  {formatTime(new Date())}
                 </p>
               )}
             </div>
@@ -110,45 +140,38 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
           </div>
         </div>
       );
-    } else if (preview.user) {
-      const isActive = activeChatId === `chat-${preview.user.id}`;
+    } else if (otherMember) {
       return (
         <div
-          key={preview.user.id}
+          key={preview._id}
           className={cn(
             "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors",
             isActive 
               ? "bg-primary/10 border-l-4 border-l-primary" 
               : "hover:bg-secondary"
           )}
-          onClick={() => onChatSelect(preview.user!.id)}
+          onClick={() => handleChatSelect(preview._id)}
         >
           <div className="relative">
             <Avatar className="h-12 w-12">
               <AvatarImage
-                src={preview.user.avatar}
-                alt={preview.user.name}
+                src={otherMember.avatar}
+                alt={`${otherMember.firstName} ${otherMember.lastName}`}
               />
               <AvatarFallback>
-                {getInitials(preview.user.name)}
+                {getInitials(`${otherMember.firstName} ${otherMember.lastName}`)}
               </AvatarFallback>
             </Avatar>
-            <div
-              className={cn(
-                "absolute -bottom-0 -right-0 w-3.5 h-3.5 rounded-full border-2 border-background",
-                getStatusColor(preview.user.status)
-              )}
-            />
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-accent-foreground truncate">
-                {preview.user.name}
+                {`${otherMember.firstName} ${otherMember.lastName}`}
               </p>
               {preview.lastMessage && (
                 <p className="text-xs text-muted-foreground">
-                  {formatTime(preview.lastMessage.timestamp)}
+                  {formatTime(new Date())}
                 </p>
               )}
             </div>
@@ -199,7 +222,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
             <div className="space-y-4">
               {[...Array(5)].map((_, i) => (
                 <div
-                  key={i}
+                  key={`skeleton-${i}`}
                   className="flex items-center space-x-3 p-3 rounded-lg"
                 >
                   <div className="w-12 h-12 bg-accent rounded-full animate-pulse" />
@@ -219,7 +242,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
             </div>
           ) : (
             <div className="space-y-1">
-              {chatPreviews.map(renderChatItem)}
+              {chatPreviews.map((preview) => renderChatItem(preview))}
             </div>
           )}
         </div>

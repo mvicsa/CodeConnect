@@ -1,34 +1,28 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useContext } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChatButton } from "@/components/ui/chat-button";
 import { ChatInput } from "@/components/ui/chat-input";
 import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
-import { ChatRoom, Message, TypingIndicator } from "@/types/chat";
+import { ChatRoom, Message, TypingIndicator, MessageType, ChatRoomType, User } from "@/types/chat";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Send, Smile, Paperclip, Reply, Check, CheckCheck, MoreVertical, X, Image, File, Camera } from "lucide-react";
+import { ArrowLeft, Send, Smile, Paperclip, Reply, Check, CheckCheck, MoreVertical, X, Image, File, Camera, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import MessageActions from "./MessageActions";
-
+import { useSelector, useDispatch, shallowEqual } from 'react-redux';
+import { RootState } from '@/store/store';
+import { SocketContext } from '@/store/Provider';
+import { setError } from '@/store/slices/chatSlice';
 
 interface ChatWindowProps {
-  chatRoom: ChatRoom;
-  onSendMessage: (content: string, replyTo?: Message, messageType?: "text" | "image" | "file" | "emoji", fileData?: any) => void;
-  onDeleteMessage: (messageId: string) => void;
-  onBack?: () => void;
-  typingUsers: TypingIndicator[];
-  onStartTyping: () => void;
-  onStopTyping: () => void;
-  className?: string;
+  onBackToList: () => void;
+  isMobileView: boolean;
 }
 
+const MemoChatInput = React.memo(ChatInput);
+
 const ChatWindow: React.FC<ChatWindowProps> = ({
-  chatRoom,
-  onSendMessage,
-  onDeleteMessage,
-  onBack,
-  typingUsers,
-  onStartTyping,
-  onStopTyping,
+  onBackToList,
+  isMobileView,
 }) => {
   const [message, setMessage] = useState("");
   const [replyTo, setReplyTo] = useState<Message | null>(null);
@@ -40,43 +34,104 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [oldestMessageId, setOldestMessageId] = useState<string | null>(null);
+  const prevActiveRoomId = useRef<string | null>(null);
+  const prevMessagesLength = useRef<number>(0);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
-  // Scroll to bottom when messages change
+  // Access chat state
+  const myUserId = useSelector((state: RootState) => state.auth.user?._id) || 'current-user';
+  const activeRoomId = useSelector((state: RootState) => state.chat.activeRoomId);
+  const chatRooms = useSelector((state: RootState) => state.chat.rooms);
+  const activeRoom = chatRooms.find(r => r._id === activeRoomId);
+  const messages = useSelector(
+    (state: RootState) => state.chat.messages[activeRoomId || ''] || [],
+    shallowEqual
+  );
+  const typing = useSelector((state: RootState) => state.chat.typing[activeRoomId || ''] || []);
+  const seen = useSelector((state: RootState) => state.chat.seen[activeRoomId || ''] || []);
+
+  // Get socket from context
+  const socket = useContext(SocketContext);
+  const t = useTranslations("chat");
+  const dispatch = useDispatch();
+
+  // Load initial messages
   useEffect(() => {
-    const scrollToBottom = () => {
-      if (scrollRef.current) {
-        const scrollElement = scrollRef.current;
-        scrollElement.scrollTop = scrollElement.scrollHeight;
-      }
-    };
-
-    // Use requestAnimationFrame for smooth scrolling
-    requestAnimationFrame(() => {
-      scrollToBottom();
-    });
-  }, [chatRoom.messages, typingUsers]);
-
-  // Force scroll to bottom with multiple attempts for reliability
-  const forceScrollToBottom = () => {
-    if (scrollRef.current) {
-      const scrollElement = scrollRef.current;
-      
-      // Immediate scroll
-      scrollElement.scrollTop = scrollElement.scrollHeight;
-      
-      // Additional attempts with delays to ensure it works
-      requestAnimationFrame(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-      });
-      
-      setTimeout(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-      }, 50);
+    if (activeRoom?._id && socket) {
+      socket.emit('chat:get_messages', { roomId: activeRoom._id, limit: 50 });
     }
+  }, [activeRoom?._id, socket]);
+
+  // Update oldest message ID when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      const oldestMessage = messages[0]; // Assuming messages are sorted newest to oldest
+      setOldestMessageId(oldestMessage._id);
+    }
+  }, [messages]);
+
+  // Detect if user is at (or near) the bottom
+  const isUserAtBottom = () => {
+    if (!scrollRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    return scrollHeight - (scrollTop + clientHeight) < 100;
+  };
+
+  // Track scroll position to update shouldAutoScroll
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const element = event.currentTarget;
+    setShouldAutoScroll(element.scrollHeight - (element.scrollTop + element.clientHeight) < 100);
+    
+    const isNearTop = element.scrollTop < 100;
+    const shouldLoadMore = !isLoadingMore && hasMore && isNearTop;
+
+    if (shouldLoadMore && socket && activeRoom) {
+      setIsLoadingMore(true);
+      socket.emit('chat:get_messages', {
+        roomId: activeRoom._id,
+        limit: 50,
+        before: oldestMessageId
+      }, (error: any) => {
+        if (error) {
+          setHasMore(false);
+        }
+        setIsLoadingMore(false);
+      });
+    }
+
+    // Update scroll to bottom button visibility
+    const isAtBottom = element.scrollHeight - (element.scrollTop + element.clientHeight) < 100;
+    setShowScrollToBottom(!isAtBottom);
+  };
+
+  // Scroll to bottom when:
+  // - activeRoomId changes (user switches chat)
+  // - messages length increases and shouldAutoScroll is true
+  useEffect(() => {
+    // If user switched chat, always scroll to bottom after messages load
+    if (activeRoomId !== prevActiveRoomId.current) {
+      prevActiveRoomId.current = activeRoomId;
+      setTimeout(() => forceScrollToBottom(), 100);
+      prevMessagesLength.current = messages.length;
+      return;
+    }
+    // If new messages arrived (from anyone) and user was at bottom, scroll
+    if (messages.length > prevMessagesLength.current && shouldAutoScroll) {
+      setTimeout(() => forceScrollToBottom(), 100);
+    }
+    prevMessagesLength.current = messages.length;
+  }, [activeRoomId, messages.length, shouldAutoScroll]);
+
+  // Force scroll to bottom with smooth behavior
+  const forceScrollToBottom = () => {
+    if (!scrollRef.current) return;
+    const scrollElement = scrollRef.current;
+    const { scrollHeight, clientHeight } = scrollElement;
+    const maxScroll = scrollHeight - clientHeight;
+    scrollElement.scrollTo({ top: maxScroll, behavior: 'smooth' });
   };
 
   // Close file menu when clicking outside
@@ -97,47 +152,44 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     };
   }, [isFileMenuOpen]);
 
-  // Handle scroll events to show/hide scroll to bottom button
-  const handleScroll = () => {
-    if (scrollRef.current) {
-      const scrollElement = scrollRef.current;
-      const isAtBottom = scrollElement.scrollTop + scrollElement.clientHeight >= scrollElement.scrollHeight - 10;
-      setShowScrollToBottom(!isAtBottom);
-    }
-  };
-
   const handleSendMessage = () => {
+    if (!activeRoom || !socket) return;
+
     if (message.trim() || selectedFile) {
       if (selectedFile) {
         sendFile();
       } else {
-        onSendMessage(message.trim(), replyTo || undefined);
-        setMessage("");
-        setReplyTo(null);
-        onStopTyping();
-      }
-      
-      // Force scroll to bottom after sending message with multiple attempts
-      const scrollToBottom = () => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        const msg = {
+          roomId: activeRoom._id,
+          content: message.trim(),
+          type: 'text',
+          replyTo: replyTo?._id,
+        };
+        try {
+          const currentMessage = message;
+          setMessage("");
+          setReplyTo(null);
+          handleTypingStatus(false);
+
+          socket.emit('chat:send_message', msg, (error: any) => {
+            if (error) {
+              setMessage(currentMessage);
+              dispatch(setError('Failed to send message'));
+            }
+            if (scrollRef.current) {
+              scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            }
+          });
+        } catch (error) {
+          dispatch(setError('Failed to send message'));
         }
-      };
-      
-      // Immediate scroll
-      scrollToBottom();
-      
-      // Additional attempts to ensure it works
-      requestAnimationFrame(scrollToBottom);
-      setTimeout(scrollToBottom, 50);
-      setTimeout(scrollToBottom, 100);
+      }
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
+  const handleTypingStatus = (isTyping: boolean) => {
+    if (socket && activeRoom) {
+      socket.emit('chat:typing', { roomId: activeRoom._id, isTyping });
     }
   };
 
@@ -146,7 +198,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     
     // Handle typing indicators
     if (e.target.value.length > 0) {
-      onStartTyping();
+      handleTypingStatus(true);
       
       // Clear existing timeout
       if (typingTimeoutRef.current) {
@@ -155,10 +207,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       
       // Set new timeout to stop typing
       typingTimeoutRef.current = setTimeout(() => {
-        onStopTyping();
+        handleTypingStatus(false);
       }, 2000);
     } else {
-      onStopTyping();
+      handleTypingStatus(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
     }
   };
 
@@ -200,33 +259,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const sendFile = () => {
-    if (selectedFile) {
-      // Create a file message with proper type and data
-      const messageType = selectedFile.type.startsWith('image/') ? 'image' : 'file';
-      const fileData = {
-        name: selectedFile.name,
-        size: selectedFile.size,
-        type: selectedFile.type,
-        url: filePreview || null, // For images, use the preview URL
-      };
-      
-      // Create the message content based on type
-      const content = messageType === 'image' 
-        ? `📷 ${selectedFile.name}` 
-        : `📎 ${selectedFile.name}`;
-      
-      // Send the message with file data
-      onSendMessage(content, replyTo || undefined, messageType, fileData);
-      removeSelectedFile();
-      setReplyTo(null);
-      
-      // Force scroll to bottom after sending file
-      requestAnimationFrame(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-      });
-    }
+    if (!activeRoom || !selectedFile || !socket) return;
+    const messageType = selectedFile.type.startsWith('image/') ? 'image' : 'file';
+    const fileData = {
+      name: selectedFile.name,
+      size: selectedFile.size,
+      type: selectedFile.type,
+      url: filePreview || null,
+    };
+    const msg = {
+      roomId: activeRoom._id,
+      content: messageType === 'image' ? `📷 ${selectedFile.name}` : `📎 ${selectedFile.name}`,
+      type: messageType,
+      fileUrl: filePreview,
+      replyTo: replyTo?._id,
+      fileData,
+    };
+    socket.emit('chat:send_message', msg);
+    removeSelectedFile();
+    setReplyTo(null);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -252,37 +303,111 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       .toUpperCase();
   };
 
-  const getSenderName = (senderId: string) => {
-    if (chatRoom.isGroup) {
-      const participant = chatRoom.participants.find(p => p.id === senderId);
-      return participant?.name || "Unknown";
+  const getSenderName = (sender: User) => {
+    if (!activeRoom) return "";
+    if (activeRoom.type === ChatRoomType.GROUP) {
+      return sender.firstName + ' ' + sender.lastName;
     } else {
-      // For private chats, if it's not the current user, it's the other participant
-      if (senderId !== "current-user") {
-        return chatRoom.participants[0]?.name || "Unknown";
+      if (sender._id !== myUserId) {
+        return sender.firstName + ' ' + sender.lastName;
       }
       return "";
     }
   };
 
-  const t = useTranslations("chat");
+  const getChatTitle = () => {
+    if (!activeRoom) return "";
+    if (activeRoom.type === ChatRoomType.GROUP) {
+      return activeRoom.groupTitle || "";
+    }
+    const otherUser = activeRoom.members.find(m => m._id !== myUserId);
+    return otherUser ? `${otherUser.firstName} ${otherUser.lastName}` : "";
+  };
+
+  const getChatAvatar = () => {
+    if (!activeRoom) return "";
+    if (activeRoom.type === ChatRoomType.GROUP) {
+      return activeRoom.groupAvatar || "";
+    }
+    const otherUser = activeRoom.members.find(m => m._id !== myUserId);
+    return otherUser?.avatar || "";
+  };
+
+  const getChatSubtitle = () => {
+    if (!activeRoom) return "";
+    if (activeRoom.type === ChatRoomType.GROUP) {
+      return `${activeRoom.members.length} members`;
+    }
+    return "Online"; // Default status for private chats
+  };
+
+  const handleDeleteMessage = (messageId: string) => {
+    if (socket && activeRoom) {
+      socket.emit('chat:delete_message', { roomId: activeRoom._id, messageId, forAll: false }, (error: any) => {
+        if (error) {
+          dispatch(setError('Failed to delete message'));
+        }
+      });
+    }
+  };
 
   const renderMessage = (msg: Message) => {
-    const isCurrentUser = msg.senderId === "current-user";
-    const senderName = chatRoom.isGroup ? getSenderName(msg.senderId) : "";
+    if (!activeRoom) return null;
+    const isCurrentUser = msg.sender._id === myUserId;
+    const senderName = `${msg.sender.firstName} ${msg.sender.lastName}`;
+    // Real-time seen logic: show double check if any user other than sender has seen the message
+    const isSeenByOther = msg.seenBy.some(uid => uid !== myUserId);
     
+    // Handle deleted messages
+    if (msg.deleted || (msg.deletedFor && msg.deletedFor.includes(myUserId))) {
+      return (
+        <div
+          key={msg._id}
+          className={cn(
+            "flex items-start space-x-2 group relative",
+            isCurrentUser ? "justify-end" : "justify-start"
+          )}
+        >
+          {!isCurrentUser && activeRoom.type === ChatRoomType.GROUP && (
+            <Avatar className="h-8 w-8">
+              <AvatarImage
+                src={msg.sender.avatar}
+                alt={senderName}
+              />
+              <AvatarFallback className="text-xs">
+                {getInitials(senderName)}
+              </AvatarFallback>
+            </Avatar>
+          )}
+          <div className="flex flex-col max-w-xs lg:max-w-md relative">
+            {activeRoom.type === ChatRoomType.GROUP && !isCurrentUser && (
+              <p className="text-xs text-muted-foreground mb-1 px-1">
+                {senderName}
+              </p>
+            )}
+            <div className={cn(
+              "rounded-lg relative group px-4 py-2",
+              "bg-muted text-muted-foreground italic"
+            )}>
+              <p className="text-sm">Message deleted</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div
-        key={msg.id}
+        key={msg._id}
         className={cn(
           "flex items-start space-x-2 group relative",
           isCurrentUser ? "justify-end" : "justify-start"
         )}
       >
-        {!isCurrentUser && chatRoom.isGroup && (
+        {!isCurrentUser && activeRoom.type === ChatRoomType.GROUP && (
           <Avatar className="h-8 w-8">
             <AvatarImage
-              src={chatRoom.participants.find(p => p.id === msg.senderId)?.avatar}
+              src={msg.sender.avatar}
               alt={senderName}
             />
             <AvatarFallback className="text-xs">
@@ -292,137 +417,138 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         )}
         
         <div className="flex flex-col max-w-xs lg:max-w-md relative">
-          {chatRoom.isGroup && !isCurrentUser && (
+          {activeRoom.type === ChatRoomType.GROUP && !isCurrentUser && (
             <p className="text-xs text-muted-foreground mb-1 px-1">
               {senderName}
             </p>
           )}
           
-            <div
-              className={cn(
-                "rounded-lg relative group",
-                isCurrentUser
-                  ? "bg-primary text-white border border-primary"
-                  : "bg-border text-accent-foreground"
-              )}
-            >
-              {msg.replyTo && (
-                <div className={cn(
-                  "text-xs p-3 border-b bg-muted rounded-t-lg",
-                  isCurrentUser ? "border-white" : "border-gray-300"
+          <div
+            className={cn(
+              "rounded-lg relative group",
+              isCurrentUser
+                ? "bg-primary text-white border border-primary"
+                : "bg-border text-accent-foreground"
+            )}
+          >
+            {msg.replyTo && (
+              <div className={cn(
+                "text-xs p-3 border-b bg-muted rounded-t-lg",
+                isCurrentUser ? "border-white" : "border-gray-300"
+              )}>
+                <p className="font-medium opacity-80 text-muted-foreground">
+                  Replying to <span className="text-primary">
+                    {msg.replyTo.sender._id === myUserId ? "you" : `${msg.replyTo.sender.firstName} ${msg.replyTo.sender.lastName}`}
+                  </span>
+                </p>
+                <p className={cn(
+                  "opacity-70 truncate",
+                  isCurrentUser ? "text-secondary-foreground mt-1" : "text-gray-400"
                 )}>
-                  <p className="font-medium opacity-80 text-muted-foreground">
-                    Replying to <span className="text-primary">{msg.replyTo.senderId === "current-user" ? "you" : getSenderName(msg.replyTo.senderId)}</span>
-                  </p>
-                  <p className={cn(
-                    "opacity-70 truncate",
-                    isCurrentUser ? "text-secondary-foreground mt-1" : "text-gray-400"
-                  )}>
-                    {msg.replyTo.content}
-                  </p>
+                  {msg.replyTo.content}
+                </p>
+              </div>
+            )}
+            
+            <div className="px-4 py-2 relative">
+              <div className="absolute top-2 right-2">
+                <MessageActions
+                  message={msg}
+                  onReply={(message) => setReplyTo(message)}
+                  onCopy={(content) => {
+                    // Handle copy notification
+                  }}
+                  onDelete={isCurrentUser ? handleDeleteMessage : undefined}
+                  isCurrentUser={isCurrentUser}
+                />
+              </div>
+              
+              {/* File/Image Content */}
+              {msg.type === MessageType.IMAGE && msg.fileUrl && (
+                <div className="mb-2">
+                  <img 
+                    src={msg.fileUrl} 
+                    alt="Image"
+                    className="max-w-full max-h-64 rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => {
+                      if (msg.fileUrl) {
+                        window.open(msg.fileUrl, '_blank');
+                      }
+                    }}
+                  />
                 </div>
               )}
               
-              <div className="px-4 py-2 relative">
-                <div className="absolute top-2 right-2">
-                  <MessageActions
-                    message={msg}
-                    onReply={(message) => setReplyTo(message)}
-                    onCopy={(content) => {
-                      // Handle copy notification
-                      console.log("Message copied:", content);
-                    }}
-                    onDelete={isCurrentUser ? onDeleteMessage : undefined}
-                    isCurrentUser={isCurrentUser}
-                  />
-                </div>
-                
-                {/* File/Image Content */}
-                {msg.messageType === 'image' && msg.fileData?.url && (
-                  <div className="mb-2">
-                    <img 
-                      src={msg.fileData.url} 
-                      alt={msg.fileData.name}
-                      className="max-w-full max-h-64 rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+              {/* File Content */}
+              {msg.type === MessageType.FILE && msg.fileUrl && (
+                <div className="mb-2 p-3 bg-muted/50 rounded-lg border">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <File className="h-6 w-6 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">File Attachment</p>
+                    </div>
+                    <ChatButton
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
                       onClick={() => {
-                        // Open image in full screen (you can implement a modal here)
-                        if (msg.fileData?.url) {
-                          window.open(msg.fileData.url, '_blank');
+                        if (msg.fileUrl) {
+                          window.open(msg.fileUrl, '_blank');
                         }
                       }}
-                    />
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </ChatButton>
                   </div>
-                )}
-                
-                {/* File Content */}
-                {msg.messageType === 'file' && msg.fileData && (
-                  <div className="mb-2 p-3 bg-muted/50 rounded-lg border">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <File className="h-6 w-6 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{msg.fileData.name}</p>
-                        <p className="text-xs text-muted-foreground">{formatFileSize(msg.fileData.size)}</p>
-                      </div>
-                      <ChatButton
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => {
-                          // Download file (you can implement actual download logic here)
-                          console.log('Download file:', msg.fileData?.name);
-                        }}
-                      >
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </ChatButton>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Text Content */}
-                <p className="text-sm">{msg.content}</p>
-                <div className="flex items-center justify-between mt-1">
-                  <p
-                    className={cn(
-                      "text-xs",
-                      isCurrentUser ? "text-blue-100" : "text-gray-500"
-                    )}
-                  >
-                    {formatTime(msg.timestamp)}
-                  </p>
-                  {isCurrentUser && (
-                    <div className="flex items-center space-x-1">
-                      {msg.isRead ? (
-                        <CheckCheck className="h-3 w-3 text-blue-200" />
-                      ) : (
-                        <Check className="h-3 w-3 text-blue-200" />
-                      )}
-                    </div>
-                  )}
                 </div>
+              )}
+              
+              {/* Text Content */}
+              <p className="text-sm">{msg.content}</p>
+              <div className="flex items-center justify-between mt-1">
+                <p
+                  className={cn(
+                    "text-xs",
+                    isCurrentUser ? "text-blue-100" : "text-gray-500"
+                  )}
+                >
+                  {formatTime(new Date())}
+                </p>
+                {isCurrentUser && (
+                  <div className="flex items-center space-x-1">
+                    {isSeenByOther ? (
+                      <CheckCheck className="h-3 w-3 text-blue-200" />
+                    ) : (
+                      <Check className="h-3 w-3 text-blue-200" />
+                    )}
+                  </div>
+                )}
               </div>
             </div>
+          </div>
         </div>
       </div>
     );
   };
 
   const renderTypingIndicator = (typingUser: TypingIndicator) => {
-    const participant = chatRoom.participants.find(p => p.id === typingUser.userId);
-    if (!participant) return null;
+    if (!activeRoom) return null;
+    const member = activeRoom.members.find(m => m._id === typingUser.userId);
+    if (!member) return null;
 
     return (
       <div key={typingUser.userId} className="flex items-center space-x-2">
         <Avatar className="h-8 w-8">
           <AvatarImage
-            src={participant.avatar}
-            alt={participant.name}
+            src={member.avatar}
+            alt={`${member.firstName} ${member.lastName}`}
           />
           <AvatarFallback className="text-xs">
-            {getInitials(participant.name)}
+            {getInitials(`${member.firstName} ${member.lastName}`)}
           </AvatarFallback>
         </Avatar>
         <div className="bg-gray-100 rounded-lg px-4 py-2">
@@ -442,51 +568,29 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     );
   };
 
-  const getChatTitle = () => {
-    if (chatRoom.isGroup && chatRoom.group) {
-      return chatRoom.group.name;
-    }
-    return chatRoom.participants[0]?.name || "";
-  };
-
-  const getChatSubtitle = () => {
-    if (chatRoom.isGroup && chatRoom.group) {
-      return `${chatRoom.group.participants.length} members`;
-    }
-    const participant = chatRoom.participants[0];
-    if (participant) {
-      return (participant.status === "online" && t("online")) ||
-             (participant.status === "away" && t("away")) ||
-             (participant.status === "offline" && t("offline"));
-    }
-    return "";
-  };
-
   return (
     <div className="flex flex-col h-full bg-accent border">
       {/* Header */}
       <div className="flex items-center space-x-3 p-4 border-b">
-        {onBack && (
+        {isMobileView && (
           <ChatButton
             variant="ghost"
             size="icon"
-            onClick={onBack}
-            className="hover:bg-border md:hidden"
+            onClick={onBackToList}
+            className="md:hidden"
           >
             <ArrowLeft className="h-5 w-5" />
           </ChatButton>
         )}
         <Avatar className="h-10 w-10">
           <AvatarImage
-            src={chatRoom.isGroup ? chatRoom.group?.avatar : chatRoom.participants[0]?.avatar}
+            src={getChatAvatar()}
             alt={getChatTitle()}
           />
           <AvatarFallback>
-            {chatRoom.isGroup ? (
+            {activeRoom?.type === ChatRoomType.GROUP ? (
               <div className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                </svg>
+                <Users className="h-5 w-5" />
               </div>
             ) : (
               getInitials(getChatTitle())
@@ -498,7 +602,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             {getChatTitle()}
           </h3>
           <p className="text-sm text-muted-foreground">
-            {getChatSubtitle()}
+            {activeRoom?.type === ChatRoomType.GROUP 
+              ? `${activeRoom.members.length} members` 
+              : "Online"}
           </p>
         </div>
         <ChatButton variant="ghost" size="icon">
@@ -507,11 +613,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       </div>
 
       {/* Messages */}
-      <ChatScrollArea className="flex-1 p-4" ref={scrollRef} onScroll={handleScroll}>
-        <div className="space-y-4">
-          {chatRoom.messages.map(renderMessage)}
+      <ChatScrollArea 
+        ref={scrollRef} 
+        onScroll={handleScroll}
+        className="flex-1 p-4"
+        style={{ 
+          height: 'calc(100vh - 200px)',
+          maxHeight: 'calc(100vh - 200px)',
+          overflowY: 'auto'
+        }}
+      >
+        <div className="space-y-4 min-h-full">
+          {messages.map(renderMessage)}
           
-          {typingUsers.map(renderTypingIndicator)}
+          {typing.map(renderTypingIndicator)}
         </div>
       </ChatScrollArea>
 
@@ -668,7 +783,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             className="hidden"
           />
 
-          <ChatInput
+          <MemoChatInput
             placeholder={t("write")}
             value={message}
             onChange={handleInputChange}
