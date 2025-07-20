@@ -3,24 +3,20 @@ import CreatePostWrapper from "@/components/post/CreatePostWrapper";
 import PostsListContainer from "@/components/post/PostsListContainer";
 import { useTranslations } from "next-intl";
 import Container from "@/components/Container";
-import SearchMainPage from "@/app/[locale]/search/page";
-import NotificationPage from "@/components/Notification";
-import ArchivePage from "../archive/page";
 
 // import SearchPage from "@/components/Search";
+import SuggestedUsers from "@/components/SuggestedUsers";
 
 export default function Home() {
   const t = useTranslations();
 
   return (
-    <>
-
-      <Container>
-        <div className="grid grid-cols-12 gap-6">
-          {/* Left Sidebar (visible on desktop, hidden on mobile) */}
-          <div className="md:col-span-4 xl:col-span-3 hidden md:block">
-            <Sidebar />
-          </div>
+    <Container>
+      <div className="grid grid-cols-12 gap-4">
+        {/* Left Sidebar (visible on desktop, hidden on mobile) */}
+        <div className="md:col-span-4 xl:col-span-3 hidden md:block">
+          <Sidebar />
+        </div>
 
           {/* Main Content */}
           <div className="col-span-12 md:col-span-8 xl:col-span-6">
@@ -30,15 +26,11 @@ export default function Home() {
             </main>
           </div>
 
-          {/* Right Sidebar - Placeholder or content */}
-          <div className="lg:col-span-3 hidden xl:block ">
-            {/* Optional right sidebar content */}
-            Right Sidebar
-          </div>
+        {/* Right Sidebar - Suggested Users */}
+        <div className="lg:col-span-3 hidden xl:block ">
+          <SuggestedUsers />
         </div>
-      </Container>
-
-    </>
-
+      </div>
+    </Container>
   );
 }

@@ -6,8 +6,9 @@ import { useSelector } from 'react-redux'
 import { RootState } from '../../store/store'
 import { Button } from '../ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import { Code, X } from 'lucide-react'
+import { Code, Loader2, X } from 'lucide-react'
 import { Textarea } from '../ui/textarea'
+import { cn } from '@/lib/utils'
 
 interface CodeEditorProps {
   value: string
@@ -15,10 +16,10 @@ interface CodeEditorProps {
   language: string
   onLanguageChange: (language: string) => void
   placeholder?: string
-  rows?: number
   onRemove?: () => void
   showRemoveButton?: boolean
   onError?: (error: string | null) => void
+  className?: string
 }
 
 export default function CodeEditor({
@@ -26,7 +27,7 @@ export default function CodeEditor({
   onChange,
   language,
   onLanguageChange,
-  rows = 3,
+  className,
   onRemove,
   showRemoveButton = true,
   onError
@@ -259,7 +260,7 @@ export default function CodeEditor({
   }
 
   return (
-    <div className="space-y-3">
+    <div className={cn("space-y-3", className)}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Select value={language} onValueChange={onLanguageChange}>
@@ -305,17 +306,19 @@ export default function CodeEditor({
           spellCheck={false}
           autoCorrect="off"
           autoCapitalize="off"
+          autoComplete="off"
           className="relative resize-none !bg-transparent border-0 rounded-lg outline-none z-50 !text-sm text-transparent w-full overflow-x-auto overflow-y-hidden"
           style={{
             color: 'transparent !important',
             caretColor: 'var(--primary)',
-            whiteSpace: 'pre',
+            whiteSpace: 'pre-wrap',
             lineHeight: '1.501 !important',
             fontFamily: 'var(--font-family)',
             fontSize: '14px !important',
             pointerEvents: 'auto',
             userSelect: 'text',
-            padding: '16px'
+            padding: '16px',
+            boxShadow: 'none'
           }}
         />
         
@@ -323,7 +326,7 @@ export default function CodeEditor({
         <div
           ref={editorRef}
           onScroll={handleEditorScroll}
-          className="absolute top-0 left-0 right-0 bottom-0 text-sm whitespace-pre bg-[#f8f8f8] dark:bg-background z-10 pointer-events-none overflow-x-auto overflow-y-hidden"
+          className="absolute top-0 left-0 right-0 bottom-0 text-sm whitespace-prewrap bg-[#f8f8f8] dark:bg-background z-10 pointer-events-none overflow-x-auto overflow-y-hidden"
           style={{
             lineHeight: '1.501 !important',
             fontFamily: 'var(--font-family)',
@@ -335,9 +338,9 @@ export default function CodeEditor({
         
         {/* Show highlighting status */}
         {isHighlighting && (
-          <div className="absolute top-2 right-2 z-20">
-            <div className="text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
-              Highlighting...
+          <div className="absolute top-0 right-0 flex items-center justify-center w-full h-full text-muted-foreground bg-background z-20">
+            <div className="text-xs px-2 py-1 rounded">
+              <Loader2 className="size-5 animate-spin" />
             </div>
           </div>
         )}

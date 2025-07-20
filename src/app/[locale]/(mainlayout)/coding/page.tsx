@@ -10,7 +10,7 @@ export default function CodingPage() {
 
   return (
     <Container>
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-12 gap-4">
         {/* Left Sidebar (visible on desktop, hidden on mobile) */}
         <div className="md:col-span-4 xl:col-span-3 hidden md:block">
           <Sidebar />

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useContext } from "react";
 import { ChatButton } from "@/components/ui/chat-button";
 import { Message } from "@/types/chat";
 import { Reply, Copy, Trash2, MoreHorizontal } from "lucide-react";
@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SocketContext } from '@/store/Provider';
 
 interface MessageActionsProps {
   message: Message;
@@ -26,10 +27,19 @@ const MessageActions: React.FC<MessageActionsProps> = ({
   isCurrentUser,
 }) => {
   const t = useTranslations("chat");
+  const socket = useContext(SocketContext);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content);
     onCopy(message.content);
+  };
+
+  const handleDelete = () => {
+    if (onDelete) onDelete(message._id);
+    // Real-time: emit delete event to backend
+    if (socket && message.chatRoom) {
+      socket.emit('chat:delete_message', { roomId: message.chatRoom, messageId: message._id, forAll: true });
+    }
   };
 
   return (
@@ -38,7 +48,7 @@ const MessageActions: React.FC<MessageActionsProps> = ({
         <ChatButton
           variant="ghost"
           size="icon"
-          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-white hover:text-foreground"
         >
           <MoreHorizontal className="h-4 w-4" />
         </ChatButton>
@@ -56,7 +66,7 @@ const MessageActions: React.FC<MessageActionsProps> = ({
         
         {isCurrentUser && onDelete && (
           <DropdownMenuItem 
-            onClick={() => onDelete(message.id)}
+            onClick={handleDelete}
             variant="destructive"
           >
             <Trash2 className="h-4 w-4 mr-2" />

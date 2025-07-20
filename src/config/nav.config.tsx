@@ -1,5 +1,5 @@
 
-import { Heart, Home , MessageCircleMore ,  BellDot } from "lucide-react";
+import { Heart, Home , MessageCircleMore ,  BellDot, Hash } from "lucide-react";
 const navItems = [
   {
     name: "Home",
@@ -14,8 +14,14 @@ const navItems = [
     iconOutline: <MessageCircleMore  className="w-6 h-6" />,
   },
   {
+    name: "Tags",
+    href: "/tags",
+    iconFilled: <Hash fill="currentColor" className="w-6 h-6" />,
+    iconOutline: <Hash  className="w-6 h-6" />,
+  },
+  {
     name: "Notifications",
-    href: "/profile",
+    href: "/notifications",
     iconFilled: <BellDot fill="currentColor" className="w-6 h-6" />,
     iconOutline: <BellDot  className="w-6 h-6" />,
   },

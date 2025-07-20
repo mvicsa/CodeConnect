@@ -21,7 +21,6 @@ export default function NavItem({
     >
       <Link
         href={item.href}
-        onClick={() => setActiveIndex(index)}
         className="relative flex flex-col items-center justify-center w-full h-full"
       >
         {/* Icon */}

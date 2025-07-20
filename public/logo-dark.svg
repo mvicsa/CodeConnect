@@ -20,8 +20,8 @@
   <line x1="50" y1="50" x2="50" y2="70" stroke="#5ea500" stroke-width="2" opacity="0.7"/>
   
   <!-- Text -->
-  <text x="95" y="45" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#fafafa">Code</text>
-  <text x="95" y="70" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#5ea500">Connect</text>
+  <text x="95" y="45" font-family="'Josefin Sans', 'IBM Plex Sans Arabic', sans-serif" font-size="24" font-weight="bold" fill="#fafafa">Code</text>
+  <text x="95" y="70" font-family="'Josefin Sans', 'IBM Plex Sans Arabic', sans-serif" font-size="24" font-weight="bold" fill="#5ea500">Connect</text>
   
   <!-- Subtle connecting element between words -->
   <circle cx="175" cy="55" r="2" fill="#5ea500" opacity="0.6"/>

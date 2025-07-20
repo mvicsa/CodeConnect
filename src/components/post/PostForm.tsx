@@ -9,6 +9,7 @@ import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { Input } from '../ui/input'
 import { Badge } from '../ui/badge'
+import Tags from '../Tags'
 import { 
   Code, 
   Image as ImageIcon, 
@@ -25,6 +26,8 @@ import UserAvatar from '../UserAvatar'
 import { PostType } from '@/types/post'
 import { toast } from 'sonner';
 import { Toaster } from 'sonner';
+import { uploadToImageKit } from '@/lib/imagekitUpload';
+import { useTranslations } from 'next-intl';
 
 interface PostFormProps {
   mode: 'create' | 'edit'
@@ -48,6 +51,7 @@ type PostContent = {
 export default function PostForm({ mode, post, onCancel, onSuccess, className = '' }: PostFormProps) {
   const dispatch = useDispatch<AppDispatch>()
   const { user } = useSelector((state: RootState) => state.auth)
+  const t = useTranslations()
   
   const [content, setContent] = useState<PostContent>({
     text: post?.text || '',
@@ -136,24 +140,21 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
     setContent(prev => ({ ...prev, image: "" }))
   }
 
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+  const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
-      // Convert file to base64 immediately to ensure it's in the right format
-      const reader = new FileReader()
-      reader.readAsDataURL(file)
-      reader.onload = () => {
-        const base64Image = reader.result as string
-        setContent(prev => ({ ...prev, image: base64Image }))
-        console.log("Image converted to base64 successfully")
+      try {
+        toast.info('Uploading image...');
+        const url = await uploadToImageKit(file, '/posts');
+        setContent(prev => ({ ...prev, image: url }));
+        toast.success('Image uploaded!');
+      } catch (error) {
+        toast.error('Failed to upload image.');
+        console.error(error);
       }
-      reader.onerror = (error) => {
-        console.error("Error converting image to base64:", error)
-        toast.error("Failed to process image. Please try again.")
-      }
-      setShowImageUpload(true)
+      setShowImageUpload(true);
     }
-  }
+  };
 
   const handleAddVideo = () => {
     setShowVideoUpload(true)
@@ -174,24 +175,21 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
     setContent(prev => ({ ...prev, video: "" }))
   }
 
-  const handleVideoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+  const handleVideoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (file && file.type.startsWith('video/')) {
-      // Convert file to base64 immediately to ensure it's in the right format
-      const reader = new FileReader()
-      reader.readAsDataURL(file)
-      reader.onload = () => {
-        const base64Video = reader.result as string
-        setContent(prev => ({ ...prev, video: base64Video }))
-        console.log("Video converted to base64 successfully")
+      try {
+        toast.info('Uploading video...');
+        const url = await uploadToImageKit(file, '/posts');
+        setContent(prev => ({ ...prev, video: url }));
+        toast.success('Video uploaded!');
+      } catch (error) {
+        toast.error('Failed to upload video.');
+        console.error(error);
       }
-      reader.onerror = (error) => {
-        console.error("Error converting video to base64:", error)
-        toast.error("Failed to process video. Please try again.")
-      }
-      setShowVideoUpload(true)
+      setShowVideoUpload(true);
     }
-  }
+  };
 
   const handleAddTag = () => {
     if (tagInput.trim() && !content.tags.includes(tagInput.trim())) {
@@ -326,6 +324,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
             onChange={(e) => handleTextChange(e.target.value)}
             placeholder="What's on your mind?"
             className="resize-none min-h-[100px]"
+            autoComplete='off'
           />
         </div>
 
@@ -371,7 +370,6 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
               language={content.code?.language || 'javascript'}
               onLanguageChange={handleLanguageChange}
               onRemove={handleRemoveCode}
-              rows={6}
             />
           </div>
         )}
@@ -400,11 +398,6 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
                   alt="Preview"
                   className="max-w-full max-h-64 rounded-lg object-cover"
                 />
-                {content.image instanceof File && (
-                  <p className="text-sm text-muted-foreground">
-                    {content.image.name} ({(content.image.size / 1024 / 1024).toFixed(2)} MB)
-                  </p>
-                )}
               </div>
             ) : (
               <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
@@ -431,7 +424,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
         )}
 
         {/* Video Upload */}
-        {showVideoUpload && (
+        {(showVideoUpload || content.video) && (
           <div className="border rounded-lg p-4 bg-accent">
             <div className="flex items-center justify-between mb-3">
               <h4 className="font-medium flex items-center gap-2">
@@ -454,11 +447,6 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
                   controls
                   className="max-w-full max-h-64 rounded-lg"
                 />
-                {content.video instanceof File && (
-                  <p className="text-sm text-muted-foreground">
-                    {content.video.name} ({(content.video.size / 1024 / 1024).toFixed(2)} MB)
-                  </p>
-                )}
               </div>
             ) : (
               <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
@@ -488,26 +476,28 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Hash className="size-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Tags</span>
+            <span className="text-sm font-medium">{t('tags.tags')}</span>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {content.tags.map((tag) => (
-              <Badge
-                key={tag}
-                className="cursor-pointer hover:bg-destructive/10 hover:text-destructive"
-                onClick={() => handleRemoveTag(tag)}
-              >
-                #{tag}
-                <X className="size-3 ml-1" />
-              </Badge>
-            ))}
-          </div>
+          {content.tags.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {content.tags.map((tag) => (
+                <Badge
+                  key={tag}
+                  className="cursor-pointer hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => handleRemoveTag(tag)}
+                >
+                  #{tag}
+                  <X className="size-3 ml-1" />
+                </Badge>
+              ))}
+            </div>
+          )}
           <div className="flex gap-2">
             <Input
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Add a tag..."
+              placeholder={t('tags.addTag')}
               className="flex-1"
             />
             <Button
@@ -541,7 +531,6 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
           </Button>
         </div>
       </CardContent>
-      <Toaster position='bottom-right' richColors />
     </Card>
   )
 } 

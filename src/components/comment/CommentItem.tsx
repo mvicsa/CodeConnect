@@ -228,9 +228,11 @@ export default function CommentItem({
 
   return (
     <div className="flex gap-3 items-start">
-      <UserAvatar src={hasCreatedBy(comment) ? (comment.createdBy.avatar || '') : ''} firstName={hasCreatedBy(comment) ? (comment.createdBy.firstName || '') : ((comment as any).user?.name || '')} />
+      <Link href={`/profile/${comment.createdBy.username}`}>
+        <UserAvatar src={hasCreatedBy(comment) ? (comment.createdBy.avatar || '') : ''} firstName={hasCreatedBy(comment) ? (comment.createdBy.firstName || '') : ((comment as any).user?.name || '')} />
+      </Link>
 
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1">
         <div className="bg-accent p-3 rounded-xl relative">
           {!isEditing && user && (
             <div className="absolute top-2 end-2">
@@ -322,7 +324,7 @@ export default function CommentItem({
         </div>
 
         {!isEditing && (
-          <div className="flex gap-3 text-xs text-muted-foreground mt-2 items-center">
+          <div className="flex gap-3 text-xs text-muted-foreground mt-2 items-center px-2">
             <ReactionMenu 
               size="sm"
               commentId={String(commentId)}
@@ -334,8 +336,8 @@ export default function CommentItem({
               currentUsername={user?.username || ''}
             />
             { user && (
-              <button onClick={handleReplyClick} className="cursor-pointer">
-                <ReplyIcon className="size-4" />
+              <button onClick={handleReplyClick} className="flex items-center hover:text-foreground transition-all duration-300 gap-1 cursor-pointer">
+                <ReplyIcon className="size-4" /> {isCommentWithReplies(comment) && comment.replies.length > 0 ? comment.replies.length : ''}
               </button>
             )}
             <span>{new Date(comment.createdAt || '').toLocaleString()}</span>
@@ -351,7 +353,7 @@ export default function CommentItem({
         )}
 
         {/* Replies Section */}
-        <div className={`${(comment as Comment).replies?.length > 0 && visibleReplies > 0 ? 'mt-4' : ''} space-y-2`}>
+        <div className={`${(comment as Comment).replies?.length > 0 && visibleReplies > 0 ? 'mt-4' : ''} space-y-3`}>
           {/* Show replies */}
           {visibleRepliesList.map((replyData, index) => (
             <div key={replyData._id || `reply-${index}`} className="reply-item">
@@ -368,7 +370,7 @@ export default function CommentItem({
           
           {/* Single Load More Button */}
           {!isReply && hasMoreReplies && (
-            <div className="flex justify-start pt-2">
+            <div className="flex justify-start pt-2 mt-1">
               <Button
                 variant="ghost"
                 size="sm"
