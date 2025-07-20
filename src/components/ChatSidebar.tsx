@@ -5,11 +5,12 @@ import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
 import { ChatPreview, ChatRoomType } from "@/types/chat";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
-import { Search, Users } from "lucide-react";
+import { ArrowLeft, Search, Users } from "lucide-react";
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store/store';
 import { SocketContext } from '@/store/Provider';
 import { setSeen } from '@/store/slices/chatSlice';
+import Link from "next/link";
 
 interface ChatSidebarProps {
   onChatSelect: (chatId: string) => void;
@@ -92,10 +93,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         <div
           key={preview._id}
           className={cn(
-            "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors",
+            "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors border-s-4 border-s-transparent",
             isActive 
-              ? "bg-primary/10 border-l-4 border-l-primary" 
-              : "hover:bg-secondary"
+              ? "bg-primary/10 border-s-primary" 
+              : "hover:bg-card"
           )}
           onClick={() => handleChatSelect(preview._id)}
         >
@@ -145,10 +146,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         <div
           key={preview._id}
           className={cn(
-            "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors",
+            "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors border-x-4 border-x-transparent",
             isActive 
-              ? "bg-primary/10 border-l-4 border-l-primary" 
-              : "hover:bg-secondary"
+              ? "bg-primary/10 border-s-primary" 
+              : "hover:bg-accent dark:hover:bg-card"
           )}
           onClick={() => handleChatSelect(preview._id)}
         >
@@ -195,14 +196,17 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-col h-full bg-sidebar border",
+        "flex flex-col h-full bg-background",
         className
       )}
     >
       {/* Header */}
       <div className="p-4 border-b">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">{t("chat")}</h2>
+        <div className="flex items-center gap-2 mb-4">
+          <Link href="/" className="cursor-pointer hover:bg-secondary rounded-full p-1">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <h2 className="text-2xl font-semibold">{t("chat")}</h2>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -217,7 +221,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
       {/* Chat List */}
       <ChatScrollArea className="flex-1">
-        <div className="p-2">
+        <div className="p-4">
           {isLoading ? (
             <div className="space-y-4">
               {[...Array(5)].map((_, i) => (

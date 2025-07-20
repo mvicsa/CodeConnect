@@ -66,7 +66,7 @@ const ChatInterface: React.FC = () => {
   const t = useTranslations("chat");
 
   return (
-    <div className="flex h-screen w-full rounded-3xl bg-background overflow-hidden">
+    <div className="flex h-screen w-full bg-background overflow-hidden">
       {/* Connection status */}
       {!isConnected && (
         <div className="absolute top-0 left-0 right-0 bg-destructive text-destructive-foreground p-2 text-center">

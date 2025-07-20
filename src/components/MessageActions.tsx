@@ -48,7 +48,7 @@ const MessageActions: React.FC<MessageActionsProps> = ({
         <ChatButton
           variant="ghost"
           size="icon"
-          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-white hover:text-foreground"
         >
           <MoreHorizontal className="h-4 w-4" />
         </ChatButton>

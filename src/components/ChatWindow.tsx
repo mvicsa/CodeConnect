@@ -387,7 +387,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             )}
             <div className={cn(
               "rounded-lg relative group px-4 py-2",
-              "bg-muted text-muted-foreground italic"
+              "bg-accent text-muted-foreground italic"
             )}>
               <p className="text-sm">Message deleted</p>
             </div>
@@ -427,16 +427,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             className={cn(
               "rounded-lg relative group",
               isCurrentUser
-                ? "bg-primary text-white border border-primary"
-                : "bg-border text-accent-foreground"
+                ? "bg-primary text-white"
+                : "bg-accent dark:bg-card text-accent-foreground"
             )}
           >
             {msg.replyTo && (
               <div className={cn(
-                "text-xs p-3 border-b bg-muted rounded-t-lg",
-                isCurrentUser ? "border-white" : "border-gray-300"
+                "text-xs p-3 bg-accent dark:bg-card rounded-t-md"
               )}>
-                <p className="font-medium opacity-80 text-muted-foreground">
+                <p className="font-medium">
                   Replying to <span className="text-primary">
                     {msg.replyTo.sender._id === myUserId ? "you" : `${msg.replyTo.sender.firstName} ${msg.replyTo.sender.lastName}`}
                   </span>
@@ -451,7 +450,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             )}
             
             <div className="px-4 py-2 relative">
-              <div className="absolute top-2 right-2">
+              <div className="absolute top-1 right-1">
                 <MessageActions
                   message={msg}
                   onReply={(message) => setReplyTo(message)}
@@ -513,17 +512,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 <p
                   className={cn(
                     "text-xs",
-                    isCurrentUser ? "text-blue-100" : "text-gray-500"
+                    isCurrentUser ? "text-primary-foreground" : "text-muted-foreground"
                   )}
                 >
                   {formatTime(new Date())}
                 </p>
                 {isCurrentUser && (
-                  <div className="flex items-center space-x-1">
+                  <div className="flex items-center space-x-1 ms-2">
                     {isSeenByOther ? (
-                      <CheckCheck className="h-3 w-3 text-blue-200" />
+                      <CheckCheck className="h-4 w-4 text-primary-foreground" />
                     ) : (
-                      <Check className="h-3 w-3 text-blue-200" />
+                      <Check className="h-4 w-4 text-primary-foreground" />
                     )}
                   </div>
                 )}
@@ -569,7 +568,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-accent border">
+    <div className="flex flex-col h-full bg-card border">
       {/* Header */}
       <div className="flex items-center space-x-3 p-4 border-b">
         {isMobileView && (
@@ -616,10 +615,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       <ChatScrollArea 
         ref={scrollRef} 
         onScroll={handleScroll}
-        className="flex-1 p-4"
+        className="flex-1 p-4 bg-background"
         style={{ 
-          height: 'calc(100vh - 200px)',
-          maxHeight: 'calc(100vh - 200px)',
           overflowY: 'auto'
         }}
       >
@@ -648,7 +645,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* Reply Preview */}
       {replyTo && (
-        <div className="p-3 bg-muted border-t">
+        <div className="p-3 bg-card border-t">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <p className="text-xs text-muted-foreground">Replying to</p>
@@ -802,7 +799,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <ChatButton
             onClick={handleSendMessage}
             disabled={!message.trim() && !selectedFile}
-            className="bg-primary hover:bg-sidebar-primary cursor-pointer"
+            className="bg-primary hover:bg-primary/90 cursor-pointer"
           >
             <Send className="h-4 w-4" />
           </ChatButton>
