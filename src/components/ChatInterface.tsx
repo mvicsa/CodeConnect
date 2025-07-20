@@ -6,8 +6,25 @@ import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store/store';
-import { setActiveRoom } from '@/store/slices/chatSlice';
+import { setActiveRoom, removeRoom } from '@/store/slices/chatSlice';
 import { ChatPreview, ChatRoomType } from "@/types/chat";
+import { createSelector } from 'reselect';
+
+// Memoized selector for chatRooms
+const selectChatRoomsForUser = createSelector(
+  [
+    (state: RootState) => state.chat.rooms,
+    (state: RootState) => state.auth.user?._id || 'current-user'
+  ],
+  (rooms, myUserId) =>
+    Array.isArray(rooms)
+      ? rooms.filter(room =>
+          Array.isArray(room.members)
+            ? room.members.some((m: any) => (typeof m === 'string' ? m === myUserId : m._id === myUserId))
+            : false
+        )
+      : []
+);
 
 const ChatInterface: React.FC = () => {
   const [isMobileView, setIsMobileView] = useState(false);
@@ -15,7 +32,8 @@ const ChatInterface: React.FC = () => {
 
   // Redux selectors for chat state
   const myUserId = useSelector((state: RootState) => state.auth.user?._id) || 'current-user';
-  const chatRooms = useSelector((state: RootState) => state.chat.rooms);
+  // Only show rooms where the current user is a member, with defensive checks
+  const chatRooms = useSelector(selectChatRoomsForUser);
   const messages = useSelector((state: RootState) => state.chat.messages);
   const isConnected = useSelector((state: RootState) => state.chat.connected);
   const error = useSelector((state: RootState) => state.chat.error);
@@ -44,6 +62,17 @@ const ChatInterface: React.FC = () => {
   const handleChatSelect = (chatId: string) => {
     dispatch(setActiveRoom(chatId));
     setIsMobileView(true);
+  };
+
+  const handleChatDelete = (chatId: string) => {
+    // Remove the chat from Redux store
+    dispatch(removeRoom(chatId));
+    
+    // If the deleted chat was active, clear the active chat
+    if (activeChatId === chatId) {
+      dispatch(setActiveRoom(null));
+      setIsMobileView(false);
+    }
   };
 
   const handleBackToList = () => {
@@ -95,6 +124,7 @@ const ChatInterface: React.FC = () => {
           activeChatId={activeChat?._id}
           className="h-full"
           chatPreviews={chatPreviews}
+          onChatDelete={handleChatDelete}
         />
       </div>
 

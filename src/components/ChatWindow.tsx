@@ -52,6 +52,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   );
   const typing = useSelector((state: RootState) => state.chat.typing[activeRoomId || ''] || []);
   const seen = useSelector((state: RootState) => state.chat.seen[activeRoomId || ''] || []);
+  const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
 
   // Get socket from context
   const socket = useContext(SocketContext);
@@ -188,7 +189,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const handleTypingStatus = (isTyping: boolean) => {
-    if (socket && activeRoom) {
+    if (!activeRoom || !activeRoom._id) {
+      return;
+    }
+    if (socket) {
       socket.emit('chat:typing', { roomId: activeRoom._id, isTyping });
     }
   };
@@ -435,7 +439,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               <div className={cn(
                 "text-xs p-3 bg-accent dark:bg-card rounded-t-md"
               )}>
-                <p className="font-medium">
+                <p className="font-medium text-accent-foreground">
                   Replying to <span className="text-primary">
                     {msg.replyTo.sender._id === myUserId ? "you" : `${msg.replyTo.sender.firstName} ${msg.replyTo.sender.lastName}`}
                   </span>
@@ -515,7 +519,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     isCurrentUser ? "text-primary-foreground" : "text-muted-foreground"
                   )}
                 >
-                  {formatTime(new Date())}
+                  {msg.createdAt ? formatTime(new Date(msg.createdAt)) : ""}
                 </p>
                 {isCurrentUser && (
                   <div className="flex items-center space-x-1 ms-2">
@@ -550,7 +554,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             {getInitials(`${member.firstName} ${member.lastName}`)}
           </AvatarFallback>
         </Avatar>
-        <div className="bg-gray-100 rounded-lg px-4 py-2">
+        <div className="bg-accent rounded-lg px-4 py-2">
           <div className="flex space-x-1">
             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
             <div
@@ -566,6 +570,24 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       </div>
     );
   };
+
+  // Helper to scroll to bottom
+  const scrollToBottom = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  // Auto-scroll when messages or typing indicators change, if user is near bottom
+  useEffect(() => {
+    if (shouldAutoScroll) {
+      scrollToBottom();
+    }
+    // eslint-disable-next-line
+  }, [messages, typing]);
 
   return (
     <div className="flex flex-col h-full bg-card border">
@@ -600,10 +622,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <h3 className="font-semibold text-secondary-foreground">
             {getChatTitle()}
           </h3>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm">
             {activeRoom?.type === ChatRoomType.GROUP 
               ? `${activeRoom.members.length} members` 
-              : "Online"}
+              : (() => {
+                  const otherMember = activeRoom?.members?.find((m: any) => m._id !== myUserId);
+                  const status = otherMember ? userStatuses[otherMember._id] || 'offline' : 'offline';
+                  return (
+                    <span
+                      className={
+                        'inline-block px-2 py-0.5 rounded-full text-xs font-semibold ' +
+                        (status === 'online'
+                          ? 'bg-primary text-white'
+                          : 'bg-red-500 text-white')
+                      }
+                    >
+                      {status === 'online' ? 'Online' : 'Offline'}
+                    </span>
+                  );
+                })()}
           </p>
         </div>
         <ChatButton variant="ghost" size="icon">

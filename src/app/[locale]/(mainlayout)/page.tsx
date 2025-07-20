@@ -3,8 +3,6 @@ import CreatePostWrapper from "@/components/post/CreatePostWrapper";
 import PostsListContainer from "@/components/post/PostsListContainer";
 import { useTranslations } from "next-intl";
 import Container from "@/components/Container";
-
-// import SearchPage from "@/components/Search";
 import SuggestedUsers from "@/components/SuggestedUsers";
 
 export default function Home() {
