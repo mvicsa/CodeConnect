@@ -8,7 +8,7 @@ import { RootState, AppDispatch } from './store'
 import io from 'socket.io-client'
 import {
   setRooms, setMessages, addMessage, setTyping, setSeen, setError,
-  setConnected, deleteMessage, removeRoom, setHasMore
+  setConnected, deleteMessage, removeRoom, setHasMore, setUserStatus
 } from './slices/chatSlice'
 import { useSelector as useReduxSelector } from 'react-redux'
 
@@ -101,6 +101,18 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
       });
     });
 
+    // Listen for join_room event from server (when re-added to a room)
+    newSocket.on('chat:join_room', ({ roomId }: { roomId: string }) => {
+      console.log('[SOCKET] Received chat:join_room for room:', roomId);
+      newSocket.emit('chat:join_room', { roomId }, (error: any) => {
+        if (error) {
+          console.error(`[SOCKET] Error joining room ${roomId}:`, error);
+        } else {
+          console.log(`[SOCKET] Successfully joined room ${roomId}`);
+        }
+      });
+    });
+
     // Message events
     newSocket.on('chat:messages', ({ roomId, messages, hasMore }: { roomId: string; messages: any[]; hasMore: boolean }) => {
       console.log('[SOCKET] Received messages for room:', roomId, 'Count:', messages.length, 'Has more:', hasMore);
@@ -153,22 +165,32 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
     });
 
     newSocket.on('chat:typing', ({ roomId, userId, isTyping }: { roomId: string; userId: string; isTyping: boolean }) => {
-      console.log('Typing status:', { roomId, userId, isTyping });
+      if (!roomId) {
+        console.warn('Received chat:typing with undefined roomId', { roomId, userId, isTyping });
+        return;
+      }
       dispatch(setTyping({ roomId, typing: [{ userId, isTyping }] }));
     });
 
     newSocket.on('chat:seen', ({ roomId, messageIds, userId }: { roomId: string; messageIds: string[]; userId: string }) => {
-      console.log('[SOCKET] Received chat:seen', { roomId, messageIds, userId });
       dispatch(setSeen({ roomId, seen: messageIds, userId }));
-      console.log('[SOCKET] Dispatched setSeen action');
     });
 
     newSocket.on('chat:delete_message', ({ roomId, messageId, forAll, userId }: { roomId: string; messageId: string; forAll: boolean; userId: string }) => {
-      console.log('[SOCKET] Received chat:delete_message', { roomId, messageId, forAll, userId });
       dispatch(deleteMessage({ roomId, messageId, forAll, userId }));
-      console.log('[SOCKET] Dispatched deleteMessage action');
     });
 
+    // Listen for user:status events (online/offline)
+    newSocket.on('user:status', ({ userId, status }: { userId: string; status: 'online' | 'offline' }) => {
+      dispatch(setUserStatus({ userId, status }));
+    });
+
+    // Listen for user:status:all events (all currently online users)
+    newSocket.on('user:status:all', ({ online }: { online: string[] }) => {
+      online.forEach(userId => {
+        dispatch(setUserStatus({ userId, status: 'online' }));
+      });
+    });
 
 
     // Set the socket instance
@@ -191,6 +213,9 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
         newSocket.off('chat:typing');
         newSocket.off('chat:seen');
         newSocket.off('chat:delete_message');
+        newSocket.off('user:status'); // Added this line to remove the listener
+        newSocket.off('user:status:all'); // Added this line to remove the listener
+        newSocket.off('chat:join_room'); // Added this line to remove the listener
         newSocket.disconnect();
         setSocket(null);
       }

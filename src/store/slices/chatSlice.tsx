@@ -11,6 +11,7 @@ interface ChatState {
   loading: boolean;
   connected: boolean;
   hasMore: { [roomId: string]: boolean };
+  userStatuses?: { [userId: string]: 'online' | 'offline' };
 }
 
 const initialState: ChatState = {
@@ -23,6 +24,7 @@ const initialState: ChatState = {
   loading: false,
   connected: false,
   hasMore: {},
+  userStatuses: {},
 };
 
 const chatSlice = createSlice({
@@ -104,7 +106,23 @@ const chatSlice = createSlice({
       }
     },
     setTyping(state, action: PayloadAction<{ roomId: string; typing: TypingIndicator[] }>) {
-      state.typing[action.payload.roomId] = action.payload.typing;
+      const { roomId, typing } = action.payload;
+      if (!state.typing[roomId]) state.typing[roomId] = [];
+
+      typing.forEach(indicator => {
+        // Remove the user if isTyping is false
+        if (!indicator.isTyping) {
+          state.typing[roomId] = state.typing[roomId].filter(t => t.userId !== indicator.userId);
+        } else {
+          // Add or update the user if isTyping is true
+          const existing = state.typing[roomId].find(t => t.userId === indicator.userId);
+          if (existing) {
+            existing.isTyping = true;
+          } else {
+            state.typing[roomId].push(indicator);
+          }
+        }
+      });
     },
     setSeen(state, action: PayloadAction<{ roomId: string; seen: string[]; userId?: string }>) {
       const { roomId, seen, userId } = action.payload;
@@ -246,6 +264,10 @@ const chatSlice = createSlice({
       const { roomId, hasMore } = action.payload;
       state.hasMore[roomId] = hasMore;
     },
+    setUserStatus(state, action: PayloadAction<{ userId: string; status: 'online' | 'offline' }>) {
+      if (!state.userStatuses) state.userStatuses = {};
+      state.userStatuses[action.payload.userId] = action.payload.status;
+    },
   },
 });
 
@@ -266,6 +288,7 @@ export const {
   removeRoomMember,
   deleteMessage,
   setHasMore,
+  setUserStatus,
 } = chatSlice.actions;
 
 export default chatSlice.reducer; 

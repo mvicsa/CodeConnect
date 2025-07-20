@@ -14,7 +14,7 @@ import { SocketContext } from '@/store/Provider';
 import { useRouter } from 'next/navigation';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store/store';
-import { addRoom } from '@/store/slices/chatSlice';
+import { setRooms, setActiveRoom, addRoom } from '@/store/slices/chatSlice';
 
 interface ProfileHeaderProps {
   user: any;
@@ -57,6 +57,8 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   const router = useRouter();
   const dispatch = useDispatch();
   const currentUser = useSelector((state: RootState) => state.auth.user);
+  const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
+  const status = user ? userStatuses[user._id?.toString()] || 'offline' : 'offline';
   
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover') => {
     if (event.target.files && event.target.files[0]) {
@@ -88,8 +90,6 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     setIsCreatingRoom(true);
     
     try {
-      console.log('Emitting createPrivateRoom', { receiverId: user._id });
-      
       // Use a timeout to handle cases where the server doesn't respond
       const timeout = setTimeout(() => {
         console.error('Timeout waiting for private room creation');
@@ -97,23 +97,25 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       }, 5000);
 
       // Emit the createPrivateRoom event with acknowledgment
-      socket.emit('createPrivateRoom', { receiverId: user._id }, (response: any) => {
+      socket.emit('createPrivateRoom', { receiverId: user._id }, async (response: any) => {
         clearTimeout(timeout);
-        console.log('Received response from createPrivateRoom:', response);
-        
         if (response && response.roomId) {
-          console.log('Navigating to chat room:', response.roomId);
-          // Add the room to Redux state
-          if (response.room) {
-            dispatch(addRoom(response.room));
+          // Fetch latest rooms from backend to get full data
+          const token = localStorage.getItem('token');
+          const res = await fetch('/api/chat/rooms', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (data.rooms) {
+            dispatch(setRooms(data.rooms));
           }
+          dispatch(setActiveRoom(response.roomId));
           router.push(`/chat`);
         } else {
           console.error('Failed to create private room - no roomId in response');
         }
         setIsCreatingRoom(false);
       });
-      
     } catch (error) {
       console.error('Error creating private room:', error);
       setIsCreatingRoom(false);
@@ -184,6 +186,14 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                 <AvatarImage src={user?.avatar || "/user.png"} />
                 <AvatarFallback>{user?.firstName?.charAt(0)?.toUpperCase() || 'U'}</AvatarFallback>
               </Avatar>
+              {/* Online/offline dot */}
+              <span
+                className={
+                  `absolute bottom-2 left-5 w-5 h-5 rounded-full border-3 border-card ` +
+                  (status === 'online' ? 'bg-primary' : 'bg-gray-400')
+                }
+                title={status.charAt(0).toUpperCase() + status.slice(1)}
+              />
               {isOwnProfile && (
                 <label htmlFor="avatar-upload" className="absolute bottom-0 right-0 cursor-pointer">
                   <div className="bg-background/80 backdrop-blur-sm p-1.5 rounded-full shadow-md hover:bg-background/90 transition-colors">

@@ -1,11 +1,12 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChatInput } from "@/components/ui/chat-input";
 import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ChatPreview, ChatRoomType } from "@/types/chat";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Search, Users } from "lucide-react";
+import { ArrowLeft, Search, Users, Trash2, Image as ImageIcon, File as FileIcon } from "lucide-react";
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store/store';
 import { SocketContext } from '@/store/Provider';
@@ -20,6 +21,7 @@ interface ChatSidebarProps {
   activeChatId?: string;
   className?: string;
   chatPreviews: ChatPreview[];
+  onChatDelete?: (chatId: string) => void;
 }
 
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
@@ -30,11 +32,14 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   activeChatId,
   className,
   chatPreviews,
+  onChatDelete,
 }) => {
   const myUserId = useSelector((state: RootState) => state.auth.user?._id);
   const socket = useContext(SocketContext);
   const messages = useSelector((state: RootState) => state.chat.messages);
+  const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
   const dispatch = useDispatch();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | null>(null);
 
   const handleChatSelect = (chatId: string) => {
     onChatSelect(chatId);
@@ -52,6 +57,37 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         dispatch(setSeen({ roomId: chatId, seen: messageIds, userId: myUserId }));
       }
     }
+  };
+
+  const handleDeleteChat = async (chatId: string) => {
+    try {
+      console.log('Attempting to delete chat with chatId:', chatId);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No authentication token found');
+        return;
+      }
+
+      const response = await fetch(`/api/chat/rooms/${chatId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        // Call the parent's onChatDelete callback to update the UI
+        if (onChatDelete) {
+          onChatDelete(chatId);
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to delete chat:', errorData);
+      }
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+    }
+    setDeleteDialogOpen(null);
   };
 
   const getStatusColor = (status: string) => {
@@ -82,71 +118,85 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
   const t = useTranslations("chat");
 
+  const renderLastMessagePreview = (lastMessage: any) => {
+    if (!lastMessage) return 'No messages yet';
+    if (lastMessage.deleted) return 'Message deleted';
+    if (lastMessage.type === 'image') return <span className="inline-flex items-center gap-1"><ImageIcon className="inline w-4 h-4" /> Image</span>;
+    if (lastMessage.type === 'file') return <span className="inline-flex items-center gap-1"><FileIcon className="inline w-4 h-4" /> File</span>;
+    return lastMessage.content || 'No messages yet';
+  };
+
   const renderChatItem = (preview: ChatPreview) => {
     const isActive = activeChatId === preview._id;
     const otherMember = preview.type === ChatRoomType.PRIVATE 
       ? preview.members.find(m => m._id !== myUserId)
       : null;
 
+    const renderChatContent = () => (
+      <div
+        className={cn(
+          "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors border-s-4 border-s-transparent group relative",
+          isActive 
+            ? "bg-primary/10 border-s-primary" 
+            : "hover:bg-card"
+        )}
+        onClick={() => handleChatSelect(preview._id)}
+      >
+        <div className="relative">
+          <Avatar className="h-12 w-12">
+            <AvatarImage
+              src={preview.groupAvatar || ''}
+              alt={preview.groupTitle || ''}
+            />
+            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+              <Users className="h-6 w-6" />
+            </AvatarFallback>
+          </Avatar>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <p className="text-sm font-medium text-accent-foreground truncate">
+                {preview.groupTitle}
+              </p>
+              <span className="text-xs text-muted-foreground">
+                {preview.members.length} members
+              </span>
+            </div>
+            {preview.lastMessage && (
+              <p className="text-xs text-muted-foreground">
+                {preview.lastMessage.createdAt ? formatTime(new Date(preview.lastMessage.createdAt)) : ""}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground truncate">
+              {renderLastMessagePreview(preview.lastMessage)}
+            </p>
+            {preview.unreadCount > 0 && (
+              <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-primary rounded-full">
+                {preview.unreadCount}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+
     if (preview.type === ChatRoomType.GROUP) {
       return (
-        <div
-          key={preview._id}
-          className={cn(
-            "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors border-s-4 border-s-transparent",
-            isActive 
-              ? "bg-primary/10 border-s-primary" 
-              : "hover:bg-card"
-          )}
-          onClick={() => handleChatSelect(preview._id)}
-        >
-          <div className="relative">
-            <Avatar className="h-12 w-12">
-              <AvatarImage
-                src={preview.groupAvatar || ''}
-                alt={preview.groupTitle || ''}
-              />
-              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                <Users className="h-6 w-6" />
-              </AvatarFallback>
-            </Avatar>
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <p className="text-sm font-medium text-accent-foreground truncate">
-                  {preview.groupTitle}
-                </p>
-                <span className="text-xs text-muted-foreground">
-                  {preview.members.length} members
-                </span>
-              </div>
-              {preview.lastMessage && (
-                <p className="text-xs text-muted-foreground">
-                  {formatTime(new Date())}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground truncate">
-                {preview.lastMessage?.content || "No messages yet"}
-              </p>
-              {preview.unreadCount > 0 && (
-                <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-primary rounded-full">
-                  {preview.unreadCount}
-                </span>
-              )}
-            </div>
-          </div>
+        <div key={preview._id}>
+          {renderChatContent()}
         </div>
       );
     } else if (otherMember) {
+      const status = userStatuses[otherMember._id] || 'offline';
       return (
         <div
           key={preview._id}
           className={cn(
-            "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors border-x-4 border-x-transparent",
+            "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors border-x-4 border-x-transparent group relative",
             isActive 
               ? "bg-primary/10 border-s-primary" 
               : "hover:bg-accent dark:hover:bg-card"
@@ -163,6 +213,14 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 {getInitials(`${otherMember.firstName} ${otherMember.lastName}`)}
               </AvatarFallback>
             </Avatar>
+            {/* Online/offline dot */}
+            <span
+              className={cn(
+                "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-background",
+                status === 'online' ? 'bg-primary' : 'bg-gray-400'
+              )}
+              title={status.charAt(0).toUpperCase() + status.slice(1)}
+            />
           </div>
 
           <div className="flex-1 min-w-0">
@@ -172,13 +230,13 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
               </p>
               {preview.lastMessage && (
                 <p className="text-xs text-muted-foreground">
-                  {formatTime(new Date())}
+                  {preview.lastMessage.createdAt ? formatTime(new Date(preview.lastMessage.createdAt)) : ""}
                 </p>
               )}
             </div>
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground truncate">
-                {preview.lastMessage?.content || "No messages yet"}
+                {renderLastMessagePreview(preview.lastMessage)}
               </p>
               {preview.unreadCount > 0 && (
                 <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-primary rounded-full">
@@ -192,6 +250,20 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     }
     return null;
   };
+
+  // Filter chatPreviews based on searchQuery
+  const filteredPreviews = chatPreviews.filter(preview => {
+    if (!searchQuery) return true;
+    if (preview.type === ChatRoomType.GROUP) {
+      return preview.groupTitle?.toLowerCase().includes(searchQuery.toLowerCase());
+    }
+    if (preview.type === ChatRoomType.PRIVATE) {
+      const otherMember = preview.members.find(m => m._id !== myUserId);
+      const fullName = `${otherMember?.firstName || ''} ${otherMember?.lastName || ''}`.toLowerCase();
+      return fullName.includes(searchQuery.toLowerCase());
+    }
+    return false;
+  });
 
   return (
     <div
@@ -237,7 +309,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 </div>
               ))}
             </div>
-          ) : chatPreviews.length === 0 ? (
+          ) : filteredPreviews.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-center">
               <Search className="h-8 w-8 text-muted-foreground mb-2" />
               <p className="text-sm text-muted-foreground">
@@ -246,7 +318,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
             </div>
           ) : (
             <div className="space-y-1">
-              {chatPreviews.map((preview) => renderChatItem(preview))}
+              {filteredPreviews.map((preview) => renderChatItem(preview))}
             </div>
           )}
         </div>
