@@ -151,6 +151,17 @@ const chatSlice = createSlice({
       };
       state.rooms.push(newRoom);
     },
+    addRoom(state, action: PayloadAction<ChatRoom>) {
+      // Check if room already exists
+      const existingRoomIndex = state.rooms.findIndex(r => r._id === action.payload._id);
+      if (existingRoomIndex === -1) {
+        state.rooms.push({
+          ...action.payload,
+          unreadCount: 0,
+          lastMessage: null,
+        });
+      }
+    },
     removeRoom(state, action: PayloadAction<string>) {
       state.rooms = state.rooms.filter(r => r._id !== action.payload);
       delete state.messages[action.payload];
@@ -249,6 +260,7 @@ export const {
   setLoading,
   setConnected,
   addGroupRoom,
+  addRoom,
   removeRoom,
   addRoomMember,
   removeRoomMember,
