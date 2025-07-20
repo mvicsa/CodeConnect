@@ -1,3 +1,4 @@
+import React, { memo, useState, useMemo } from 'react';
 import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card'
 import Link from 'next/link'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
@@ -12,7 +13,6 @@ import Tags from '../Tags'
 import UserAvatar from '../UserAvatar'
 import CommentSection from '../comment/CommentSection'
 import PostForm from './PostForm'
-import { memo, useState, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { AppDispatch, RootState } from '@/store/store'
 import { deletePost } from '@/store/slices/postsSlice'

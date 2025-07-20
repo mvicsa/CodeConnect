@@ -24,7 +24,7 @@ const Logo = ({ className }: LogoProps) => {
 
   return (
     <div className={clsx("flex items-center", className)}>
-      <Image src={logoSrc} alt="CodeConnect" width={90} height={180} priority />
+      <Image src={logoSrc} alt="CodeConnect" width={100} height={180} priority />
     </div>
   );
 };

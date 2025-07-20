@@ -21,7 +21,7 @@ const navItems = [
   },
   {
     name: "Notifications",
-    href: "/profile",
+    href: "/notifications",
     iconFilled: <BellDot fill="currentColor" className="w-6 h-6" />,
     iconOutline: <BellDot  className="w-6 h-6" />,
   },

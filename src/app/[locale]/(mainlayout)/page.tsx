@@ -16,13 +16,13 @@ export default function Home() {
           <Sidebar />
         </div>
 
-        {/* Main Content */}
-        <div className="col-span-12 md:col-span-8 xl:col-span-6">
-          <main className="w-full space-y-6">
-            <CreatePostWrapper />
-            <PostsListContainer />
-          </main>
-        </div>
+          {/* Main Content */}
+          <div className="col-span-12 md:col-span-8 xl:col-span-6">
+            <main className="w-full space-y-6">
+              <CreatePostWrapper />
+              <PostsListContainer />
+            </main>
+          </div>
 
         {/* Right Sidebar - Suggested Users */}
         <div className="lg:col-span-3 hidden xl:block ">

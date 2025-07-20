@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useSelector } from 'react-redux'
 import { RootState } from '../../store/store'
 import Post from './Post'
@@ -37,7 +37,7 @@ export const PostSkeleton = () => (
   </div>
 )
 
-export default function PostsList({
+const PostsList = React.memo(function PostsList({
   posts: propPosts,
   loading = false,
   error = null,
@@ -46,16 +46,19 @@ export default function PostsList({
   title = 'Timeline',
 }: PostsListProps) {
   const [localPosts, setLocalPosts] = useState<PostType[]>([])
-  const [initialLoad, setInitialLoad] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true)
 
   // Use Redux posts if no props provided
   const reduxPosts = useSelector((state: RootState) => state.posts.posts)
   const posts = propPosts || reduxPosts
 
   useEffect(() => {
+    // Update local posts whenever posts prop changes
     setLocalPosts(posts)
+    
+    // If we have posts or loading is done, we're no longer in initial loading state
     if (posts.length > 0 || !loading) {
-      setInitialLoad(false)
+      setInitialLoading(false)
     }
   }, [posts, loading])
 
@@ -76,11 +79,17 @@ export default function PostsList({
   return (
     <div className={`${className} mb-10`}>
       <h2 className="text-2xl font-bold mb-4">{title}</h2>
-      {loading && <PostSkeleton />}
-      {!loading && localPosts.length === 0 && (
+      
+      {/* Show skeleton only during initial loading when no posts are available */}
+      {initialLoading && localPosts.length === 0 && <PostSkeleton />}
+      
+      {/* Show "No posts" message only when not in any loading state and no posts */}
+      {!loading && !initialLoading && localPosts.length === 0 && (
         <p className="text-center py-8">No posts yet. Be the first to create one!</p>
       )}
-      {!loading && localPosts.length > 0 && (
+      
+      {/* Always show posts if we have them */}
+      {localPosts.length > 0 && (
         <div className="space-y-6">
           {localPosts.map((post) => (
             <Post key={post._id} post={post} />
@@ -89,4 +98,6 @@ export default function PostsList({
       )}
     </div>
   )
-}
+});
+
+export default PostsList;
