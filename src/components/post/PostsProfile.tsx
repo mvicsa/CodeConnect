@@ -59,8 +59,8 @@ export default function PostsProfile({ userId: propUserId, limit = 10, page: ini
     if (userId) {
       initialFetchDone.current = true
       dispatch(fetchPostsByUser({ userId, page: 1, limit, refresh: true }))
-  }
-  }
+    }
+}
 
   return (
     <>

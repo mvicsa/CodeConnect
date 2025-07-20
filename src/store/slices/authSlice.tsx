@@ -66,7 +66,7 @@ export const fetchProfile = createAsyncThunk(
       });
       return response.data;
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch profile');
+      return rejectWithValue(err.response?.data?.message || '');
     }
   }
 );
@@ -120,6 +120,9 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       if (typeof window !== 'undefined') localStorage.removeItem('token');
+      if (typeof window !== 'undefined') {
+        document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      }
     },
     setUser: (state, action: PayloadAction<User>) => {
       state.user = action.payload;
@@ -127,6 +130,10 @@ const authSlice = createSlice({
     setToken: (state, action: PayloadAction<string>) => {
       state.token = action.payload;
       if (typeof window !== 'undefined') localStorage.setItem('token', action.payload);
+      if (state.token) {
+        console.log('setting token', state.token);
+        document.cookie = `token=${state.token}; path=/;`;
+      }
     },
     setInitialized: (state, action: PayloadAction<boolean>) => {
       state.initialized = action.payload;
@@ -151,7 +158,10 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user;
         state.token = action.payload.token;
-        if (typeof window !== 'undefined') localStorage.setItem('token', action.payload.token);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('token', action.payload.token);
+          document.cookie = `token=${action.payload.token}; path=/;`;
+        }
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -165,7 +175,10 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user;
         state.token = action.payload.token;
-        if (typeof window !== 'undefined') localStorage.setItem('token', action.payload.token);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('token', action.payload.token);
+          document.cookie = `token=${action.payload.token}; path=/;`;
+        }
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
@@ -200,7 +213,10 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user;
         state.token = action.payload.token;
-        if (typeof window !== 'undefined') localStorage.setItem('token', action.payload.token);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('token', action.payload.token);
+          document.cookie = `token=${action.payload.token}; path=/;`;
+        }
       })
       .addCase(handleGitHubCallback.rejected, (state, action) => {
         state.loading = false;

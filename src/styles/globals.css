@@ -59,6 +59,14 @@ html[dir="rtl"] .rotate-270 {
   transform: rotate(270deg);
 } */
 
+.h-\[calc\(100\%\+1rem\)\] {
+  height: calc(100% + 1rem);
+}
+
+.w-\[calc\(100\%\+1rem\)\] {
+  width: calc(100% + 1rem);
+}
+
 .shiki {
   white-space: pre-wrap;
   

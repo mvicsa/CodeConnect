@@ -8,7 +8,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="mt-24 mb-24 lg:mb-0">
+    <div className="mt-24 mb-24 lg:mb-12">
       <MainNavBar />
       {children}
     </div>

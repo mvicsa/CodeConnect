@@ -3,24 +3,29 @@
 import { useState, useEffect, memo, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { AppDispatch, RootState } from '@/store/store'
-import { fetchComments, addCommentAsync } from '@/store/slices/commentsSlice'
+import { fetchComments, addCommentAsync, fetchReplies } from '@/store/slices/commentsSlice'
 import { fetchCodeSuggestions } from '@/store/slices/aiSuggestionsSlice'
 import CommentItem from './CommentItem'
 import CommentEditor from './CommentEditor'
 import { MessageCircle, ChevronDown } from 'lucide-react'
 import { Button } from '../ui/button'
 import CommentAI from './CommentAI'
+import { Comment, Reply } from '@/types/comments'
 
 interface CommentSectionProps {
-  postId: string
-  className?: string
-  hasAiSuggestions?: boolean
+  postId: string;
+  className?: string;
+  hasAiSuggestions?: boolean;
+  highlightedCommentId?: string;
+  highlightedReplyId?: string;
 }
 
 const CommentSection = memo(function CommentSection({ 
   postId, 
   className = '',
-  hasAiSuggestions = false 
+  hasAiSuggestions = false,
+  highlightedCommentId,
+  highlightedReplyId
 }: CommentSectionProps) {
   const dispatch = useDispatch<AppDispatch>()
   const { comments, loading } = useSelector((state: RootState) => state.comments)
@@ -28,6 +33,8 @@ const CommentSection = memo(function CommentSection({
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null)
   const [mentionUser, setMentionUser] = useState('')
   const [visibleComments, setVisibleComments] = useState(3) // Show 3 comments initially
+  const [showHighlight, setShowHighlight] = useState(true)
+  const [parentCommentId, setParentCommentId] = useState<string | null>(null)
 
   const user = useSelector((state: RootState) => state.auth.user)
 
@@ -36,13 +43,89 @@ const CommentSection = memo(function CommentSection({
     return comments.filter(comment => comment.postId === postId);
   }, [comments, postId]);
 
+  // Find parent comment ID if we have a highlighted reply
+  useEffect(() => {
+    if (highlightedReplyId) {
+      // First, check if we already have the reply loaded in any comment
+      let foundParent = false;
+      
+      for (const comment of postComments) {
+        if (comment.replies && comment.replies.some(reply => reply?._id === highlightedReplyId)) {
+          setParentCommentId(comment._id);
+          foundParent = true;
+          break;
+        }
+      }
+      
+      // If we haven't found the parent comment yet, load replies for all comments
+      if (!foundParent) {
+        // Load replies for all comments to find the parent
+        postComments.forEach(comment => {
+          dispatch(fetchReplies(comment._id))
+            .unwrap()
+            .then(replies => {
+              // Check if this comment contains our target reply
+              if (replies.some(reply => reply._id === highlightedReplyId)) {
+                setParentCommentId(comment._id);
+              }
+            })
+            .catch(error => {
+              console.error(`Failed to load replies for comment ${comment._id}:`, error);
+            });
+        });
+      }
+    }
+  }, [highlightedReplyId, postComments, dispatch]);
+
+  // Reorder comments to put highlighted comment or parent of highlighted reply first
+  const orderedComments = useMemo(() => {
+    // If no highlighted comment or reply, return normal order
+    if (!highlightedCommentId && !parentCommentId) return postComments;
+    
+    let priorityCommentId = highlightedCommentId;
+    
+    // If we have a highlighted reply, prioritize its parent comment
+    if (parentCommentId) {
+      priorityCommentId = parentCommentId;
+    }
+    
+    // Find the comment to prioritize
+    const priorityComment = postComments.find(comment => comment._id === priorityCommentId);
+    if (!priorityComment) return postComments;
+    
+    // Return array with priority comment first, followed by all other comments
+    return [
+      priorityComment,
+      ...postComments.filter(comment => comment._id !== priorityCommentId)
+    ];
+  }, [postComments, highlightedCommentId, parentCommentId]);
+
+  // Make sure all comments are visible if we have a highlighted comment or reply
+  useEffect(() => {
+    if (highlightedCommentId || highlightedReplyId) {
+      // Show all comments when there's a highlighted comment or reply
+      setVisibleComments(postComments.length);
+    }
+  }, [highlightedCommentId, highlightedReplyId, postComments]);
+
+  // Remove highlight after 5 seconds
+  useEffect(() => {
+    if ((highlightedCommentId || highlightedReplyId) && showHighlight) {
+      const timer = setTimeout(() => {
+        setShowHighlight(false);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedCommentId, highlightedReplyId, showHighlight]);
+
   // Get visible comments based on pagination
   const visibleCommentsList = useMemo(() => {
-    return postComments.slice(0, visibleComments);
-  }, [postComments, visibleComments]);
+    return orderedComments.slice(0, visibleComments);
+  }, [orderedComments, visibleComments]);
 
   // Check if there are more comments to load
-  const hasMoreComments = postComments.length > visibleComments
+  const hasMoreComments = orderedComments.length > visibleComments
 
   useEffect(() => {
     // Fetch comments when component mounts
@@ -124,14 +207,24 @@ const CommentSection = memo(function CommentSection({
       {postComments.length > 0 && (
         <div className="space-y-4">
           {visibleCommentsList.map((comment) => (
-            <CommentItem
-              key={comment._id}
-              comment={comment}
-              activeReplyId={activeReplyId}
-              setActiveReplyId={(id) => setActiveReplyId(id)}
-              mentionUser={mentionUser}
-              setMentionUser={setMentionUser}
-            />
+            <div 
+              key={comment._id} 
+              id={`comment-${comment._id}`}
+              className="relative"
+            >
+              { highlightedCommentId === comment._id && showHighlight && (
+                <div className="absolute top-[-0.5rem] left-[-0.5rem] w-[calc(100%+1rem)] h-[calc(100%+1rem)] bg-primary/10 z-1 border-s-2 border-primary transition-opacity duration-500 rounded-lg"></div>
+              )}
+              <CommentItem
+                comment={comment}
+                activeReplyId={activeReplyId}
+                setActiveReplyId={(id) => setActiveReplyId(id)}
+                mentionUser={mentionUser}
+                setMentionUser={setMentionUser}
+                highlightedReplyId={highlightedReplyId}
+                showHighlight={showHighlight}
+              />
+            </div>
           ))}
         </div>
       )}
@@ -146,7 +239,7 @@ const CommentSection = memo(function CommentSection({
             className="text-muted-foreground hover:text-foreground"
           >
             <ChevronDown className="size-4 mr-1" />
-            Load More Comments ({postComments.length - visibleComments} more)
+            Load More Comments ({orderedComments.length - visibleComments} more)
           </Button>
         </div>
       )}
@@ -162,4 +255,4 @@ const CommentSection = memo(function CommentSection({
   )
 })
 
-export default CommentSection 
+export default CommentSection

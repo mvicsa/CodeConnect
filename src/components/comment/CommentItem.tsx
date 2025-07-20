@@ -40,7 +40,7 @@ import {
   editCommentOrReplyAsync,
   fetchReplies
 } from '@/store/slices/commentsSlice'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Comment, Reply, User } from '@/types/comments'
 import Link from 'next/link'
 import AdminBadge from '../AdminBadge'
@@ -79,6 +79,8 @@ export default function CommentItem({
   mentionUser,
   setMentionUser,
   rootId = null,
+  highlightedReplyId,
+  showHighlight = true
 }: {
   comment: Comment | Reply
   activeReplyId: string | null
@@ -86,6 +88,8 @@ export default function CommentItem({
   mentionUser: string
   setMentionUser: (user: string) => void
   rootId?:  string | null
+  highlightedReplyId?: string
+  showHighlight?: boolean
 }) {
   const t = useTranslations()
   const dispatch = useDispatch<AppDispatch>()
@@ -103,6 +107,20 @@ export default function CommentItem({
   const commentId = has_id(comment) ? comment._id : (comment as any).id
   const rootCommentId = rootId || String(commentId)
   const { user } = useSelector((state: RootState) => state.auth);
+
+  const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
+  const status = user ? userStatuses[comment.createdBy?._id?.toString()] || 'offline' : 'offline';
+
+  useEffect(() => {
+    if (
+      highlightedReplyId &&
+      isCommentWithReplies(comment) &&
+      comment.replies.some(reply => reply && reply._id === highlightedReplyId)
+    ) {
+      setShowReplies(true);
+      setVisibleReplies(comment.replies.length);
+    }
+  }, [highlightedReplyId, comment]);
 
   // Get visible replies based on pagination
   const visibleRepliesList = useMemo(() => {
@@ -227,9 +245,16 @@ export default function CommentItem({
   }
 
   return (
-    <div className="flex gap-3 items-start">
-      <Link href={`/profile/${comment.createdBy.username}`}>
+    <div className="flex gap-3 items-start relative z-2">
+      <Link href={`/profile/${comment.createdBy.username}`} className='relative'>
         <UserAvatar src={hasCreatedBy(comment) ? (comment.createdBy.avatar || '') : ''} firstName={hasCreatedBy(comment) ? (comment.createdBy.firstName || '') : ((comment as any).user?.name || '')} />
+        <span
+          className={
+            `absolute bottom-0.5 end-0.5 w-3 h-3 rounded-full border-2 border-card ` +
+            (status === 'online' ? 'bg-primary' : 'bg-gray-400')
+          }
+          title={status.charAt(0).toUpperCase() + status.slice(1)}
+        />
       </Link>
 
       <div className="flex-1">
@@ -356,7 +381,14 @@ export default function CommentItem({
         <div className={`${(comment as Comment).replies?.length > 0 && visibleReplies > 0 ? 'mt-4' : ''} space-y-3`}>
           {/* Show replies */}
           {visibleRepliesList.map((replyData, index) => (
-            <div key={replyData._id || `reply-${index}`} className="reply-item">
+            <div 
+              key={replyData._id || `reply-${index}`} 
+              id={`comment-${replyData._id}`}
+              className="reply-item relative"
+            >
+              {highlightedReplyId === replyData._id && showHighlight && (
+                <div className="absolute top-[-0.5rem] left-[-0.5rem] w-[calc(100%+1rem)] h-[calc(100%+1rem)] bg-primary/10 z-1 border-s-2 border-primary transition-opacity duration-500 rounded-lg"></div>
+              )}
               <CommentItem
                 comment={replyData}
                 activeReplyId={activeReplyId}
@@ -364,6 +396,8 @@ export default function CommentItem({
                 mentionUser={mentionUser}
                 setMentionUser={setMentionUser}
                 rootId={rootCommentId}
+                highlightedReplyId={highlightedReplyId}
+                showHighlight={showHighlight}
               />
             </div>
           ))}

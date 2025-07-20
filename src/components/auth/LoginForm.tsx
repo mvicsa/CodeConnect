@@ -32,7 +32,6 @@ export function LoginForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await dispatch(login({ email, password }));
-    // Success redirect handled by user state above
   };
 
   const handleGitHubLogin = () => {
