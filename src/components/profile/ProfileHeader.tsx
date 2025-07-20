@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EllipsisVerticalIcon, UserPlusIcon, UserMinus, PencilIcon, Send } from 'lucide-react';
@@ -8,9 +7,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import AdminBadge from '@/components/AdminBadge';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import React from 'react';
+import React, { useContext, useState } from 'react';
 import ImageCropper from './ImageCropper';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { SocketContext } from '@/store/Provider';
+import { useRouter } from 'next/navigation';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '@/store/store';
+import { addRoom } from '@/store/slices/chatSlice';
 
 interface ProfileHeaderProps {
   user: any;
@@ -47,6 +51,12 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 }) => {
   const [editingImage, setEditingImage] = useState<'avatar' | 'cover' | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
+  
+  const socket = useContext(SocketContext);
+  const router = useRouter();
+  const dispatch = useDispatch();
+  const currentUser = useSelector((state: RootState) => state.auth.user);
   
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover') => {
     if (event.target.files && event.target.files[0]) {
@@ -68,6 +78,46 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   const handleCancelEdit = () => {
     setEditingImage(null);
     setSelectedImage(null);
+  };
+
+  const handleSendMessage = async () => {
+    if (!socket || !currentUser || !user || isCreatingRoom) {
+      return;
+    }
+
+    setIsCreatingRoom(true);
+    
+    try {
+      console.log('Emitting createPrivateRoom', { receiverId: user._id });
+      
+      // Use a timeout to handle cases where the server doesn't respond
+      const timeout = setTimeout(() => {
+        console.error('Timeout waiting for private room creation');
+        setIsCreatingRoom(false);
+      }, 5000);
+
+      // Emit the createPrivateRoom event with acknowledgment
+      socket.emit('createPrivateRoom', { receiverId: user._id }, (response: any) => {
+        clearTimeout(timeout);
+        console.log('Received response from createPrivateRoom:', response);
+        
+        if (response && response.roomId) {
+          console.log('Navigating to chat room:', response.roomId);
+          // Add the room to Redux state
+          if (response.room) {
+            dispatch(addRoom(response.room));
+          }
+          router.push(`/chat`);
+        } else {
+          console.error('Failed to create private room - no roomId in response');
+        }
+        setIsCreatingRoom(false);
+      });
+      
+    } catch (error) {
+      console.error('Error creating private room:', error);
+      setIsCreatingRoom(false);
+    }
   };
 
   return (
@@ -172,9 +222,14 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                     {isFollowing ? <UserMinus className='w-4 h-4' /> : <UserPlusIcon className='w-4 h-4' />}
                     {isFollowing ? 'Unfollow' : 'Follow'}
                   </Button>
-                  <Button variant='outline' className='cursor-pointer self-center' >
+                  <Button 
+                    variant='outline' 
+                    className='cursor-pointer self-center'
+                    onClick={handleSendMessage}
+                    disabled={isCreatingRoom}
+                  >
                     <Send className='w-4 h-4' />
-                    Send Message
+                    {isCreatingRoom ? 'Creating...' : 'Send Message'}
                   </Button>
                 </>
               </div>

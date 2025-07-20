@@ -169,6 +169,8 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
       console.log('[SOCKET] Dispatched deleteMessage action');
     });
 
+
+
     // Set the socket instance
     setSocket(newSocket);
 
