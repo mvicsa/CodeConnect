@@ -1,4 +1,4 @@
-import React, { memo, useState, useMemo } from 'react';
+import React, { memo, useState, useMemo, useEffect } from 'react';
 import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card'
 import Link from 'next/link'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
@@ -28,18 +28,53 @@ import {
 } from '../ui/alert-dialog'
 import { toast } from 'sonner';
 import AdminBadge from '../AdminBadge'
-import AIBadge from '../AiBadge'
 
-const Post = memo(function Post({ post }: { post: PostType }) {
-  const { _id, text, image, video, code, codeLang, tags, createdBy, createdAt, reactions, userReactions, hasAiSuggestions } = post;
+interface PostProps {
+  post: PostType;
+  initialShowComments?: boolean;
+  highlightedCommentId?: string;
+  highlightedReplyId?: string;
+  commentsLoading?: boolean;
+}
+
+const Post = memo(function Post({ 
+  post, 
+  initialShowComments = false, 
+  highlightedCommentId,
+  highlightedReplyId,
+  commentsLoading = false
+}: PostProps) {
+  const { _id, text, image, video, code, codeLang, tags, createdBy, createdAt, hasAiSuggestions } = post;
   const t = useTranslations();
   const dispatch = useDispatch<AppDispatch>();
-  const [showComments, setShowComments] = useState(false);
+  const [showComments, setShowComments] = useState(initialShowComments || !!highlightedCommentId);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Always use freshest reactions from Redux
+  const postReactionsState = useSelector((state: RootState) => state.reactions.postReactions[_id]);
+  const reactions = postReactionsState?.reactions ?? post.reactions;
+  const userReactions = postReactionsState?.userReactions ?? post.userReactions;
+
+  // Normalize userReactions for type safety
+  const normalizedUserReactions = ((userReactions || []).map(r =>
+    typeof r.userId === 'string'
+      ? { ...r, userId: { _id: r.userId, username: r.username } }
+      : r
+  ) as typeof post.userReactions);
+
+  // Set showComments to true if initialShowComments changes or if there's a highlighted comment
+  useEffect(() => {
+    if (initialShowComments || highlightedCommentId) {
+      setShowComments(true);
+    }
+  }, [initialShowComments, highlightedCommentId]);
+
   const { user } = useSelector((state: RootState) => state.auth)
+
+  const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
+  const status = user ? userStatuses[createdBy?._id?.toString()] || 'offline' : 'offline';
   
   // Get comments count for this post
   const { comments } = useSelector((state: RootState) => state.comments)
@@ -103,8 +138,15 @@ const Post = memo(function Post({ post }: { post: PostType }) {
       <Card className='w-full  gap-4 shadow-none dark:border-transparent'>
           <CardHeader>
               <CardTitle className='flex items-center gap-2'>
-                <Link href={`/profile/${createdBy?.username}`}>
+                <Link href={`/profile/${createdBy?.username}`} className='relative'>
                   <UserAvatar src={createdBy?.avatar} firstName={createdBy?.firstName} />
+                  <span
+                    className={
+                      `absolute bottom-0.5 end-0.5 w-3 h-3 rounded-full border-2 border-card ` +
+                      (status === 'online' ? 'bg-primary' : 'bg-gray-400')
+                    }
+                    title={status.charAt(0).toUpperCase() + status.slice(1)}
+                  />
                 </Link>
                 <div>
                   <div className='align-middle'>
@@ -119,7 +161,9 @@ const Post = memo(function Post({ post }: { post: PostType }) {
                     <Link href={`/profile/${createdBy?.username}`} className='text-sm text-muted-foreground'>@{createdBy?.username || ''}
                     </Link>
                     <div className='w-1 h-1 bg-primary rounded-full' />
-                    <p className='text-sm text-primary'>{createdAt ? new Date(createdAt).toLocaleString() : ''}</p>
+                    <Link href={`/posts/${_id}`} className="hover:underline text-primary">
+                      <p className='text-sm text-primary'>{createdAt ? new Date(createdAt).toLocaleString() : ''}</p>
+                    </Link>
                   </div>
                 </div>
               </CardTitle>
@@ -169,12 +213,13 @@ const Post = memo(function Post({ post }: { post: PostType }) {
               <ReactionMenu 
                 postId={_id}
                 reactions={reactions}
-                userReactions={userReactions || []}
+                userReactions={normalizedUserReactions}
                 currentUserId={createdBy?._id}
                 currentUsername={createdBy?.username}
               />
               <button 
                 onClick={ toggleComments }
+                data-comments-toggle
                 className='flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer'
               >
                 <MessageCircleMore className='size-5' />
@@ -188,7 +233,26 @@ const Post = memo(function Post({ post }: { post: PostType }) {
               )}
             </div>
             <div className={`w-full border-t border-border pt-4 ${showComments ? 'block' : 'hidden'}`}>
-              <CommentSection postId={_id} hasAiSuggestions={hasAiSuggestions} />
+              {commentsLoading ? (
+                <div className="space-y-4 py-4">
+                  <div className="flex items-center space-x-2">
+                    <div className="h-10 w-10 rounded-full bg-muted"></div>
+                    <div className="space-y-2">
+                      <div className="h-4 w-[100px] bg-muted"></div>
+                      <div className="h-4 w-[60px] bg-muted"></div>
+                    </div>
+                  </div>
+                  <div className="h-4 w-full bg-muted"></div>
+                  <div className="h-4 w-2/3 bg-muted"></div>
+                </div>
+              ) : (
+                <CommentSection 
+                  postId={_id} 
+                  hasAiSuggestions={hasAiSuggestions} 
+                  highlightedCommentId={highlightedCommentId}
+                  highlightedReplyId={highlightedReplyId}
+                />
+              )}
             </div>
           </CardFooter>
       </Card>

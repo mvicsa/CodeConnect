@@ -102,7 +102,7 @@ export const useReactions = () => {
       if (result) {
         // Convert CommentUserReaction[] to ReactionUserReaction[]
         const convertedUserReactions: ReactionUserReaction[] = result.userReactions.map(ur => ({
-          userId: ur.userId._id,
+          userId: ur.userId._id ?? '',
           username: ur.username,
           reaction: ur.reaction,
           createdAt: ur.createdAt
@@ -155,7 +155,7 @@ export const useReactions = () => {
         // The result is now the updated reply itself
         // Convert CommentUserReaction[] to ReactionUserReaction[]
         const convertedUserReactions: ReactionUserReaction[] = result.userReactions.map(ur => ({
-          userId: ur.userId._id,
+          userId: ur.userId._id ?? '',
           username: ur.username,
           reaction: ur.reaction,
           createdAt: ur.createdAt

@@ -92,7 +92,7 @@ export default function TagPage() {
         </div>
       ) : (
         <PostsList
-          title=""
+          title="Title"
           posts={postsByTag}
           loading={loading}
           error={error}

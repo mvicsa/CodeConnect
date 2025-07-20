@@ -42,6 +42,7 @@ import {
   ExternalLink,
   X as XIcon  // Rename Twitter to X
 } from 'lucide-react';
+import { fetchUserByUsername } from '@/store/slices/userSlice';
 
 // Define platform colors
 const PLATFORM_COLORS = {
@@ -325,6 +326,14 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
     }));
   };
 
+  const refetchUser = async () => {
+    if (userProp?.username) {
+      await dispatch(fetchUserByUsername(userProp.username));
+    } else {
+      await dispatch(fetchProfile());
+    }
+  };
+
   const handleUpdateAvatar = async (url: string) => {
     try {
       setEditLoading(true);
@@ -334,7 +343,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
       };
       
       await dispatch(updateProfile(payload)).unwrap();
-      await dispatch(fetchProfile()); // Refresh user data
+      await refetchUser(); // <-- use this instead of fetchProfile
       
       // Update local form state
       setEditForm(prev => ({
@@ -357,7 +366,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
       };
       
       await dispatch(updateProfile(payload)).unwrap();
-      await dispatch(fetchProfile()); // Refresh user data
+      await refetchUser(); // <-- use this instead of fetchProfile
       
       // Update local form state
       setEditForm(prev => ({
@@ -419,8 +428,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
 
     try {
       const response = await dispatch(updateProfile(payload)).unwrap();
-      console.log('Profile update response:', response);
-      await dispatch(fetchProfile()); // Refresh user data
+      await refetchUser(); // <-- use this instead of fetchProfile
     } catch (error: any) {
       console.error('Profile update error:', error);
       setEditError(error?.message || 'Failed to update profile');
@@ -681,7 +689,6 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
 
   // Add a debug log when the form is opened
   const handleOpenEditDialog = () => {
-    console.log('Current social links in form:', editForm.socialLinks);
     setEditDialogOpen(true);
   };
 

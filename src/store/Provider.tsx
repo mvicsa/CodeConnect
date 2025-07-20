@@ -18,12 +18,13 @@ export const SocketContext = createContext<any>(null)
 
 function AuthInitializer() {
   const dispatch = useDispatch<AppDispatch>()
-  const { initialized, token } = useSelector((state: RootState) => state.auth)
+  const { initialized, token, user } = useSelector((state: RootState) => state.auth)
   useEffect(() => {
-    if (!initialized && token) {
+    // Only fetch profile if we have a token but no user and not initialized
+    if (!initialized && token && !user) {
       dispatch(fetchProfile())
     }
-  }, [initialized, token, dispatch])
+  }, [initialized, token, user, dispatch])
   return null
 }
 

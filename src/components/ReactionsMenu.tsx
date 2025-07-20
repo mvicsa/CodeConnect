@@ -253,7 +253,7 @@ export default function ReactionsMenu({
                         <div key={u.userId._id + u.reaction + idx} className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
                             <AvatarImage src={u.userId.avatar} alt={u.userId._id} />
-                            <AvatarFallback className="text-xs">{u.userId.firstName.charAt(0).toUpperCase()}</AvatarFallback>
+                            <AvatarFallback className="text-xs">{u.userId.firstName?.charAt(0).toUpperCase() || ''}</AvatarFallback>
                           </Avatar>
                           <Image src={reactionImageMap[u.reaction as keyof typeof reactionImageMap]} alt={u.reaction} width={20} height={20} />
                           <span className="text-sm">{u.userId?.firstName || ''} {u.userId?.lastName || ''}</span>
@@ -274,7 +274,7 @@ export default function ReactionsMenu({
                         <div key={u.userId._id + u.reaction + idx} className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
                             <AvatarImage src={u.userId.avatar} alt={u.userId._id} />
-                            <AvatarFallback className="text-xs">{u.userId.firstName.charAt(0).toUpperCase()}</AvatarFallback>
+                            <AvatarFallback className="text-xs">{u.userId.firstName?.charAt(0).toUpperCase() || ''}</AvatarFallback>
                           </Avatar>
                           <Image src={reactionImageMap[u.reaction as keyof typeof reactionImageMap]} alt={u.reaction} width={20} height={20} />
                           <span className="text-sm">{u.userId?.firstName || ''} {u.userId?.lastName || ''}</span>
