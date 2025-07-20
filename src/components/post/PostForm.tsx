@@ -478,7 +478,6 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
             <Hash className="size-4 text-muted-foreground" />
             <span className="text-sm font-medium">{t('tags.tags')}</span>
           </div>
-          <Tags tags={content.tags} clickable={false} />
           {content.tags.length > 0 && (
             <div className="flex gap-2 flex-wrap">
               {content.tags.map((tag) => (
