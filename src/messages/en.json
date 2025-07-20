@@ -85,5 +85,19 @@
     "recentSessionsTitle": "Recent Sessions",
     "confirm": "Confirm",
     "delete": "Delete"
+  },
+  "tags": {
+    "title": "Tags",
+    "trending": "Trending Tags",
+    "popular": "Popular Tags",
+    "allTags": "All Tags",
+    "discover": "Discover trending topics and popular discussions",
+    "noTags": "No tags found",
+    "noTagsDesc": "Be the first to create posts with tags!",
+    "postsFound": "posts found",
+    "postFound": "post found",
+    "noPostsFound": "No posts found with tag",
+    "addTag": "Add a tag...",
+    "tags": "Tags"
   }
 }

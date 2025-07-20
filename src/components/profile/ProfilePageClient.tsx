@@ -30,6 +30,48 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { calculateAge } from '@/lib/calculateAge';
+import { 
+  Github, 
+  Linkedin, 
+  Facebook, 
+  Instagram, 
+  Youtube, 
+  Dribbble, 
+  Globe, 
+  MessageSquare, 
+  ExternalLink,
+  X as XIcon  // Rename Twitter to X
+} from 'lucide-react';
+
+// Define platform colors
+const PLATFORM_COLORS = {
+  github: '#171515',
+  linkedin: '#0077B5',
+  x: '#000000',      // X (formerly Twitter)
+  facebook: '#1877F2',
+  instagram: '#E4405F',
+  youtube: '#FF0000',
+  dribbble: '#EA4C89',
+  behance: '#1769FF',
+  medium: '#000000',
+  stackoverflow: '#F48024',
+  website: '#4285F4'
+};
+
+// Update the SOCIAL_PLATFORMS constant to change Twitter to X
+const SOCIAL_PLATFORMS = [
+  { value: 'github', label: 'GitHub', icon: Github },
+  { value: 'linkedin', label: 'LinkedIn', icon: Linkedin },
+  { value: 'x', label: 'X', icon: XIcon },  // Changed from Twitter to X
+  { value: 'facebook', label: 'Facebook', icon: Facebook },
+  { value: 'instagram', label: 'Instagram', icon: Instagram },
+  { value: 'youtube', label: 'YouTube', icon: Youtube },
+  { value: 'dribbble', label: 'Dribbble', icon: Dribbble },
+  { value: 'behance', label: 'Behance', icon: ExternalLink },
+  { value: 'medium', label: 'Medium', icon: MessageSquare },
+  { value: 'stackoverflow', label: 'Stack Overflow', icon: ExternalLink },
+  { value: 'website', label: 'Personal Website', icon: Globe }
+];
 
 // Add user type
 interface ProfileUser {
@@ -51,7 +93,14 @@ interface ProfileUser {
   gender?: string;
   city?: string;
   country?: string;
-  socialLinks?: { platform: string; url: string }[];
+  socialLinks?: SocialLink[];
+}
+
+// Add a new interface for social links
+interface SocialLink {
+  platform: string;
+  title?: string; // Add title field for display name
+  url: string;
 }
 
 interface ProfilePageClientProps {
@@ -72,7 +121,7 @@ interface EditForm {
   gender: string | null;
   city: string;
   country: string;
-  socialLinks: { platform: string; url: string }[];
+  socialLinks: SocialLink[];
 }
 
 const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
@@ -130,8 +179,45 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
     socialLinks: user?.socialLinks || []
   });
 
+  // Update the useEffect that sets the initial form state to handle social links properly
   useEffect(() => {
     if (user) {
+      // Map social links to ensure they have proper platform values that match our SOCIAL_PLATFORMS
+      const mappedSocialLinks = ((user.socialLinks || []) as SocialLink[]).map(link => {
+        // Handle Twitter to X migration
+        if (link.platform === 'twitter') {
+          return {
+            ...link,
+            platform: 'x',
+            title: 'X'
+          };
+        }
+        
+        // Make sure the platform value exists in our SOCIAL_PLATFORMS
+        const platformExists = SOCIAL_PLATFORMS.some(p => p.value === link.platform);
+        
+        if (platformExists) {
+          // If platform exists, keep it as is
+          return link;
+        } else if (link.title) {
+          // If platform doesn't exist but we have a title, try to find a matching platform
+          const matchingPlatform = SOCIAL_PLATFORMS.find(
+            p => p.label.toLowerCase() === link.title?.toLowerCase()
+          );
+          
+          if (matchingPlatform) {
+            // If we found a match, use that platform value
+            return {
+              ...link,
+              platform: matchingPlatform.value
+            };
+          }
+        }
+        
+        // If no match found, return as is
+        return link;
+      });
+      
       setEditForm({
         firstName: user.firstName || '',
         lastName: user.lastName || '',
@@ -143,8 +229,11 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
         gender: user.gender || null,
         city: user.city || '',
         country: user.country || '',
-        socialLinks: user.socialLinks || []
+        socialLinks: mappedSocialLinks
       });
+      
+      // Log the mapped social links for debugging
+      console.log('Mapped social links:', mappedSocialLinks);
     }
   }, [user]);
 
@@ -175,19 +264,57 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
     }));
   };
 
+  // Add URL validation function
+  const isValidUrl = (url: string): boolean => {
+    try {
+      // Check if URL starts with http:// or https://
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        return false;
+      }
+      
+      // Try to create a URL object
+      new URL(url);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  // Update the handleSocialLinkChange function to set the title when platform changes
   const handleSocialLinkChange = (index: number, field: 'platform' | 'url', value: string) => {
     setEditForm(prev => ({
       ...prev,
-      socialLinks: prev.socialLinks.map((link, i) => 
-        i === index ? { ...link, [field]: value } : link
-      )
+      socialLinks: prev.socialLinks.map((link, i) => {
+        if (i !== index) return link;
+        
+        // If changing platform, also update the title
+        if (field === 'platform') {
+          const platform = SOCIAL_PLATFORMS.find(p => p.value === value);
+          return { 
+            ...link, 
+            [field]: value,
+            title: platform?.label || value
+          };
+        }
+        
+        return { ...link, [field]: value };
+      })
     }));
   };
 
+  // Update the addSocialLink function to include title
   const addSocialLink = () => {
+    // Find a platform that hasn't been used yet
+    const usedPlatforms = editForm.socialLinks.map(link => link.platform);
+    const availablePlatform = SOCIAL_PLATFORMS.find(p => !usedPlatforms.includes(p.value));
+    
     setEditForm(prev => ({
       ...prev,
-      socialLinks: [...prev.socialLinks, { platform: '', url: '' }]
+      socialLinks: [...prev.socialLinks, { 
+        platform: availablePlatform?.value || '', 
+        title: availablePlatform?.label || '',
+        url: '' 
+      } as SocialLink]
     }));
   };
 
@@ -244,15 +371,44 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
     }
   };
 
-  // Update handleEditSubmit to close dialog before API call
+  // Update handleEditSubmit to add console logging
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setEditLoading(true);
     setEditError(null);
 
+    // Validate social links URLs
+    const invalidLinks = editForm.socialLinks.filter(
+      link => link.platform && link.url && !isValidUrl(link.url)
+    );
+
+    if (invalidLinks.length > 0) {
+      setEditError("Please enter valid URLs for your social links (must start with http:// or https://)");
+      setEditLoading(false);
+      return;
+    }
+
+    // Filter out incomplete social links and ensure titles are set
+    const filteredSocialLinks = editForm.socialLinks
+      .filter(link => link.platform && link.url)
+      .map(link => {
+        // If title is missing, set it from SOCIAL_PLATFORMS
+        if (!link.title) {
+          const platform = SOCIAL_PLATFORMS.find(p => p.value === link.platform);
+          return {
+            ...link,
+            title: platform?.label || link.platform
+          };
+        }
+        return link;
+      });
+  
+    console.log('Social links before submission:', filteredSocialLinks);
+
     // Prepare data for API
     const payload = {
       ...editForm,
+      socialLinks: filteredSocialLinks,
       birthdate: editForm.birthdate ? editForm.birthdate.toISOString().split('T')[0] : null,
     };
 
@@ -262,7 +418,8 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
     setEditDialogOpen(false);
 
     try {
-      await dispatch(updateProfile(payload)).unwrap();
+      const response = await dispatch(updateProfile(payload)).unwrap();
+      console.log('Profile update response:', response);
       await dispatch(fetchProfile()); // Refresh user data
     } catch (error: any) {
       console.error('Profile update error:', error);
@@ -522,6 +679,12 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
     }
   };
 
+  // Add a debug log when the form is opened
+  const handleOpenEditDialog = () => {
+    console.log('Current social links in form:', editForm.socialLinks);
+    setEditDialogOpen(true);
+  };
+
   return (
     <div className='max-w-screen-lg mx-auto px-4'>
       <div className='space-y-4 w-full'>
@@ -548,7 +711,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
               isOwnProfile={isSelf}
               onUpdateAvatar={handleUpdateAvatar}
               onUpdateCover={handleUpdateCover}
-              onEditProfile={() => setEditDialogOpen(true)}
+              onEditProfile={handleOpenEditDialog}
             />
             {/* Edit Profile Dialog */}
             <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -696,43 +859,109 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
                     />
                   </div>
 
+                  {/* Update the social links section in the edit form to show platform colors */}
                   <div className="space-y-2">
                     <Label>Social Links</Label>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Add your social media profiles to help others connect with you.
+                    </p>
                     <div className="space-y-3">
-                      {editForm.socialLinks.map((link, index) => (
-                        <div key={index} className="flex gap-2">
-                          <div className="flex-1 space-y-2">
-                            <Input
-                              placeholder="Platform (e.g., Twitter)"
-                              value={link.platform}
-                              onChange={(e) => handleSocialLinkChange(index, 'platform', e.target.value)}
-                            />
+                      {editForm.socialLinks.map((link, index) => {
+                        // Find the matching platform for this link
+                        const platformMatch = SOCIAL_PLATFORMS.find(p => p.value === link.platform);
+                        const platformColor = PLATFORM_COLORS[link.platform as keyof typeof PLATFORM_COLORS] || '#6E6E6E';
+                        
+                        return (
+                          <div key={index} className="flex gap-2">
+                            <div className="flex-1">
+                              <Select
+                                value={link.platform || ''}
+                                onValueChange={(value) => handleSocialLinkChange(index, 'platform', value)}
+                              >
+                                <SelectTrigger className='w-full'>
+                                  <SelectValue>
+                                    {platformMatch ? (
+                                      <div className="flex items-center gap-2">
+                                        <div 
+                                          className="flex items-center justify-center rounded-sm p-1"
+                                          style={{ backgroundColor: platformColor }}
+                                        >
+                                          {platformMatch.icon && React.createElement(platformMatch.icon, { 
+                                            className: "h-3.5 w-3.5", 
+                                            color: "white" 
+                                          })}
+                                        </div>
+                                        <span>{platformMatch.label}</span>
+                                      </div>
+                                    ) : (
+                                      <span>{link.title || 'Select platform'}</span>
+                                    )}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {SOCIAL_PLATFORMS.map(platform => {
+                                    const Icon = platform.icon;
+                                    const color = PLATFORM_COLORS[platform.value as keyof typeof PLATFORM_COLORS] || '#6E6E6E';
+                                    
+                                    return (
+                                      <SelectItem 
+                                        key={platform.value} 
+                                        value={platform.value}
+                                        disabled={editForm.socialLinks.some(
+                                          (l, i) => i !== index && l.platform === platform.value
+                                        )}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <div 
+                                            className="flex items-center justify-center rounded-sm p-1"
+                                            style={{ backgroundColor: color }}
+                                          >
+                                            <Icon className="h-3.5 w-3.5" color="white" />
+                                          </div>
+                                          <span>{platform.label}</span>
+                                        </div>
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="flex-1">
+                              <Input
+                                placeholder="https://example.com"
+                                value={link.url}
+                                onChange={(e) => handleSocialLinkChange(index, 'url', e.target.value)}
+                                className={link.url && !isValidUrl(link.url) ? "border-red-500" : ""}
+                              />
+                              {link.url && !isValidUrl(link.url) && (
+                                <p className="text-xs text-red-500 mt-1">URL must start with http:// or https://</p>
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              onClick={() => removeSocialLink(index)}
+                              className="shrink-0"
+                            >
+                              Remove
+                            </Button>
                           </div>
-                          <div className="flex-1 space-y-2">
-                            <Input
-                              placeholder="URL"
-                              value={link.url}
-                              onChange={(e) => handleSocialLinkChange(index, 'url', e.target.value)}
-                            />
-                          </div>
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            onClick={() => removeSocialLink(index)}
-                            className="shrink-0"
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      ))}
+                        );
+                      })}
                       <Button
                         type="button"
                         variant="outline"
                         onClick={addSocialLink}
                         className="w-full mt-2"
+                        disabled={editForm.socialLinks.length >= SOCIAL_PLATFORMS.length}
                       >
                         Add Social Link
                       </Button>
+                      {editForm.socialLinks.length >= SOCIAL_PLATFORMS.length && (
+                        <p className="text-xs text-muted-foreground text-center">
+                          Maximum number of social links reached.
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -783,7 +1012,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
               <div className='hidden md:block col-span-5'>
                 <Card className='w-full dark:border-0 shadow-none'>
                   <CardHeader>
-                    <CardTitle  className='text-xl font-bold mb-3' >About me</CardTitle>
+                    <CardTitle className='text-xl font-bold mb-3'>About me</CardTitle>
                       <p className='text-sm'>
                         {user?.bio || 'No bio yet'}
                       </p>
@@ -805,6 +1034,54 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
                           {user?.birthdate ? calculateAge(user.birthdate) : 'No age yet'}
                         </span>
                     </div>
+                    
+                    {/* In the About me section, ensure the social links use the icon+color button style */}
+                    {user?.socialLinks && user.socialLinks.length > 0 && (
+                      <div className='mt-4'>
+                        <h4 className='text-sm font-medium mb-2'>Connect</h4>
+                        <div className='flex flex-wrap gap-2'>
+                          {user.socialLinks.map((link: SocialLink, index: number) => {
+                            // Try to find platform by exact match first
+                            let platform = SOCIAL_PLATFORMS.find(p => p.value === link.platform);
+                            
+                            // If not found, try case-insensitive match
+                            if (!platform) {
+                              platform = SOCIAL_PLATFORMS.find(p => 
+                                p.value.toLowerCase() === link.platform?.toLowerCase() ||
+                                p.label.toLowerCase() === link.platform?.toLowerCase()
+                              );
+                            }
+                            
+                            // If still not found, try matching by title
+                            if (!platform && link.title) {
+                              platform = SOCIAL_PLATFORMS.find(p => 
+                                p.label.toLowerCase() === (link.title || '').toLowerCase()
+                              );
+                            }
+                            
+                            const Icon = platform?.icon || ExternalLink;
+                            const displayTitle = link.title || platform?.label || link.platform;
+                            const platformColor = platform ? PLATFORM_COLORS[platform.value as keyof typeof PLATFORM_COLORS] : '#6E6E6E';
+                            
+                            return (
+                              <a
+                                key={index}
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className='inline-flex items-center justify-center rounded-md transition-all duration-200 hover:opacity-90 hover:scale-110 shadow-sm transform'
+                                title={displayTitle}
+                                style={{ backgroundColor: platformColor }}
+                              >
+                                <div className="p-1.5">
+                                  <Icon className="h-4 w-4 text-white" />
+                                </div>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </CardHeader>
                 </Card>
                 {user?.skills?.length > 0 && (
@@ -819,7 +1096,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
                   </div>
                 )}
               </div>
-              <div className='col-span-12 md:col-span-11'>
+              <div className='col-span-16 md:col-span-11'>
                 <PostsProfile userId={user?._id} />
               </div>
             </div>

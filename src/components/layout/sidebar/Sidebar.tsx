@@ -13,7 +13,7 @@ import {
   Home,
   Presentation,
 } from "lucide-react";
-import Tags from "@/components/Tags";
+import TrendingTags from "@/components/TrendingTags";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -53,8 +53,7 @@ export function Sidebar() {
           </nav>
         </div>
         <div>
-          <h2 className="text-lg font-medium mb-2 text-muted-foreground">Trending Tags</h2>
-          <Tags tags={["Coding", "Images", "Videos", "Bookmarks", "About"]} />
+          <TrendingTags limit={5} showCount={true} />
         </div>
       </aside>
     </>

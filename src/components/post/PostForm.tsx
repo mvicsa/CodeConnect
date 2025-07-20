@@ -9,6 +9,7 @@ import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { Input } from '../ui/input'
 import { Badge } from '../ui/badge'
+import Tags from '../Tags'
 import { 
   Code, 
   Image as ImageIcon, 
@@ -26,6 +27,7 @@ import { PostType } from '@/types/post'
 import { toast } from 'sonner';
 import { Toaster } from 'sonner';
 import { uploadToImageKit } from '@/lib/imagekitUpload';
+import { useTranslations } from 'next-intl';
 
 interface PostFormProps {
   mode: 'create' | 'edit'
@@ -49,6 +51,7 @@ type PostContent = {
 export default function PostForm({ mode, post, onCancel, onSuccess, className = '' }: PostFormProps) {
   const dispatch = useDispatch<AppDispatch>()
   const { user } = useSelector((state: RootState) => state.auth)
+  const t = useTranslations()
   
   const [content, setContent] = useState<PostContent>({
     text: post?.text || '',
@@ -473,26 +476,29 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Hash className="size-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Tags</span>
+            <span className="text-sm font-medium">{t('tags.tags')}</span>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {content.tags.map((tag) => (
-              <Badge
-                key={tag}
-                className="cursor-pointer hover:bg-destructive/10 hover:text-destructive"
-                onClick={() => handleRemoveTag(tag)}
-              >
-                #{tag}
-                <X className="size-3 ml-1" />
-              </Badge>
-            ))}
-          </div>
+          <Tags tags={content.tags} clickable={false} />
+          {content.tags.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {content.tags.map((tag) => (
+                <Badge
+                  key={tag}
+                  className="cursor-pointer hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => handleRemoveTag(tag)}
+                >
+                  #{tag}
+                  <X className="size-3 ml-1" />
+                </Badge>
+              ))}
+            </div>
+          )}
           <div className="flex gap-2">
             <Input
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Add a tag..."
+              placeholder={t('tags.addTag')}
               className="flex-1"
             />
             <Button

@@ -36,16 +36,7 @@ export const fetchPosts = createAsyncThunk<PostType[], { page?: number; limit?: 
   }
 )
 
-// Fetch posts by tag
-export const fetchPostsByTag = createAsyncThunk<PostType[], { tag: string; page?: number; limit?: number }>(
-  'posts/fetchPostsByTag',
-  async ({ tag, page = 1, limit = 10 }) => {
-    const params = new URLSearchParams({ page: String(page), limit: String(limit) })
-    const url = `${API_URL}/tag/${tag}?${params.toString()}`
-    const response = await axios.get(url)
-    return response.data
-  }
-)
+
 
 // Fetch posts by user
 export const fetchPostsByUser = createAsyncThunk<PostType[], { userId: string; page?: number; limit?: number; refresh?: boolean }>(
