@@ -19,18 +19,18 @@ const navItems = [
     iconFilled: <Hash fill="currentColor" className="w-6 h-6" />,
     iconOutline: <Hash  className="w-6 h-6" />,
   },
-  {
-    name: "Notifications",
-    href: "/notifications",
-    iconFilled: <BellDot fill="currentColor" className="w-6 h-6" />,
-    iconOutline: <BellDot  className="w-6 h-6" />,
-  },
-  {
-    name: "Profile",
-    href: "/profile",
-    iconFilled: <Heart fill="currentColor" className="w-6 h-6" />,
-    iconOutline: <Heart  className="w-6 h-6" />,
-  },
+  // {
+  //   name: "Notifications",
+  //   href: "/notifications",
+  //   iconFilled: <BellDot fill="currentColor" className="w-6 h-6" />,
+  //   iconOutline: <BellDot  className="w-6 h-6" />,
+  // },
+  // {
+  //   name: "Profile",
+  //   href: "/profile",
+  //   iconFilled: <Heart fill="currentColor" className="w-6 h-6" />,
+  //   iconOutline: <Heart  className="w-6 h-6" />,
+  // },
 ];
 
 export default navItems;
