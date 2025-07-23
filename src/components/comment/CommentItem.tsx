@@ -40,10 +40,12 @@ import {
   editCommentOrReplyAsync,
   fetchReplies
 } from '@/store/slices/commentsSlice'
-import { useState, useMemo, useEffect } from 'react'
+import { removeNotificationsByCriteria } from '@/store/slices/notificationsSlice'
+import { useState, useMemo, useEffect, useContext } from 'react'
 import { Comment, Reply, User } from '@/types/comments'
 import Link from 'next/link'
 import AdminBadge from '../AdminBadge'
+import { SocketContext } from '@/store/Provider'
 
 
 // Define CommentContent type
@@ -53,7 +55,6 @@ interface CommentContent {
   codeLang: string;
 }
 
-// Update User interface to include role
 interface ExtendedUser extends User {
   role?: string;
 }
@@ -91,6 +92,7 @@ export default function CommentItem({
   highlightedReplyId?: string
   showHighlight?: boolean
 }) {
+  const socket = useContext(SocketContext);
   const t = useTranslations()
   const dispatch = useDispatch<AppDispatch>()
   const [openDelete, setOpenDelete] = useState(false)
@@ -106,7 +108,7 @@ export default function CommentItem({
   const isReply = !!comment.parentCommentId
   const commentId = has_id(comment) ? comment._id : (comment as any).id
   const rootCommentId = rootId || String(commentId)
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user } = useSelector((state: RootState) => state.auth)
 
   const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
   const status = user ? userStatuses[comment.createdBy?._id?.toString()] || 'offline' : 'offline';
@@ -201,6 +203,11 @@ export default function CommentItem({
       editValue.codeLang !== comment.codeLang
     ) {
       try {
+        // Check for removed mentions before updating
+        const originalMentions = extractMentions(comment.text || '');
+        const newMentions = extractMentions(editValue.text);
+        const removedMentions = originalMentions.filter(mention => !newMentions.includes(mention));
+        
         await dispatch(editCommentOrReplyAsync({
           id: String(commentId),
           data: {
@@ -211,6 +218,17 @@ export default function CommentItem({
             createdBy: (hasCreatedBy(comment) ? comment.createdBy : (comment as any).user?._id) || ''
           }
         }))
+        
+        // If mentions were removed, emit socket event to delete notifications
+        if (removedMentions.length > 0 && socket) {
+          console.log('🔄 Mentions removed:', removedMentions);
+          socket.emit('notification:delete', {
+            type: 'USER_MENTIONED',
+            commentId: String(commentId),
+            fromUserId: user?._id
+          });
+          console.log('🔄 Socket: Sent notification deletion for removed mentions in comment:', commentId);
+        }
         
         // Force update local state to ensure UI reflects changes immediately
         setEditValue({
@@ -230,6 +248,17 @@ export default function CommentItem({
     setIsEditing(false)
   }
 
+  // Helper function to extract mentions from text
+  const extractMentions = (text: string): string[] => {
+    const mentions: string[] = [];
+    text.split(' ').forEach(word => {
+      if (word.startsWith('@')) {
+        mentions.push(word.slice(1)); // Remove @ symbol
+      }
+    });
+    return mentions;
+  }
+
   const handleEditCancel = () => {
     setEditValue({
       text: comment.text || '',
@@ -240,8 +269,167 @@ export default function CommentItem({
   }
 
   const handleDelete = async () => {
-    await dispatch(deleteCommentOrReplyAsync(String(commentId)))
-    setOpenDelete(false)
+    console.log('🗑️ Deleting comment/reply:', commentId, 'isReply:', isReply);
+    
+    // 🔥 IMMEDIATE: حذف جميع الإشعارات المرتبطة بالتعليق/الرد محلياً أولاً
+    console.log('🧹 IMMEDIATE CLEANUP: Removing ALL notifications for comment/reply:', commentId);
+    
+    // حذف إشعارات التعليق/الرد نفسه
+    dispatch(removeNotificationsByCriteria({
+      type: 'COMMENT_ADDED',
+      commentId: String(commentId),
+    }));
+    
+    // حذف إشعارات التفاعلات على التعليق/الرد
+    dispatch(removeNotificationsByCriteria({
+      type: 'COMMENT_REACTION',
+      commentId: String(commentId),
+    }));
+    
+    // حذف إشعارات المنشنات في التعليق/الرد
+    dispatch(removeNotificationsByCriteria({
+      type: 'USER_MENTIONED',
+      commentId: String(commentId),
+    }));
+    
+    // 🔥 إذا كان تعليق (وليس رد)، احذف أيضاً جميع الردود وإشعاراتها
+    if (!isReply && 'replies' in comment && comment.replies && comment.replies.length > 0) {
+      console.log(`🧹 CLEANUP: Deleting notifications for ${comment.replies.length} replies`);
+      
+      comment.replies.forEach((reply: Reply) => {
+        // حذف إشعارات كل رد
+        dispatch(removeNotificationsByCriteria({
+          type: 'COMMENT_ADDED',
+          commentId: String(reply._id),
+        }));
+        
+        // حذف إشعارات التفاعلات على كل رد
+        dispatch(removeNotificationsByCriteria({
+          type: 'COMMENT_REACTION',
+          commentId: String(reply._id),
+        }));
+        
+        // حذف إشعارات المنشنات في كل رد
+        dispatch(removeNotificationsByCriteria({
+          type: 'USER_MENTIONED',
+          commentId: String(reply._id),
+        }));
+        
+        console.log('🗑️ Deleted notifications for reply:', reply._id);
+      });
+    }
+    
+    // حذف الكومنت من API
+    await dispatch(deleteCommentOrReplyAsync(String(commentId)));
+    setOpenDelete(false);
+    
+    // 🔥 إرسال socket events لحذف الإشعارات عند كل الناس
+    if (socket && user?._id) {
+      // استخراج المنشنات من التعليق لإرسالها مع إشعار الحذف
+      const mentions = extractMentions(comment.text || '');
+      
+      console.log('🔄 Socket: Sending notification deletion events for comment:', commentId);
+      
+      // حذف إشعارات التعليق/الرد
+      socket.emit('notification:delete', {
+        type: 'COMMENT_ADDED',
+        commentId: String(commentId),
+        fromUserId: user._id,
+        postId: comment.postId,
+        mentions: mentions,
+        hasMentions: mentions.length > 0,
+        forceBroadcast: true,
+        forceRefresh: true
+      });
+      
+      // حذف إشعارات التفاعلات على التعليق/الرد
+      socket.emit('notification:delete', {
+        type: 'COMMENT_REACTION',
+        commentId: String(commentId),
+        postId: comment.postId,
+        deleteAllReactions: true,
+        forceRefresh: true
+      });
+      
+      // حذف إشعارات المنشنات في التعليق/الرد
+      socket.emit('notification:delete', {
+        type: 'USER_MENTIONED',
+        commentId: String(commentId),
+        fromUserId: user._id,
+        postId: comment.postId,
+        mentions: mentions,
+        forceRefresh: true
+      });
+      
+             // 🔥 إذا كان تعليق (وليس رد)، إرسال أحداث لحذف جميع الردود وإشعاراتها
+       if (!isReply && 'replies' in comment && comment.replies && comment.replies.length > 0) {
+         console.log(`🔄 Socket: Sending deletion events for ${comment.replies.length} replies`);
+         
+         comment.replies.forEach((reply: Reply) => {
+          const replyMentions = extractMentions(reply.text || '');
+          
+          // حذف إشعارات كل رد
+          socket.emit('notification:delete', {
+            type: 'COMMENT_ADDED',
+            commentId: String(reply._id),
+            fromUserId: user._id,
+            postId: comment.postId,
+            mentions: replyMentions,
+            hasMentions: replyMentions.length > 0,
+            forceBroadcast: true,
+            forceRefresh: true
+          });
+          
+          // حذف إشعارات التفاعلات على كل رد
+          socket.emit('notification:delete', {
+            type: 'COMMENT_REACTION',
+            commentId: String(reply._id),
+            postId: comment.postId,
+            deleteAllReactions: true,
+            forceRefresh: true
+          });
+          
+          // حذف إشعارات المنشنات في كل رد
+          socket.emit('notification:delete', {
+            type: 'USER_MENTIONED',
+            commentId: String(reply._id),
+            fromUserId: user._id,
+            postId: comment.postId,
+            mentions: replyMentions,
+            forceRefresh: true
+          });
+          
+          console.log('🔄 Socket: Sent deletion events for reply:', reply._id);
+        });
+      }
+      
+      console.log('✅ Socket: All notification deletion events sent for comment/reply and its replies:', commentId);
+    } else {
+      console.warn('⚠️ Socket or user not available, cannot send notification deletion events');
+    }
+    
+    // 🔥 إعادة تحميل الإشعارات بعد الحذف للتأكد من التحديث
+    if (user?._id) {
+      setTimeout(async () => {
+        try {
+          console.log('🔄 Refreshing notifications after comment deletion');
+          const token = localStorage.getItem('token');
+          if (token) {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications/user/${user._id}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (response.ok) {
+              const data = await response.json();
+              const { setNotifications } = await import('@/store/slices/notificationsSlice');
+              dispatch(setNotifications(data));
+              console.log('✅ Notifications refreshed successfully after comment deletion');
+            }
+          }
+        } catch (error) {
+          console.error('❌ Failed to refresh notifications after comment deletion:', error);
+        }
+      }, 1500);
+    }
   }
 
   return (

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
@@ -19,6 +19,8 @@ import { Button } from '@/components/ui/button';
 
 export function SheetD() {
   const pathname = usePathname();
+  const params = useParams();
+  const locale = params?.locale as string || 'en';
   const [isRtl, setIsRtl] = useState(false);
 
   useEffect(() => {
@@ -36,6 +38,9 @@ export function SheetD() {
     // { name: "Bookmarks", href: "/bookmarks", icon: <Bookmark className="w-5 h-5" /> },
     // { name: "About", href: "/about", icon: <Info className="w-5 h-5" /> },
   ];
+
+  // Remove locale prefix from pathname for matching
+  const pathWithoutLocale = pathname.replace(/^\/(en|ar)(\/|$)/, '/');
 
   return (
     <>
@@ -55,19 +60,29 @@ export function SheetD() {
             <SheetTitle className="text-2xl font-bold text-muted-foreground">Categories</SheetTitle>
           </SheetHeader>
           <nav className="space-y-2 px-4">
-            {navLinks.map((link) => (
-              <Link
-                key={link.name}
-                href={link.href}
-                className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 ease-in-out
-                ${pathname === link.href
-                  ? 'bg-accent text-accent-foreground shadow-md'
-                  : 'hover:bg-accent/70 hover:shadow-sm text-foreground'}`}
-              >
-                {link.icon}
-                <span>{link.name}</span>
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              // Create locale-aware href
+              const localeAwareHref = link.href === '/' ? `/${locale}` : `/${locale}${link.href}`;
+              
+              // Check if this link is active
+              const isActive = link.href === '/' 
+                ? pathWithoutLocale === '/' 
+                : pathWithoutLocale.startsWith(link.href);
+
+              return (
+                <Link
+                  key={link.name}
+                  href={localeAwareHref}
+                  className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 ease-in-out
+                  ${isActive
+                    ? 'bg-accent text-accent-foreground shadow-md'
+                    : 'hover:bg-accent/70 hover:shadow-sm text-foreground'}`}
+                >
+                  {link.icon}
+                  <span>{link.name}</span>
+                </Link>
+              );
+            })}
           </nav>
         </SheetContent>
       </Sheet>

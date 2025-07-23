@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from "react";
+import { useState, useRef, useContext } from "react";
 import { useReactions } from "../hooks/useReactions";
 import Image from "next/image";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -9,8 +9,11 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import type { UserReaction } from '@/types/post';
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store/store";
+import { useNotifications } from '@/hooks/useNotifications';
+import { removeNotificationsByCriteria } from '@/store/slices/notificationsSlice';
+import { SocketContext } from '@/store/Provider';
 
 // Map your existing reaction images to the database structure
 const reactionImageMap = {
@@ -65,6 +68,9 @@ export default function ReactionsMenu({
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const { user } = useSelector((state: RootState) => state.auth);
+  const { handleDeleteReactionNotification } = useNotifications();
+  const dispatch = useDispatch();
+  const socket = useContext(SocketContext);
 
   // Get current user's reaction
   const currentUserReaction = userReactions.find(
@@ -103,11 +109,12 @@ export default function ReactionsMenu({
 
     // Debug: Check if user already has this reaction
     const currentReaction = userReactions.find(ur => ur.userId._id === currentUserId);
+    const isRemoving = currentReaction?.reaction === reactionName;
     console.log('🎯 Reaction Toggle Debug:', {
       reactionName,
       currentUserId,
       currentReaction: currentReaction?.reaction,
-      willToggle: currentReaction?.reaction === reactionName,
+      willToggle: isRemoving,
       userReactions: userReactions.map(ur => ({ userId: ur.userId._id, reaction: ur.reaction }))
     });
 
@@ -138,17 +145,85 @@ export default function ReactionsMenu({
     setIsReactionLoading(true);
     try {
       let result;
-      
       if (postId) {
         result = await handlePostReaction(postId, reactionName);
+        if (isRemoving && result?.success) {
+          // تحديث حالة الإشعارات مباشرة في الفرونت إند
+          dispatch(removeNotificationsByCriteria({
+            type: 'POST_REACTION',
+            postId: postId,
+            fromUserId: currentUserId,
+            reactionType: reactionName
+          }));
+          
+          // إرسال حدث لحذف الإشعار
+          if (socket) {
+            socket.emit('notification:delete', {
+              type: 'POST_REACTION',
+              postId: postId,
+              fromUserId: currentUserId,
+              reactionType: reactionName,
+              forceRefresh: true
+            });
+          }
+          
+          // استدعاء الدالة القديمة أيضًا للتوافق
+          handleDeleteReactionNotification(postId, 'POST_REACTION', currentUserId, reactionName);
+        }
       } else if (commentId && !replyId) {
         result = await handleCommentReaction(commentId, reactionName);
+        if (isRemoving && result?.success) {
+          // تحديث حالة الإشعارات مباشرة في الفرونت إند
+          dispatch(removeNotificationsByCriteria({
+            type: 'COMMENT_REACTION',
+            commentId: commentId,
+            fromUserId: currentUserId,
+            reactionType: reactionName
+          }));
+          
+          // إرسال حدث لحذف الإشعار
+          if (socket) {
+            socket.emit('notification:delete', {
+              type: 'COMMENT_REACTION',
+              commentId: commentId,
+              fromUserId: currentUserId,
+              reactionType: reactionName,
+              forceRefresh: true
+            });
+          }
+          
+          // استدعاء الدالة القديمة أيضًا للتوافق
+          handleDeleteReactionNotification(commentId, 'COMMENT_REACTION', currentUserId, reactionName);
+        }
       } else if (replyId && parentCommentId) {
         result = await handleReplyReaction(
           String(parentCommentId), 
           String(replyId), 
           reactionName
         );
+        if (isRemoving && result?.success) {
+          // تحديث حالة الإشعارات مباشرة في الفرونت إند
+          dispatch(removeNotificationsByCriteria({
+            type: 'COMMENT_REACTION',
+            commentId: String(replyId),
+            fromUserId: currentUserId,
+            reactionType: reactionName
+          }));
+          
+          // إرسال حدث لحذف الإشعار
+          if (socket) {
+            socket.emit('notification:delete', {
+              type: 'COMMENT_REACTION',
+              commentId: String(replyId),
+              fromUserId: currentUserId,
+              reactionType: reactionName,
+              forceRefresh: true
+            });
+          }
+          
+          // استدعاء الدالة القديمة أيضًا للتوافق
+          handleDeleteReactionNotification(String(replyId), 'COMMENT_REACTION', currentUserId, reactionName);
+        }
       }
 
       console.log('📊 Reaction result:', result);

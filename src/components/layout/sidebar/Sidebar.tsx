@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -17,6 +17,8 @@ import TrendingTags from "@/components/TrendingTags";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const params = useParams();
+  const locale = params?.locale as string || 'en';
 
   const navLinks = [
     { name: "Home", href: "/", icon: <Home className="w-5 h-5" /> },
@@ -28,6 +30,9 @@ export function Sidebar() {
     // { name: "About", href: "/about", icon: <Info className="w-5 h-5" /> },
   ];
 
+  // Remove locale prefix from pathname for matching
+  const pathWithoutLocale = pathname.replace(/^\/(en|ar)(\/|$)/, '/');
+
   return (
     <>
       <aside
@@ -36,20 +41,30 @@ export function Sidebar() {
         <div>
           <h2 className="text-lg font-medium mb-2 text-muted-foreground">Categories</h2>
           <nav className="space-y-1 -ms-3 mb-6">
-            {navLinks.map((link) => (
-              <Link
-                key={link.name}
-                href={link.href}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  pathname === link.href
-                    ? "bg-accent text-accent-foreground"
-                    : "hover:bg-accent/50"
-                }`}
-              >
-                {link.icon}
-                <span>{link.name}</span>
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              // Create locale-aware href
+              const localeAwareHref = link.href === '/' ? `/${locale}` : `/${locale}${link.href}`;
+              
+              // Check if this link is active
+              const isActive = link.href === '/' 
+                ? pathWithoutLocale === '/' 
+                : pathWithoutLocale.startsWith(link.href);
+
+              return (
+                <Link
+                  key={link.name}
+                  href={localeAwareHref}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-accent text-accent-foreground"
+                      : "hover:bg-accent/50"
+                  }`}
+                >
+                  {link.icon}
+                  <span>{link.name}</span>
+                </Link>
+              );
+            })}
           </nav>
         </div>
         <div>

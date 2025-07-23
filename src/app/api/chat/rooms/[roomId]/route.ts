@@ -13,7 +13,7 @@ export async function DELETE(request: NextRequest, context: { params: { roomId?:
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     const response = await fetch(`${backendUrl}/chat/rooms/${params.roomId}`, {
       method: 'DELETE',
       headers: {

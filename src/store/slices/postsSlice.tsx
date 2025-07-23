@@ -111,6 +111,20 @@ const postsSlice = createSlice({
       state.hasMore = true
       state.error = null
     },
+    // 🔥 دالة لحذف البوست من UI (للـ socket events)
+    removePost: (state, action: PayloadAction<string>) => {
+      const postId = action.payload;
+      const beforeCount = state.posts.length;
+      state.posts = state.posts.filter(p => p._id !== postId);
+      const afterCount = state.posts.length;
+      const deletedCount = beforeCount - afterCount;
+      
+      console.log(`🗑️ removePost: Removed post ${postId} from UI`);
+      console.log(`📊 Posts count: ${beforeCount} → ${afterCount} (deleted: ${deletedCount})`);
+      
+      // Force immutability to trigger re-renders
+      state.posts = [...state.posts];
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -260,6 +274,6 @@ const postsSlice = createSlice({
   }
 })
 
-export const { addPost, editPost, resetPosts } = postsSlice.actions
+export const { addPost, editPost, resetPosts, removePost } = postsSlice.actions
 
 export default postsSlice.reducer

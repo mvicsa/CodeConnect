@@ -5,7 +5,7 @@ export const fetchUserByUsername = createAsyncThunk<any, string>(
   'user/fetchByUsername',
   async (username, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`http://localhost:5000/users/${username}`);
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/users/${username}`);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data || 'Failed to fetch user');

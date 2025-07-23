@@ -170,15 +170,19 @@ export const deleteCommentOrReplyAsync = createAsyncThunk<
 >('comments/deleteCommentOrReplyAsync', async (idToDelete) => {
   try {
     const token = localStorage.getItem('token');
+    
+    // Delete the comment/reply from backend
     await axios.delete(`${API_URL}/${idToDelete}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
-    console.log('Comment/reply deleted successfully');
+    
+    console.log('✅ Comment/reply deleted from backend successfully');
+    
     return idToDelete;
   } catch (error) {
-    console.error('Error deleting comment/reply:', error);
+    console.error('❌ Error deleting comment/reply:', error);
     throw error;
   }
 })
