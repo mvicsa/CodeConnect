@@ -29,8 +29,27 @@ export function MainNavBar() {
       }
       // For other pages, check if pathname starts with the href (for nested routes)
       return item.href !== "/" && pathWithoutLocale.startsWith(item.href);
+    // Normalize pathname: remove locale prefix, trailing slash, query, and hash
+    let normalizedPath = pathname.split("?")[0].split("#")[0];
+    // Remove locale prefix (e.g., /en, /ar)
+    normalizedPath = normalizedPath.replace(/^\/(en|ar)(\/|$)/, "/");
+    // Remove trailing slash (except for root)
+    if (normalizedPath.length > 1 && normalizedPath.endsWith("/")) {
+      normalizedPath = normalizedPath.slice(0, -1);
+    }
+
+    const index = navItems.findIndex(item => {
+      // Normalize nav item href
+      let href = item.href;
+      if (href.length > 1 && href.endsWith("/")) {
+        href = href.slice(0, -1);
+      }
+      if (href === "/") {
+        return normalizedPath === "/";
+      }
+      // Match exact or nested route (e.g., /tags or /tags/sometag)
+      return normalizedPath === href || normalizedPath.startsWith(href + "/");
     });
-    
     setActiveIndex(index !== -1 ? index : null);
   }, [pathname]);
 

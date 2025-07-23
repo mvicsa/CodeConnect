@@ -553,7 +553,9 @@ export default function CommentItem({
                 <ReplyIcon className="size-4" /> {isCommentWithReplies(comment) && comment.replies.length > 0 ? comment.replies.length : ''}
               </button>
             )}
-            <span>{new Date(comment.createdAt || '').toLocaleString()}</span>
+            <Link href={`/posts/${comment.postId}/${commentId}`} className='hover:underline'>
+              <span>{new Date(comment.createdAt || '').toLocaleString()}</span>
+            </Link>
           </div>
         )}
 
