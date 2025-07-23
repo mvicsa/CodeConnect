@@ -8,6 +8,7 @@ import {
 import navItems from "@/config/nav.config";
 import NavItem from "@/components/layout/navigation/NavItem";
 import { activeMenuProps } from "./nav.types";
+import NotificationPage from "@/components/notification";
 
 export default function MobileMenu({
   activeIndex,
@@ -28,6 +29,7 @@ export default function MobileMenu({
               />
             );
           })}
+          <NotificationPage />
         </NavigationMenuList>
       </NavigationMenu>
     </nav>

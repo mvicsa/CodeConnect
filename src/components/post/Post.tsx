@@ -1,4 +1,4 @@
-import React, { memo, useState, useMemo, useEffect } from 'react';
+import React, { memo, useState, useMemo, useEffect, useContext } from 'react';
 import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card'
 import Link from 'next/link'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
@@ -16,6 +16,7 @@ import PostForm from './PostForm'
 import { useDispatch, useSelector } from 'react-redux'
 import { AppDispatch, RootState } from '@/store/store'
 import { deletePost } from '@/store/slices/postsSlice'
+import { removeNotificationsByCriteria } from '@/store/slices/notificationsSlice'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +29,7 @@ import {
 } from '../ui/alert-dialog'
 import { toast } from 'sonner';
 import AdminBadge from '../AdminBadge'
+import { SocketContext } from '@/store/Provider';
 
 interface PostProps {
   post: PostType;
@@ -47,6 +49,8 @@ const Post = memo(function Post({
   const { _id, text, image, video, code, codeLang, tags, createdBy, createdAt, hasAiSuggestions } = post;
   const t = useTranslations();
   const dispatch = useDispatch<AppDispatch>();
+  const { user } = useSelector((state: RootState) => state.auth)
+  const socket = useContext(SocketContext);
   const [showComments, setShowComments] = useState(initialShowComments || !!highlightedCommentId);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -70,8 +74,6 @@ const Post = memo(function Post({
       setShowComments(true);
     }
   }, [initialShowComments, highlightedCommentId]);
-
-  const { user } = useSelector((state: RootState) => state.auth)
 
   const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
   const status = user ? userStatuses[createdBy?._id?.toString()] || 'offline' : 'offline';
@@ -106,7 +108,117 @@ const Post = memo(function Post({
   const handleConfirmDelete = async () => {
     setIsDeleting(true);
     try {
+      console.log('🗑️ Deleting post:', _id);
+      
+      // 🔥 IMMEDIATE: Clean up ALL notifications related to this post FIRST
+      console.log('🧹 IMMEDIATE CLEANUP: Removing ALL notifications for post:', _id);
+      
+      // حذف جميع أنواع الإشعارات المرتبطة بالمنشور
+      dispatch(removeNotificationsByCriteria({
+        type: 'POST',
+        postId: _id,
+      }));
+      
+      // حذف إشعارات التفاعلات على المنشور
+      dispatch(removeNotificationsByCriteria({
+        type: 'POST_REACTION',
+        postId: _id,
+      }));
+      
+      // حذف إشعارات التعليقات والردود
+      dispatch(removeNotificationsByCriteria({
+        type: 'COMMENT_ADDED',
+        postId: _id,
+      }));
+      
+      // حذف إشعارات الردود
+      dispatch(removeNotificationsByCriteria({
+        type: 'COMMENT_REACTION',
+        postId: _id,
+      }));
+      
+      // حذف إشعارات المنشنات
+      dispatch(removeNotificationsByCriteria({
+        type: 'USER_MENTIONED',
+        postId: _id,
+      }));
+      
+      // 🔥 إرسال socket events لحذف جميع الإشعارات المرتبطة بالمنشور
+      if (socket && user?._id) {
+        console.log('🔄 Socket: Sending notification deletion events for post:', _id);
+        
+        // حذف إشعارات المنشور نفسه وكل ما يتعلق به
+        socket.emit('notification:delete', {
+          type: 'POST',
+          postId: _id,
+          fromUserId: user._id,
+          deleteAllRelated: true,
+          forceRefresh: true
+        });
+        
+        // حذف جميع إشعارات التفاعلات على المنشور
+        socket.emit('notification:delete', {
+          type: 'POST_REACTION',
+          postId: _id,
+          deleteAllReactions: true,
+          forceRefresh: true
+        });
+        
+        // حذف جميع إشعارات التعليقات والردود
+        socket.emit('notification:delete', {
+          type: 'COMMENT_ADDED',
+          postId: _id,
+          deleteAllComments: true,
+          forceRefresh: true
+        });
+        
+        // حذف جميع إشعارات تفاعلات التعليقات
+        socket.emit('notification:delete', {
+          type: 'COMMENT_REACTION',
+          postId: _id,
+          deleteAllReactions: true,
+          forceRefresh: true
+        });
+        
+        // حذف جميع إشعارات المنشنات في المنشور
+        socket.emit('notification:delete', {
+          type: 'USER_MENTIONED',
+          postId: _id,
+          deleteAllMentions: true,
+          forceRefresh: true
+        });
+        
+        console.log('✅ Socket: All notification deletion events sent for post:', _id);
+      } else {
+        console.warn('⚠️ Socket or user not available, cannot send notification deletion events');
+      }
+      
+      // Then delete the post from API
       await dispatch(deletePost({ id: _id, token: localStorage.getItem('token') || '' })).unwrap();
+      
+      // 🔥 إعادة تحميل الإشعارات بعد الحذف للتأكد من التحديث
+      if (user?._id) {
+        setTimeout(async () => {
+          try {
+            console.log('🔄 Refreshing notifications after post deletion');
+            const token = localStorage.getItem('token');
+            if (token) {
+              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications/user/${user._id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              if (response.ok) {
+                const data = await response.json();
+                const { setNotifications } = await import('@/store/slices/notificationsSlice');
+                dispatch(setNotifications(data));
+                console.log('✅ Notifications refreshed successfully after post deletion');
+              }
+            }
+          } catch (error) {
+            console.error('❌ Failed to refresh notifications after post deletion:', error);
+          }
+        }, 1500);
+      }
+      
       toast.success('Post deleted successfully!');
       setShowDeleteDialog(false);
     } catch (error) {

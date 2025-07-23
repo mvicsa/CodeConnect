@@ -216,3 +216,24 @@ canvas {
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
 }
+
+/* Custom notification toast styles */
+.toast-notification {
+  @apply border-l-4 border-primary/60 shadow-lg;
+}
+
+.toast-notification [data-icon] {
+  @apply mr-3;
+}
+
+.toast-notification [data-content] {
+  @apply font-medium;
+}
+
+.toast-notification [data-description] {
+  @apply text-sm text-muted-foreground mt-1;
+}
+
+.toast-notification [data-action] {
+  @apply bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-200;
+}

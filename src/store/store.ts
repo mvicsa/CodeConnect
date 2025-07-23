@@ -12,6 +12,7 @@ import followReducer from './slices/followSlice'
 import userReducer from './slices/userSlice'
 import tagsReducer from './slices/tagsSlice';
 import searchReducer from './slices/searchSlice'
+import notificationsReducer from './slices/notificationsSlice';
 
 // Middleware to sync reactions between slices
 const reactionSyncMiddleware = (store: any) => (next: any) => (action: any) => {
@@ -46,6 +47,7 @@ export const store = configureStore({
     user: userReducer,
     tags: tagsReducer,
     search: searchReducer,
+    notifications: notificationsReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

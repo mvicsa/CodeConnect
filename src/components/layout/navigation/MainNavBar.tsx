@@ -18,14 +18,17 @@ export function MainNavBar() {
 
   // Update activeIndex based on current pathname
   React.useEffect(() => {
+    // Remove locale prefix from pathname for matching
+    const pathWithoutLocale = pathname.replace(/^\/(en|ar)(\/|$)/, '/');
+    
     // Find the matching nav item
     const index = navItems.findIndex(item => {
       // Special case for home page to avoid matching all paths
-      if (item.href === "/" && pathname === "/") {
+      if (item.href === "/" && pathWithoutLocale === "/") {
         return true;
       }
       // For other pages, check if pathname starts with the href (for nested routes)
-      return item.href !== "/" && pathname.startsWith(item.href);
+      return item.href !== "/" && pathWithoutLocale.startsWith(item.href);
     });
     
     setActiveIndex(index !== -1 ? index : null);
@@ -51,7 +54,6 @@ export function MainNavBar() {
             >
               <LanguageSwitcher />
               <ThemeSwitcher />
-              <NotificationPage />
             </div>
             <UserMenu />
           </div>

@@ -14,17 +14,19 @@ import { RootState, AppDispatch } from "@/store/store";
 import { logout } from "@/store/slices/authSlice";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 
 export default function UserMenu() {
   const [open, setOpen] = useState(false);
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
+  const params = useParams();
+  const locale = params?.locale as string || 'en';
 
   const handleLogout = () => {
     dispatch(logout());
-    router.push("/login");
+    router.push(`/${locale}/login`);
   }
 
   if (!user) {
@@ -55,7 +57,7 @@ export default function UserMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
             <DropdownMenuItem className="cursor-pointer p-0">
-              <Link href="/profile" className="flex items-center gap-2 w-full px-2 py-1.5">
+              <Link href={`/${locale}/profile`} className="flex items-center gap-2 w-full px-2 py-1.5">
                 <UserIcon className="w-4 h-4" />
                 <span>Profile</span>
               </Link>

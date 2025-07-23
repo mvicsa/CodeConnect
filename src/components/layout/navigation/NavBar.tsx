@@ -8,6 +8,8 @@ import {
 import navItems from "@/config/nav.config";
 import NavItem from "@/components/layout/navigation/NavItem";
 import { activeMenuProps } from "./nav.types";
+import { Bell } from "lucide-react";
+import NotificationPage from "@/components/notification";
 export default function NavBar({
   activeIndex,
   setActiveIndex,
@@ -26,6 +28,7 @@ export default function NavBar({
             />
           );
         })}
+        <NotificationPage />
       </NavigationMenuList>
     </NavigationMenu>
   );

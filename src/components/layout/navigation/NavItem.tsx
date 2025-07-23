@@ -6,6 +6,7 @@ import {
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { NavItemProps } from "./nav.types";
+import { useParams } from "next/navigation";
 
 export default function NavItem({
   item,
@@ -13,6 +14,12 @@ export default function NavItem({
   isActive,
   setActiveIndex,
 }: NavItemProps) {
+  const params = useParams();
+  const locale = params?.locale as string || 'en';
+  
+  // Create locale-aware href
+  const localeAwareHref = item.href === '/' ? `/${locale}` : `/${locale}${item.href}`;
+
   return (
     <NavigationMenuItem
       asChild
@@ -20,7 +27,7 @@ export default function NavItem({
       key={index}
     >
       <Link
-        href={item.href}
+        href={localeAwareHref}
         className="relative flex flex-col items-center justify-center w-full h-full"
       >
         {/* Icon */}
