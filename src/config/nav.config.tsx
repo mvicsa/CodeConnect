@@ -19,6 +19,7 @@ const navItems = [
     href: "/tags",
     iconFilled: <Hash fill="currentColor" className="w-6 h-6" />,
     iconOutline: <Hash  className="w-6 h-6" />,
+  },
 ];
 
 export default navItems;
