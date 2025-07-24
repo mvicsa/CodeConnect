@@ -21,6 +21,7 @@ interface NotificationData {
     reaction?: string;
     [key: string]: unknown;
 }
+
 import Image from 'next/image';
 import { formatTime } from '@/lib/utils';
 import Link from 'next/link';
