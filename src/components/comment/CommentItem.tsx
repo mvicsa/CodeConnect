@@ -46,6 +46,8 @@ import { Comment, CommentUser, Reply, User } from '@/types/comments'
 import Link from 'next/link'
 import AdminBadge from '../AdminBadge'
 import { SocketContext } from '@/store/Provider'
+import CommentAI from './CommentAI'
+import { AIEvaluation } from '@/types/ai'
 
 
 // Define CommentContent type
@@ -71,8 +73,6 @@ function isCommentWithReplies(obj: Comment | Reply): obj is Comment {
   return 'replies' in obj && Array.isArray(obj.replies);
 }
 
-// Remove the normalizeReply function
-
 export default function CommentItem({
   comment,
   activeReplyId,
@@ -81,7 +81,10 @@ export default function CommentItem({
   setMentionUser,
   rootId = null,
   highlightedReplyId,
-  showHighlight = true
+  showHighlight = true,
+  postText,
+  postCode,
+  postCodeLang
 }: {
   comment: Comment | Reply
   activeReplyId: string | null
@@ -91,6 +94,9 @@ export default function CommentItem({
   rootId?:  string | null
   highlightedReplyId?: string
   showHighlight?: boolean
+  postText: string
+  postCode?: string
+  postCodeLang?: string
 }) {
   const socket = useContext(SocketContext);
   const t = useTranslations()
@@ -103,10 +109,25 @@ export default function CommentItem({
     codeLang: comment.codeLang || '',
   })
   const [showReplies, setShowReplies] = useState(false)
-  const [visibleReplies, setVisibleReplies] = useState(0) // Start with 0 visible replies
+  const [visibleReplies, setVisibleReplies] = useState(0) 
+  const [fetchedAiEvaluation, setFetchedAiEvaluation] = useState<AIEvaluation | null>(null);
+  const commentId = has_id(comment) ? comment._id : '';
+  useEffect(() => {
+    if (comment.hasAiEvaluation && commentId) {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/comments/${commentId}/ai-evaluation`, {
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data) setFetchedAiEvaluation(data);
+        });
+    }
+  }, [comment, commentId]);
 
   const isReply = !!comment.parentCommentId
-  const commentId = has_id(comment) ? comment._id : ''
   const rootCommentId = rootId || String(commentId)
   const { user } = useSelector((state: RootState) => state.auth)
 
@@ -558,6 +579,16 @@ export default function CommentItem({
           </div>
         )}
 
+        {/* Show AI evaluation if available or fetched */}
+        {(comment.hasAiEvaluation && fetchedAiEvaluation) && (
+          <div className='mt-4'>
+            <CommentAI 
+              evaluation={fetchedAiEvaluation} 
+              postId={comment.postId} 
+            />
+          </div>
+        )}
+
         {shouldShowReplyForm && (
           <ReplyForm
             key={mentionUser}
@@ -567,7 +598,7 @@ export default function CommentItem({
         )}
 
         {/* Replies Section */}
-        <div className={`${(comment as Comment).replies?.length > 0 && visibleReplies > 0 ? 'mt-4' : ''} space-y-3`}>
+        <div className={`${(comment as Comment).replies?.length > 0 && visibleReplies > 0 ? 'mt-3' : ''} space-y-3`}>
           {/* Show replies */}
           {visibleRepliesList.map((replyData, index) => (
             <div 
@@ -587,6 +618,9 @@ export default function CommentItem({
                 rootId={rootCommentId}
                 highlightedReplyId={highlightedReplyId}
                 showHighlight={showHighlight}
+                postText={postText}
+                postCode={postCode}
+                postCodeLang={postCodeLang}
               />
             </div>
           ))}

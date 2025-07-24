@@ -40,6 +40,7 @@ export type Reply = {
   postId: string
   reactions: Reactions
   userReactions: UserReaction[]
+  hasAiEvaluation?: boolean
 }
 
 export type Comment = {
@@ -55,6 +56,7 @@ export type Comment = {
   userReactions: UserReaction[]
   replies: Reply[]
   user?: User
+  hasAiEvaluation?: boolean
 }
   
 export type CommentUser = { 

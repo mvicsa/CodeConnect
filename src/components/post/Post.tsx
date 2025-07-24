@@ -362,6 +362,9 @@ const Post = memo(function Post({
                   hasAiSuggestions={hasAiSuggestions} 
                   highlightedCommentId={highlightedCommentId}
                   highlightedReplyId={highlightedReplyId}
+                  postText={text}
+                  postCode={code}
+                  postCodeLang={codeLang}
                 />
               )}
             </div>

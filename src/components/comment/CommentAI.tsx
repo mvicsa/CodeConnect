@@ -6,19 +6,14 @@ import { RootState } from '@/store/store'
 import AIBadge from '../AiBadge'
 import MarkdownWithCode from '../MarkdownWithCode'
 import { useTheme } from 'next-themes';
-
-interface AISuggestion {
-  suggestions: string
-  postId: string
-  _id: string
-  createdAt: string
-  updatedAt: string
-}
+import { AIEvaluation, AISuggestion } from '@/types/ai'
 
 export default function CommentAI({
   suggestion,
+  evaluation,
   postId
 }: {
+  evaluation?: AIEvaluation
   suggestion?: AISuggestion
   postId: string
 }) {
@@ -26,7 +21,7 @@ export default function CommentAI({
   const { theme } = useTheme();
 
   // If no suggestion and not loading, don't render anything
-  if (!suggestion && !loading[postId]) {
+  if (!suggestion && !evaluation?.evaluation && !loading[postId]) {
     return null
   }
 
@@ -55,6 +50,13 @@ export default function CommentAI({
             <AIBadge role="ai-assistant" size='xs' />
           </div>
           <div className="mt-2 text-sm space-y-2">
+            {/* Show AI evaluation if present */}
+            {evaluation && (
+              <MarkdownWithCode 
+                content={evaluation?.evaluation} 
+                theme={theme === 'dark' ? 'dark' : 'light'} 
+              />
+            )}
             {suggestion?.suggestions && (
                 <MarkdownWithCode 
                   content={suggestion.suggestions} 
@@ -64,7 +66,10 @@ export default function CommentAI({
           </div>
         </div>
         <div className="flex gap-3 text-xs text-muted-foreground mt-2 items-center">
-          <span>{suggestion?.createdAt ? new Date(suggestion.createdAt).toLocaleString() : ''}</span>
+          <span>
+            {suggestion?.createdAt ? new Date(suggestion.createdAt).toLocaleString() : ''}
+            {evaluation?.createdAt ? new Date(evaluation.createdAt).toLocaleString() : ''}
+          </span>
         </div>
       </div>
     </div>

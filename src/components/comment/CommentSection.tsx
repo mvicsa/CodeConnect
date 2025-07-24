@@ -17,6 +17,9 @@ interface CommentSectionProps {
   hasAiSuggestions?: boolean;
   highlightedCommentId?: string;
   highlightedReplyId?: string;
+  postText: string;
+  postCode?: string;
+  postCodeLang?: string;
 }
 
 const CommentSection = memo(function CommentSection({ 
@@ -24,7 +27,10 @@ const CommentSection = memo(function CommentSection({
   className = '',
   hasAiSuggestions = false,
   highlightedCommentId,
-  highlightedReplyId
+  highlightedReplyId,
+  postText,
+  postCode,
+  postCodeLang
 }: CommentSectionProps) {
   const dispatch = useDispatch<AppDispatch>()
   const { comments, loading } = useSelector((state: RootState) => state.comments)
@@ -222,6 +228,9 @@ const CommentSection = memo(function CommentSection({
                 setMentionUser={setMentionUser}
                 highlightedReplyId={highlightedReplyId}
                 showHighlight={showHighlight}
+                postText={postText}
+                postCode={postCode}
+                postCodeLang={postCodeLang}
               />
             </div>
           ))}
