@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { AppDispatch, RootState } from '../../store/store'
-import { fetchPosts, fetchPostsByUser } from '../../store/slices/postsSlice'
+import { fetchPostsByUser } from '../../store/slices/postsSlice'
 import PostsList from './PostsList'
 import { Loader2 } from 'lucide-react'
 
@@ -24,7 +24,7 @@ export default function PostsProfile({ userId: propUserId, limit = 10, page: ini
   // Initial load - only fetch once when user ID is available
   useEffect(() => {
     if (userId && !initialFetchDone.current) {
-      dispatch(fetchPostsByUser({ userId, page: initialPage, limit, refresh: true }))
+      dispatch(fetchPostsByUser({ userId: userId as string, page: initialPage, limit, refresh: true }))
       initialFetchDone.current = true
     }
   }, [dispatch, initialPage, limit, userId])
@@ -36,7 +36,7 @@ export default function PostsProfile({ userId: propUserId, limit = 10, page: ini
 
   const loadMorePosts = useCallback(() => {
     if (hasMore && !loading && userId) {
-      dispatch(fetchPostsByUser({ userId, page: page + 1, limit, refresh: false }))
+      dispatch(fetchPostsByUser({ userId: userId as string, page: page + 1, limit, refresh: false }))
     }
   }, [dispatch, hasMore, loading, page, limit, userId])
 
@@ -58,7 +58,7 @@ export default function PostsProfile({ userId: propUserId, limit = 10, page: ini
   const handleRefresh = () => {
     if (userId) {
       initialFetchDone.current = true
-      dispatch(fetchPostsByUser({ userId, page: 1, limit, refresh: true }))
+      dispatch(fetchPostsByUser({ userId: userId as string, page: 1, limit, refresh: true }))
     }
 }
 
@@ -80,7 +80,7 @@ export default function PostsProfile({ userId: propUserId, limit = 10, page: ini
       )}
       {!hasMore && posts.length > 0 && (
         <div className="text-center py-8 text-muted-foreground">
-          <p>You've reached the end of the posts</p>
+          <p>You&apos;ve reached the end of the posts</p>
         </div>
       )}
     </>

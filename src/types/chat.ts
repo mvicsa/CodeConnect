@@ -27,7 +27,6 @@ export interface Message {
   fileUrl: string | null;
   replyTo: Message | null;
   seenBy: string[];
-  reactions: any[];
   deleted: boolean;
   deletedFor: string[];
   deletedAt?: string;
@@ -70,6 +69,6 @@ export interface TypingIndicator {
 export interface ChatNotification {
   id: string;
   type: "message" | "typing" | "read" | "online" | "offline";
-  data: any;
+  data: unknown;
   timestamp: Date;
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { Loader2 } from 'lucide-react'
+import { PlyrOptions, PlyrSource } from 'plyr-react'
 import { useEffect, useState, memo } from 'react'
 
 interface VideoPlayerProps {
@@ -8,9 +9,14 @@ interface VideoPlayerProps {
   className?: string
 }
 
+interface PlyrProps {
+  source: PlyrSource
+  options: PlyrOptions
+}
+
 const VideoPlayer = memo(function VideoPlayer({ source, className = '' }: VideoPlayerProps) {
   const [isMounted, setIsMounted] = useState(false)
-  const [PlyrComponent, setPlyrComponent] = useState<any>(null)
+  const [PlyrComponent, setPlyrComponent] = useState<React.ComponentType<PlyrProps> | null>(null)
 
   useEffect(() => {
     const loadPlyr = async () => {

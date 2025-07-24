@@ -3,15 +3,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChatButton } from "@/components/ui/chat-button";
 import { ChatInput } from "@/components/ui/chat-input";
 import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
-import { ChatRoom, Message, TypingIndicator, MessageType, ChatRoomType, User } from "@/types/chat";
+import {Message, TypingIndicator, MessageType, ChatRoomType, User } from "@/types/chat";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Send, Smile, Paperclip, Reply, Check, CheckCheck, MoreVertical, X, Image, File, Camera, Users } from "lucide-react";
+import { ArrowLeft, Send, Smile, Paperclip, Check, CheckCheck, MoreVertical, X, File, Camera, Users, ImageIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import MessageActions from "./MessageActions";
 import { useSelector, useDispatch, shallowEqual } from 'react-redux';
 import { RootState } from '@/store/store';
 import { SocketContext } from '@/store/Provider';
 import { setError } from '@/store/slices/chatSlice';
+import Img from "next/image";
 
 interface ChatWindowProps {
   onBackToList: () => void;
@@ -35,7 +36,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const typingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
   const [oldestMessageId, setOldestMessageId] = useState<string | null>(null);
   const prevActiveRoomId = useRef<string | null>(null);
   const prevMessagesLength = useRef<number>(0);
@@ -51,7 +51,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     shallowEqual
   );
   const typing = useSelector((state: RootState) => state.chat.typing[activeRoomId || ''] || []);
-  const seen = useSelector((state: RootState) => state.chat.seen[activeRoomId || ''] || []);
   const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
 
   // Get socket from context
@@ -74,20 +73,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   }, [messages]);
 
-  // Detect if user is at (or near) the bottom
-  const isUserAtBottom = () => {
-    if (!scrollRef.current) return true;
-    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-    return scrollHeight - (scrollTop + clientHeight) < 100;
-  };
-
   // Track scroll position to update shouldAutoScroll
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const element = event.currentTarget;
     setShouldAutoScroll(element.scrollHeight - (element.scrollTop + element.clientHeight) < 100);
     
     const isNearTop = element.scrollTop < 100;
-    const shouldLoadMore = !isLoadingMore && hasMore && isNearTop;
+    const shouldLoadMore = !isLoadingMore && isNearTop;
 
     if (shouldLoadMore && socket && activeRoom) {
       setIsLoadingMore(true);
@@ -95,11 +87,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         roomId: activeRoom._id,
         limit: 50,
         before: oldestMessageId
-      }, (error: any) => {
-        if (error) {
-          setHasMore(false);
-        }
-        setIsLoadingMore(false);
       });
     }
 
@@ -167,22 +154,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           replyTo: replyTo?._id,
         };
         try {
-          const currentMessage = message;
           setMessage("");
           setReplyTo(null);
           handleTypingStatus(false);
 
-          socket.emit('chat:send_message', msg, (error: any) => {
-            if (error) {
-              setMessage(currentMessage);
-              dispatch(setError('Failed to send message'));
-            }
-            if (scrollRef.current) {
-              scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-            }
-          });
+          socket.emit('chat:send_message', msg);
         } catch (error) {
           dispatch(setError('Failed to send message'));
+          console.log(error)
         }
       }
     }
@@ -307,18 +286,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       .toUpperCase();
   };
 
-  const getSenderName = (sender: User) => {
-    if (!activeRoom) return "";
-    if (activeRoom.type === ChatRoomType.GROUP) {
-      return sender.firstName + ' ' + sender.lastName;
-    } else {
-      if (sender._id !== myUserId) {
-        return sender.firstName + ' ' + sender.lastName;
-      }
-      return "";
-    }
-  };
-
   const getChatTitle = () => {
     if (!activeRoom) return "";
     if (activeRoom.type === ChatRoomType.GROUP) {
@@ -337,21 +304,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     return otherUser?.avatar || "";
   };
 
-  const getChatSubtitle = () => {
-    if (!activeRoom) return "";
-    if (activeRoom.type === ChatRoomType.GROUP) {
-      return `${activeRoom.members.length} members`;
-    }
-    return "Online"; // Default status for private chats
-  };
-
   const handleDeleteMessage = (messageId: string) => {
     if (socket && activeRoom) {
-      socket.emit('chat:delete_message', { roomId: activeRoom._id, messageId, forAll: false }, (error: any) => {
-        if (error) {
-          dispatch(setError('Failed to delete message'));
-        }
-      });
+      socket.emit('chat:delete_message', { roomId: activeRoom._id, messageId, forAll: false });
     }
   };
 
@@ -363,7 +318,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     const isSeenByOther = msg.seenBy.some(uid => uid !== myUserId);
     
     // Handle deleted messages
-    if (msg.deleted || (msg.deletedFor && msg.deletedFor.includes(myUserId))) {
+    if (msg.deleted || (msg.deletedFor && msg.deletedFor.includes(myUserId as string))) {
       return (
         <div
           key={msg._id}
@@ -458,9 +413,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 <MessageActions
                   message={msg}
                   onReply={(message) => setReplyTo(message)}
-                  onCopy={(content) => {
-                    // Handle copy notification
-                  }}
+                  onCopy={() => {}}
                   onDelete={isCurrentUser ? handleDeleteMessage : undefined}
                   isCurrentUser={isCurrentUser}
                 />
@@ -469,9 +422,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               {/* File/Image Content */}
               {msg.type === MessageType.IMAGE && msg.fileUrl && (
                 <div className="mb-2">
-                  <img 
-                    src={msg.fileUrl} 
+                  <Img 
                     alt="Image"
+                    src={msg.fileUrl || 'image'} 
                     className="max-w-full max-h-64 rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={() => {
                       if (msg.fileUrl) {
@@ -626,7 +579,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             {activeRoom?.type === ChatRoomType.GROUP 
               ? `${activeRoom.members.length} members` 
               : (() => {
-                  const otherMember = activeRoom?.members?.find((m: any) => m._id !== myUserId);
+                  const otherMember = activeRoom?.members?.find((m: User) => m._id !== myUserId);
                   const status = otherMember ? userStatuses[otherMember._id] || 'offline' : 'offline';
                   return (
                     <span
@@ -709,10 +662,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <div className="flex items-center space-x-3">
               {filePreview ? (
                 <div className="relative">
-                  <img 
+                  <Img 
                     src={filePreview} 
                     alt="Preview" 
                     className="w-16 h-16 object-cover rounded-lg border"
+                    width={64}
+                    height={64}
                   />
                   <ChatButton
                     variant="ghost"
@@ -772,7 +727,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     }}
                     className="w-full flex items-center space-x-3 p-2 rounded-md hover:bg-muted transition-colors"
                   >
-                    <Image className="h-5 w-5 text-blue-500" />
+                    <ImageIcon className="h-5 w-5 text-blue-500" />
                     <span className="text-sm">Photo & Video</span>
                   </button>
                   <button

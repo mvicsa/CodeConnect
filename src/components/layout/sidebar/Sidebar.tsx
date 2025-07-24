@@ -1,12 +1,8 @@
 "use client";
 
 import { usePathname, useParams } from "next/navigation";
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Bookmark,
-  List,
-  Info,
   Code2,
   Video,
   Images,
@@ -68,7 +64,7 @@ export function Sidebar() {
           </nav>
         </div>
         <div>
-          <TrendingTags limit={5} showCount={true} />
+          <TrendingTags limit={5} />
         </div>
       </aside>
     </>

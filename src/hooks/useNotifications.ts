@@ -4,8 +4,6 @@ import axios from 'axios';
 import { useCallback } from 'react';
 import {
   setNotifications,
-  addNotification,
-  updateNotification,
   deleteNotification,
   deleteByPostAndUser,
   markAsRead,
@@ -21,13 +19,6 @@ export const useNotifications = () => {
   const notifications = useSelector((state: RootState) => state.notifications.notifications);
   const unreadCount = useSelector((state: RootState) => state.notifications.unreadCount);
   
-  // 🔥 Debug: Log notifications state changes
-  console.log('🔍 useNotifications: Current state:', {
-    total: notifications.length,
-    unread: unreadCount,
-    timestamp: new Date().toISOString()
-  });
-
   // Get auth token for API calls
   const getAuthHeaders = useCallback(() => {
     const token = localStorage.getItem('token');
@@ -47,14 +38,10 @@ export const useNotifications = () => {
           `${API_BASE_URL}/notifications/user/${userId}`,
           { headers: getAuthHeaders() }
         );
-        console.log('🔄 API: Fetched', response.data?.length || 0, 'notifications for user:', userId);
         dispatch(setNotifications(response.data));
       }
     } catch (error) {
-      console.error('❌ Failed to fetch notifications:', error);
       if (axios.isAxiosError(error) && error.response) {
-        console.error('Error response:', error.response.data);
-        console.error('Error status:', error.response.status);
       }
     }
   }, [user?._id, dispatch, getAuthHeaders]);

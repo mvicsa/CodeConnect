@@ -11,8 +11,7 @@ import { useParams } from "next/navigation";
 export default function NavItem({
   item,
   index,
-  isActive,
-  setActiveIndex,
+  isActive
 }: NavItemProps) {
   const params = useParams();
   const locale = params?.locale as string || 'en';

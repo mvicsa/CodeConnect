@@ -9,8 +9,6 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-// Option 1: Extract props type directly from Badge component
-type BadgeProps = React.ComponentProps<typeof Badge>;
 
 // Option 2: Define the variants explicitly (safer if the component changes)
 type BadgeVariant = "default" | "secondary" | "destructive" | "outline";

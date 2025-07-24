@@ -11,11 +11,10 @@ import Tags from './Tags'
 
 interface TrendingTagsProps {
   limit?: number
-  showCount?: boolean
   className?: string
 }
 
-export default function TrendingTags({ limit = 5, showCount = true, className = '' }: TrendingTagsProps) {
+export default function TrendingTags({ limit = 5, className = '' }: TrendingTagsProps) {
   const dispatch = useDispatch<AppDispatch>()
   const { allTags, loading } = useSelector((state: RootState) => state.tags)
   const t = useTranslations()

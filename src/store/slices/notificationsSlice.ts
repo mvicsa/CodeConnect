@@ -22,23 +22,13 @@ const notificationsSlice = createSlice({
     setNotifications(state, action: PayloadAction<Notification[]>) {
       state.notifications = action.payload;
       state.unreadCount = action.payload.filter(n => !n.isRead).length;
-      console.log('📋 Redux: Set notifications count:', state.notifications.length, 'unread:', state.unreadCount);
     },
     addNotification(state, action: PayloadAction<Notification>) {
       const newId = action.payload._id;
-      console.log('➕ Redux: Adding notification:', { 
-        id: newId, 
-        type: action.payload.type, 
-        content: action.payload.content,
-        isRead: action.payload.isRead
-      });
       
       if (!state.notifications.some(n => n._id === newId)) {
         state.notifications = [action.payload, ...state.notifications];
         if (!action.payload.isRead) state.unreadCount++;
-        console.log('✅ Redux: Notification added. Total:', state.notifications.length, 'unread:', state.unreadCount);
-      } else {
-        console.log('⚠️ Redux: Notification already exists, skipping');
       }
     },
     updateNotification(state, action: PayloadAction<Notification>) {
@@ -63,17 +53,15 @@ const notificationsSlice = createSlice({
       isReply?: boolean,
       reactionType?: string 
     }>) {
-      console.log('🔥 deleteByPostAndUser called with:', action.payload);
-      const beforeCount = state.notifications.length;
       
       state.notifications = state.notifications.filter(n => {
         const notifFromUserId = String(n.fromUserId?._id || n.fromUserId);
-        const notifPostId = String(n.data?.postId || (n as any).postId || '');
-        const notifCommentId = String(n.data?.commentId || n.data?._id || (n as any).commentId || n._id || '');
-        const notifReplyId = String(n.data?.replyId || (n as any).replyId || '');
+        const notifPostId = String(n.data?.postId || (n as unknown as { postId: string }).postId || '');
+        const notifCommentId = String(n.data?.commentId || n.data?._id || (n as unknown as { commentId: string }).commentId || n._id || '');
+        const notifReplyId = String(n.data?.replyId || (n as unknown as { replyId: string }).replyId || '');
         const notifParentCommentId = String(
           n.data?.parentCommentId || 
-          (n as any).parentCommentId || 
+          (n as unknown as { parentCommentId: string }).parentCommentId || 
           n.data?.comment?.parentCommentId ||
           ''
         );
@@ -157,45 +145,19 @@ const notificationsSlice = createSlice({
           n.type === NotificationType.FOLLOWED_USER &&
           (
             notifFromUserId === String(action.payload.fromUserId) ||
-            notifFromUserId === String((action.payload as any).followId)
+            notifFromUserId === String((action.payload as unknown as { followId: string }).followId)
           );
-
-        // 🔥 تسجيل تفصيلي لتصحيح مشاكل المنشن
-        if (n.type === NotificationType.USER_MENTIONED) {
-          console.log('🔍 deleteByPostAndUser - Checking MENTION notification:', {
-            notificationId: n._id,
-            notificationType: n.type,
-            matchMention, 
-            payloadCommentId: action.payload.commentId, 
-            notifCommentId,
-            notifParentCommentId,
-            notificationData: n.data,
-            fullPayload: action.payload
-          });
-        }
 
         const shouldDelete = matchReaction || matchComment || matchRepliesOfDeletedComment || 
                           matchAllNotificationsForDeletedComment || matchEnhancedCommentCleanup || 
                           matchMention || matchFollow;
         
         if (shouldDelete && n.type === NotificationType.USER_MENTIONED) {
-          console.log('🗑️ deleteByPostAndUser - DELETING MENTION notification:', {
-            notificationId: n._id,
-            reason: matchMention ? 'direct mention match' : 'other match',
-            notification: n
-          });
         }
         
         return !shouldDelete;
       });
       
-      const afterCount = state.notifications.length;
-      const deletedCount = beforeCount - afterCount;
-      
-      console.log(`🗑️ Deleted ${deletedCount} notifications (${beforeCount} -> ${afterCount})`);
-      if (deletedCount > 0) {
-        console.log('🔍 Deleted notification types:', action.payload.type);
-      }
       
       state.unreadCount = state.notifications.filter(n => !n.isRead).length;
       // Force state update to trigger re-render
@@ -240,20 +202,7 @@ const notificationsSlice = createSlice({
         includeMentions = true, 
         includeReactions = true,
         mentions = [],
-        forceBroadcast = false
       } = action.payload;
-      
-      const initialCount = state.notifications.length;
-      
-      console.log('🔥 removeCommentNotifications called with:', {
-        commentId,
-        includeReplies,
-        includeMentions,
-        includeReactions,
-        mentions,
-        forceBroadcast,
-        totalNotifications: initialCount
-      });
       
       state.notifications = state.notifications.filter(notification => {
         let shouldRemove = false;
@@ -296,17 +245,11 @@ const notificationsSlice = createSlice({
             const notifToUsername = notification.toUserId?.username || '';
             if (mentions.includes(notifToUsername)) {
               mentionMatch = true;
-              console.log('🔍 Found mention match by username:', notifToUsername);
             }
           }
           
           if (directMatch || dataMatch || mentionMatch) {
             shouldRemove = true;
-            console.log('🗑️ Removing mention notification:', {
-              id: notification._id,
-              reason: directMatch ? 'direct match' : (dataMatch ? 'data match' : 'mention match'),
-              toUser: notification.toUserId?.username
-            });
           }
         }
         
@@ -319,20 +262,11 @@ const notificationsSlice = createSlice({
         return !shouldRemove;
       });
       
-      const deletedCount = initialCount - state.notifications.length;
-      console.log(`🗑️ removeCommentNotifications: Removed ${deletedCount} comment-related notifications for commentId: ${commentId}`);
-      
-      // تحديث العداد
       state.unreadCount = state.notifications.filter(n => !n.isRead).length;
       
       // 🔥 Force state immutability to trigger re-renders
       state.notifications = [...state.notifications];
       
-      console.log('✅ Comment notifications update completed. New state:', {
-        totalNotifications: state.notifications.length,
-        unreadCount: state.unreadCount,
-        stateUpdateTimestamp: new Date().toISOString()
-      });
     },
 
     // تحديث removeNotificationsByCriteria للتعامل مع الردود بشكل أفضل
@@ -345,43 +279,7 @@ const notificationsSlice = createSlice({
       reactionType?: string; // إضافة نوع التفاعل
       affectedTypes?: string[]; // 🔥 جديد لحذف أنواع متعددة
     }>) => {
-      const { type, postId, commentId, fromUserId, parentCommentId, reactionType, affectedTypes } = action.payload;
-      
-      const initialCount = state.notifications.length;
-      
-      console.log('🔍 removeNotificationsByCriteria called with:', {
-        type, postId, commentId, fromUserId, parentCommentId, reactionType, affectedTypes,
-        totalNotifications: initialCount
-      });
-      
-      // 🔥 عرض عينة من الإشعارات الحالية للتصحيح
-      console.log('🔍 Sample notifications in store:', state.notifications.slice(0, 3).map(n => ({
-        id: n._id,
-        type: n.type,
-        content: n.content.substring(0, 30) + '...',
-        dataKeys: Object.keys(n.data || {}),
-        data: n.data
-      })));
-      
-      if (type === 'POST' && postId) {
-        console.log(`🔍 Looking for ALL notifications related to POST: ${postId} (including comments, replies, reactions, mentions)`);
-        
-        // عرض كل الإشعارات المرتبطة بالبوست
-        const relatedNotifications = state.notifications.filter(n => {
-          const dataStr = JSON.stringify(n);
-          return dataStr.includes(`"postId":"${postId}"`) || 
-                 dataStr.includes(`"post":"${postId}"`) ||
-                 String(n.data?.postId || '') === postId;
-        });
-        
-        console.log(`🔍 Found ${relatedNotifications.length} potentially related notifications:`, 
-          relatedNotifications.map(n => ({
-            id: n._id,
-            type: n.type,
-            content: n.content.substring(0, 30) + '...'
-          }))
-        );
-      }
+      const { type, postId, commentId, fromUserId, reactionType } = action.payload;
       
       state.notifications = state.notifications.filter(notification => {
         let shouldRemove = false;
@@ -397,11 +295,6 @@ const notificationsSlice = createSlice({
         );
         
         const notifCommentId = String(notification.data?.commentId || notification.data?._id || notification._id || '');
-        const notifParentCommentId = String(
-          notification.data?.parentCommentId || 
-          notification.data?.comment?.parentCommentId ||
-          ''
-        );
         
         // استخراج نوع التفاعل من الإشعار
         const notifReactionType = notification.data?.reactionType || notification.data?.reaction;
@@ -414,21 +307,9 @@ const notificationsSlice = createSlice({
               // إذا لم يتم تحديد fromUserId أو reactionType، احذف كل التفاعلات على المنشور
               if (!fromUserId && !reactionType) {
                 shouldRemove = true;
-                console.log('🗑️ Removing ALL POST_REACTION notifications for post:', {
-                  id: notification._id,
-                  fromUser: notifFromUserId,
-                  postId: notifPostId,
-                  reactionType: notifReactionType
-                });
               } else if (!fromUserId || notifFromUserId === fromUserId) {
                 if (!reactionType || notifReactionType === reactionType) {
                   shouldRemove = true;
-                  console.log('🗑️ Removing POST_REACTION notification:', {
-                    id: notification._id,
-                    fromUser: notifFromUserId,
-                    postId: notifPostId,
-                    reactionType: notifReactionType
-                  });
                 }
               }
             }
@@ -443,49 +324,12 @@ const notificationsSlice = createSlice({
               // إذا لم يتم تحديد fromUserId أو reactionType، احذف كل التفاعلات على التعليق
               if (!fromUserId && !reactionType) {
                 shouldRemove = true;
-                console.log('🗑️ Removing ALL COMMENT_REACTION notifications for comment/post:', {
-                  id: notification._id,
-                  fromUser: notifFromUserId,
-                  commentId: notifCommentId,
-                  postId: notifPostId,
-                  reactionType: notifReactionType
-                });
               } else if (!fromUserId || notifFromUserId === fromUserId) {
                 if (!reactionType || notifReactionType === reactionType) {
                   shouldRemove = true;
-                  console.log('🗑️ Removing COMMENT_REACTION notification:', {
-                    id: notification._id,
-                    fromUser: notifFromUserId,
-                    commentId: notifCommentId,
-                    postId: notifPostId,
-                    reactionType: notifReactionType
-                  });
                 }
               }
             }
-          }
-        }
-        
-        // 🔥 تسجيل تفصيلي للتصحيح
-        if (type === 'POST' && postId) {
-          const matches = notifPostId === postId;
-          console.log('🔍 Checking notification for POST deletion:', {
-            notificationId: notification._id,
-            notificationType: notification.type,
-            notifPostId,
-            targetPostId: postId,
-            matches,
-            notificationData: notification.data,
-            hasAffectedTypes: !!affectedTypes,
-            affectedTypes: affectedTypes
-          });
-          
-          if (matches) {
-            console.log('✅ POST notification WILL BE DELETED:', {
-              id: notification._id,
-              type: notification.type,
-              content: notification.content?.substring(0, 50) + '...'
-            });
           }
         }
         
@@ -493,11 +337,6 @@ const notificationsSlice = createSlice({
         if (type === 'COMMENT_ADDED') {
           // إذا تم تحديد commentId، احذف تعليق محدد وجميع الردود عليه
           if (commentId) {
-            console.log('🔍 Checking notification for COMMENT deletion (including replies):', {
-              notificationId: notification._id,
-              notificationType: notification.type,
-              targetCommentId: commentId
-            });
             // 🔥 البحث في كل مكان ممكن يكون فيه commentId
             const foundInData = String(notification.data?.commentId || '') === commentId;
             const foundInId = String(notification.data?._id || '') === commentId;
@@ -512,14 +351,6 @@ const notificationsSlice = createSlice({
             if (notification.type === 'USER_MENTIONED') {
               const dataStr = JSON.stringify(notification.data || {});
               foundInMention = dataStr.includes(commentId);
-              
-              // تسجيل للتصحيح
-              console.log('🔍 Checking MENTION for comment deletion:', {
-                notificationId: notification._id,
-                commentId: commentId,
-                foundInMention,
-                notificationData: notification.data
-              });
             }
             
             // 🔥 بحث شامل في كل أجزاء البيانات باستخدام JSON
@@ -531,26 +362,13 @@ const notificationsSlice = createSlice({
                                fullDataStr.includes(`"_id":"${commentId}"`);
             } catch (e) {
               // تجاهل الأخطاء في التحويل
+              console.error('Error parsing notification data:', e);
             }
             
             const isRelatedToComment = foundInData || foundInId || foundInComment || foundInParent || foundInMention || isReplyToDeletedComment || foundInFullData;
             
             if (isRelatedToComment) {
               shouldRemove = true;
-              console.log('🗑️ DELETING notification for COMMENT/REPLY:', {
-                id: notification._id,
-                type: notification.type,
-                commentId: commentId,
-                foundWhere: {
-                  data: foundInData,
-                  id: foundInId,
-                  comment: foundInComment,
-                  parent: foundInParent,
-                  mention: foundInMention,
-                  replyToDeleted: isReplyToDeletedComment,
-                  fullData: foundInFullData
-                }
-              });
             }
           }
           // إذا تم تحديد postId فقط (بدون commentId)، احذف كل التعليقات والردود في المنشور
@@ -563,12 +381,6 @@ const notificationsSlice = createSlice({
             
             if (hasPostId) {
               shouldRemove = true;
-              console.log('🗑️ DELETING ALL COMMENT/REPLY notifications for POST:', {
-                id: notification._id,
-                type: notification.type,
-                postId: postId,
-                notifPostId: notifPostId
-              });
             }
           }
         }
@@ -609,26 +421,13 @@ const notificationsSlice = createSlice({
             foundInFullData = fullDataStr.includes(`"postId":"${postId}"`) || fullDataStr.includes(`"post":"${postId}"`);
           } catch (e) {
             // تجاهل الأخطاء في التحويل
+            console.error('Error parsing notification data:', e);
           }
           
           const isRelatedToPost = foundInData || foundInComment || foundInPost || foundInMention || foundInCommentReaction || foundInNestedReply || foundInFullData;
           
           if (isRelatedToPost) {
             shouldRemove = true;
-            console.log('🗑️ DELETING notification for POST (including comments/replies):', {
-              id: notification._id,
-              type: notification.type,
-              postId: postId,
-              foundWhere: {
-                data: foundInData,
-                comment: foundInComment,
-                post: foundInPost,
-                mention: foundInMention,
-                commentReaction: foundInCommentReaction,
-                nestedReply: foundInNestedReply,
-                fullData: foundInFullData
-              }
-            });
           }
         }
         
@@ -638,11 +437,6 @@ const notificationsSlice = createSlice({
               (notifPostId === postId || JSON.stringify(notification).includes(`"postId":"${postId}"`)) && 
               (!fromUserId || notifFromUserId === fromUserId)) {
             shouldRemove = true;
-            console.log('🗑️ Removing POST_REACTION for post:', {
-              id: notification._id,
-              postId: postId,
-              fromUser: notifFromUserId
-            });
           }
         }
         
@@ -656,12 +450,6 @@ const notificationsSlice = createSlice({
             if (String(notification.type) === 'COMMENT_REACTION' && hasPostId && 
                 (!fromUserId || notifFromUserId === fromUserId)) {
               shouldRemove = true;
-              console.log('🗑️ Removing COMMENT_REACTION for post:', {
-                id: notification._id,
-                postId: postId,
-                fromUser: notifFromUserId,
-                commentId: notifCommentId
-              });
             }
           }
           
@@ -674,18 +462,12 @@ const notificationsSlice = createSlice({
             
             if (hasCommentId && (!fromUserId || notifFromUserId === fromUserId)) {
               shouldRemove = true;
-              console.log('🗑️ Removing COMMENT_REACTION for comment:', {
-                id: notification._id,
-                commentId: commentId,
-                fromUser: notifFromUserId
-              });
             }
           }
         }
         
         // 🔥 حذف إشعارات المنشن (شامل: بوست/تعليق/رد) - محسن
         if (type === 'USER_MENTIONED') {
-          const notifMentionedUserId = String(notification.toUserId?._id || notification.toUserId || '');
           
           // البحث الشامل عن postId في كل أجزاء الإشعار
           const dataStr = JSON.stringify(notification);
@@ -698,20 +480,8 @@ const notificationsSlice = createSlice({
             // إذا لم يتم تحديد fromUserId، احذف كل المنشنات في المنشور
             if (!fromUserId) {
               shouldRemove = true;
-              console.log('🗑️ Removing ALL USER_MENTIONED notifications for post (including comments/replies):', {
-                id: notification._id,
-                fromUser: notifFromUserId,
-                toUser: notifMentionedUserId,
-                postId: postId
-              });
             } else if (notifFromUserId === fromUserId) {
               shouldRemove = true;
-              console.log('🗑️ Removing USER_MENTIONED notification (including comments/replies):', {
-                id: notification._id,
-                fromUser: notifFromUserId,
-                toUser: notifMentionedUserId,
-                postId: postId
-              });
             }
           }
           
@@ -728,20 +498,8 @@ const notificationsSlice = createSlice({
               // إذا لم يتم تحديد fromUserId، احذف كل المنشنات في التعليق
               if (!fromUserId) {
                 shouldRemove = true;
-                console.log('🗑️ Removing ALL USER_MENTIONED notifications for comment (including replies):', {
-                  id: notification._id,
-                  fromUser: notifFromUserId,
-                  toUser: notifMentionedUserId,
-                  commentId: commentId
-                });
               } else if (notifFromUserId === fromUserId) {
                 shouldRemove = true;
-                console.log('🗑️ Removing USER_MENTIONED notification (including replies):', {
-                  id: notification._id,
-                  fromUser: notifFromUserId,
-                  toUser: notifMentionedUserId,
-                  commentId: commentId
-                });
               }
             }
           }
@@ -749,11 +507,6 @@ const notificationsSlice = createSlice({
           // حذف المنشن من مستخدم معين (فقط إذا تم تحديد fromUserId)
           if (fromUserId && notifFromUserId === fromUserId && notification.type === 'USER_MENTIONED') {
             shouldRemove = true;
-            console.log('🗑️ Removing USER_MENTIONED notification from specific user:', {
-              id: notification._id,
-              fromUser: notifFromUserId,
-              toUser: notifMentionedUserId
-            });
           }
         }
         
@@ -768,34 +521,11 @@ const notificationsSlice = createSlice({
         return !shouldRemove;
       });
       
-      const deletedCount = initialCount - state.notifications.length;
-      console.log(`🗑️ removeNotificationsByCriteria: Deleted ${deletedCount} notifications for criteria:`, action.payload);
-      console.log(`📊 Notifications count: ${initialCount} → ${state.notifications.length}`);
-      
-      // إظهار ما تم حذفه بالتفصيل إذا كان حذف بوست
-      if (type === 'POST' && postId && deletedCount > 0) {
-        console.log(`🎯 Successfully deleted ${deletedCount} notifications for POST ${postId}, including:`);
-        console.log('   - Post notifications');
-        console.log('   - Comment notifications');
-        console.log('   - Reply notifications');
-        console.log('   - Reaction notifications (post + comments)');
-        console.log('   - Mention notifications (post + comments + replies)');
-      }
-      
-      // تحديث العداد
-      const newUnreadCount = state.notifications.filter(n => !n.isRead).length;
-      state.unreadCount = newUnreadCount;
-      console.log(`📊 Unread count updated: ${state.unreadCount}`);
+      state.unreadCount = state.notifications.filter(n => !n.isRead).length;
       
       // 🔥 Force state immutability to trigger re-renders
       state.notifications = [...state.notifications];
       
-      console.log('✅ State update completed. New state:', {
-        totalNotifications: state.notifications.length,
-        unreadCount: state.unreadCount,
-        deletedCount: deletedCount,
-        stateUpdateTimestamp: new Date().toISOString()
-      });
     },
 
     // 🔥 إضافة دالة لحذف إشعارات البوست وكل التعليقات والردود المرتبطة به
@@ -808,14 +538,10 @@ const notificationsSlice = createSlice({
     }>) => {
       const { postId, includeComments = true, includeReplies = true, includeMentions = true, includeReactions = true } = action.payload;
       
-      const initialCount = state.notifications.length;
-      
       state.notifications = state.notifications.filter(notification => {
         let shouldRemove = false;
         
         const notifPostId = String(notification.data?.postId || notification.data?._id || '');
-        const notifCommentId = String(notification.data?.commentId || '');
-        const notifParentCommentId = String(notification.data?.parentCommentId || '');
         
         // حذف إشعارات البوست نفسه (POST_CREATED, POST_REACTION)
         if ((notification.type === NotificationType.POST_CREATED || notification.type === NotificationType.POST_REACTION) && 
@@ -851,10 +577,6 @@ const notificationsSlice = createSlice({
         return !shouldRemove;
       });
       
-      const deletedCount = initialCount - state.notifications.length;
-      console.log(`🗑️ removePostNotifications: Removed ${deletedCount} post-related notifications for postId: ${postId}`);
-      
-      // تحديث العداد
       state.unreadCount = state.notifications.filter(n => !n.isRead).length;
     },
 
@@ -866,8 +588,6 @@ const notificationsSlice = createSlice({
       toUserId?: string;
     }>) => {
       const { postId, commentId, fromUserId, toUserId } = action.payload;
-      
-      const initialCount = state.notifications.length;
       
       state.notifications = state.notifications.filter(notification => {
         let shouldRemove = false;
@@ -901,24 +621,9 @@ const notificationsSlice = createSlice({
           const notifToUserId = String(notification.toUserId?._id || notification.toUserId || '');
           
           // 🔥 تسجيل تفصيلي لتصحيح مشاكل المنشن
-          console.log(`🔍 Checking mention notification:`, {
-            notificationId: notification._id,
-            notifCommentId,
-            notifParentCommentId,
-            notifPostId,
-            notifFromUserId,
-            notifToUserId,
-            targetCommentId: commentId,
-            targetPostId: postId,
-            targetFromUserId: fromUserId,
-            targetToUserId: toUserId,
-            notificationData: notification.data
-          });
-          
           // حذف منشن في بوست معين
           if (postId && notifPostId === postId) {
             shouldRemove = true;
-            console.log(`🗑️ Removing mention in post: ${postId}`);
           }
           
           // حذف منشن في تعليق/رد معين - استخدام منطق أكثر شمولية
@@ -928,19 +633,16 @@ const notificationsSlice = createSlice({
                // فحص إضافي في حالة كان commentId مخزون في مكان آخر
                (notification.data?.comment && String(notification.data.comment._id) === commentId))) {
             shouldRemove = true;
-            console.log(`🗑️ Removing mention in comment/reply: ${commentId}`);
           }
           
           // حذف منشن من مستخدم معين
           if (fromUserId && notifFromUserId === fromUserId) {
             shouldRemove = true;
-            console.log(`🗑️ Removing mention from user: ${fromUserId}`);
           }
           
           // حذف منشن لمستخدم معين
           if (toUserId && notifToUserId === toUserId) {
             shouldRemove = true;
-            console.log(`🗑️ Removing mention to user: ${toUserId}`);
           }
         }
         
@@ -951,60 +653,12 @@ const notificationsSlice = createSlice({
         return !shouldRemove;
       });
       
-      const deletedCount = initialCount - state.notifications.length;
-      console.log(`🗑️ removeMentionNotifications: Removed ${deletedCount} mention notifications`);
+      state.unreadCount = state.notifications.filter(n => !n.isRead).length;
       
       // 🔥 Force state immutability to trigger re-renders
       state.notifications = [...state.notifications];
       
-      console.log('✅ State update completed for mentions. New state:', {
-        totalNotifications: state.notifications.length,
-        unreadCount: state.unreadCount,
-        stateUpdateTimestamp: new Date().toISOString()
-      });
-    },
-    
-    // 🔥 دالة تصحيح مؤقتة لرؤية بنية الإشعارات
-    debugNotifications: (state, action: PayloadAction<{ postId?: string; limitTo?: number }>) => {
-      const { postId, limitTo = 5 } = action.payload;
-      
-      console.log('🧪 DEBUG: Current notifications in store:', {
-        total: state.notifications.length,
-        unread: state.unreadCount,
-        notifications: state.notifications.slice(0, limitTo).map(n => ({
-          id: n._id,
-          type: n.type,
-          isRead: n.isRead,
-          content: n.content.substring(0, 50) + '...',
-          data: n.data,
-          fromUserId: n.fromUserId?._id || n.fromUserId,
-          toUserId: n.toUserId?._id || n.toUserId,
-          createdAt: n.createdAt
-        }))
-      });
-      
-      if (postId) {
-        const relatedNotifications = state.notifications.filter(n => {
-          const notifPostId = String(
-            n.data?.postId || 
-            n.data?.post?._id ||
-            (n.data?.post && typeof n.data.post === 'string' ? n.data.post : '') ||
-            ''
-          );
-          return notifPostId === postId;
-        });
-        
-        console.log(`🧪 DEBUG: Notifications related to post ${postId}:`, {
-          count: relatedNotifications.length,
-          notifications: relatedNotifications.map(n => ({
-            id: n._id,
-            type: n.type,
-            content: n.content.substring(0, 50) + '...',
-            data: n.data
-          }))
-        });
-      }
-    },
+    }
   },
 });
 
@@ -1023,7 +677,6 @@ export const {
   removeNotificationsByCriteria,  // 🔥 إضافة جديدة
   removePostNotifications,        // 🔥 إضافة جديدة
   removeMentionNotifications,     // 🔥 إضافة جديدة
-  debugNotifications,             // 🔥 دالة تصحيح مؤقتة
 } = notificationsSlice.actions;
 
 export default notificationsSlice.reducer; 

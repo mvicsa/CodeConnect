@@ -38,7 +38,7 @@ export default function UserMenu() {
       <DropdownMenuTrigger className="flex items-center gap-2 !px-1 cursor-pointer hover:bg-card rounded-lg whitespace-nowrap">
         <Avatar className="rounded-full flex items-center justify-center">
           <AvatarImage
-            src={user?.avatar || "/user.png"}
+            src={user?.avatar as string || "/user.png"}
             alt={user?.username || user?.email}
             className="h-7 w-7 rounded-full flex-shrink-0"
           />
@@ -48,7 +48,7 @@ export default function UserMenu() {
               "?"}
           </AvatarFallback>
         </Avatar>
-        <span className="hidden md:block text-sm font-medium">{user?.firstName}</span>
+        <span className="hidden md:block text-sm font-medium">{user?.firstName as string}</span>
         <ChevronDown
           className={`w-4 h-4 transition-transform duration-300 hidden md:block ${
             open ? "rotate-180" : ""

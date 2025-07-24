@@ -8,7 +8,7 @@ import {
 import navItems from "@/config/nav.config";
 import NavItem from "@/components/layout/navigation/NavItem";
 import { activeMenuProps } from "./nav.types";
-import NotificationPage from "@/components/notification";
+import NotificationPage from "@/components/Notification";
 
 export default function MobileMenu({
   activeIndex,

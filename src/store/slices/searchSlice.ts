@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { PostType } from '@/types/post';
 import { User } from '@/types/user';
 
@@ -42,21 +42,17 @@ export const searchAll = createAsyncThunk<
   try {
     const headers = getAuthHeaders();
     const url = `${API_URL}/search`;
-    console.log('[searchAll] Request:', url, { q: query, page: 1, limit }, headers);
     const response = await axios.get(url, {
       params: { q: query, page: 1, limit },
       headers,
     });
-    console.log('[searchAll] Response:', response.data);
     return response.data;
-  } catch (error: any) {
-    console.error('[searchAll] Error:', error);
-    if (error.response) {
-      console.error('[searchAll] Error response data:', error.response.data);
-      console.error('[searchAll] Error response status:', error.response.status);
-      console.error('[searchAll] Error response headers:', error.response.headers);
+  } catch (error: unknown) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response) {
+      return rejectWithValue((axiosError.response?.data as { message?: string })?.message || 'Search failed');
     }
-    return rejectWithValue(error.response?.data?.message || 'Search failed');
+    return rejectWithValue('Search failed');
   }
 });
 
@@ -67,21 +63,17 @@ export const loadMoreSearch = createAsyncThunk<
   try {
     const headers = getAuthHeaders();
     const url = `${API_URL}/search`;
-    console.log('[loadMoreSearch] Request:', url, { q: query, page, limit }, headers);
     const response = await axios.get(url, {
       params: { q: query, page, limit },
       headers,
     });
-    console.log('[loadMoreSearch] Response:', response.data);
     return response.data;
-  } catch (error: any) {
-    console.error('[loadMoreSearch] Error:', error);
-    if (error.response) {
-      console.error('[loadMoreSearch] Error response data:', error.response.data);
-      console.error('[loadMoreSearch] Error response status:', error.response.status);
-      console.error('[loadMoreSearch] Error response headers:', error.response.headers);
+  } catch (error: unknown) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response) {
+      return rejectWithValue((axiosError.response?.data as { message?: string })?.message || 'Load more failed');
     }
-    return rejectWithValue(error.response?.data?.message || 'Load more failed');
+    return rejectWithValue('Load more failed');
   }
 });
 

@@ -1,5 +1,3 @@
-import { LucideIcon } from 'lucide-react';
-
 export enum NotificationType {
   POST_CREATED = 'POST_CREATED',
   POST_REACTION = 'POST_REACTION',
@@ -76,8 +74,8 @@ export interface Notification {
     replyText?: string;
     post?: NotificationPost;
     comment?: NotificationComment;
-    extra?: Record<string, any>;
-    [key: string]: any;
+    extra?: Record<string, unknown>;
+    [key: string]: unknown;
   };
   createdAt: string;
   updatedAt: string;
@@ -111,8 +109,8 @@ export interface NotificationSocketData {
     postTitle?: string;
     commentText?: string;
     replyText?: string;
-    extra?: Record<string, any>;
-    [key: string]: any;
+    extra?: Record<string, unknown>;
+    [key: string]: unknown;
   };
   createdAt: string;
 }
@@ -141,3 +139,80 @@ export interface LegacyNotification {
     replyText?: string;
   };
 }
+
+// Notification Delete Payload Types
+export interface BaseNotificationDeletePayload {
+  notificationId?: string;
+  forceRefresh?: boolean;
+  type?: string;
+}
+
+export interface PostDeletePayload extends BaseNotificationDeletePayload {
+  type: 'POST';
+  postId: string;
+  affectedTypes?: string;
+}
+
+export interface ReactionDeletePayload extends BaseNotificationDeletePayload {
+  type: 'POST_REACTION' | 'COMMENT_REACTION';
+  postId?: string;
+  commentId?: string;
+  fromUserId?: string;
+  reactionType?: string;
+  deleteAllReactions?: boolean;
+}
+
+export interface CommentDeletePayload extends BaseNotificationDeletePayload {
+  type: 'COMMENT_ADDED';
+  commentId?: string;
+  postId?: string;
+  deleteAllComments?: boolean;
+  hasMentions?: boolean;
+  mentions?: string[];
+  forceBroadcast?: boolean;
+}
+
+export interface MentionDeletePayload extends BaseNotificationDeletePayload {
+  type: 'USER_MENTIONED';
+  postId?: string;
+  commentId?: string;
+  replyId?: string;
+  mentionedUserId?: string;
+  fromUserId?: string;
+  deleteAllMentions?: boolean;
+}
+
+export interface FollowDeletePayload extends BaseNotificationDeletePayload {
+  type: 'FOLLOWED_USER';
+  fromUserId?: string;
+  followId?: string;
+}
+
+export type NotificationDeletePayload = 
+  | PostDeletePayload 
+  | ReactionDeletePayload 
+  | CommentDeletePayload 
+  | MentionDeletePayload 
+  | FollowDeletePayload 
+  | BaseNotificationDeletePayload;
+
+// Helper type guard functions for type narrowing
+export const isPostDeletePayload = (payload: NotificationDeletePayload): payload is PostDeletePayload => {
+  return payload.type === 'POST';
+};
+
+export const isReactionDeletePayload = (payload: NotificationDeletePayload): payload is ReactionDeletePayload => {
+  return payload.type === 'POST_REACTION' || payload.type === 'COMMENT_REACTION';
+};
+
+export const isCommentDeletePayload = (payload: NotificationDeletePayload): payload is CommentDeletePayload => {
+  return payload.type === 'COMMENT_ADDED';
+};
+
+export const isMentionDeletePayload = (payload: NotificationDeletePayload): payload is MentionDeletePayload => {
+  return payload.type === 'USER_MENTIONED';
+};
+
+export const isFollowDeletePayload = (payload: NotificationDeletePayload): payload is FollowDeletePayload => {
+  return payload.type === 'FOLLOWED_USER';
+};

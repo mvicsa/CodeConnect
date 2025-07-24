@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 
 // Backend URL configuration
 const API_URL = `${process.env.NEXT_PUBLIC_API_URL}`
@@ -47,17 +47,17 @@ export const addPostReaction = createAsyncThunk(
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      console.log('✅ Post reaction API response:', response.data);
       return response.data;
-    } catch (error: any) {
-      if (error.response) {
-        console.error('Backend error:', error.response.data);
-        console.error('Backend status:', error.response.status);
-        console.error('Backend headers:', error.response.headers);
-      } else if (error.request) {
-        console.error('No response received:', error.request);
+    } catch (error: unknown) {
+      const axiosError = error as AxiosError;
+      if (axiosError.response) {
+        // console.error('Backend error:', axiosError.response.data);
+        // console.error('Backend status:', axiosError.response.status);
+        // console.error('Backend headers:', axiosError.response.headers);
+      } else if (axiosError.request) {
+        // console.error('No response received:', axiosError.request);
       } else {
-        console.error('Error setting up request:', error.message);
+        // console.error('Error setting up request:', axiosError.message);
       }
       throw error;
     }
@@ -150,7 +150,6 @@ const reactionsSlice = createSlice({
         state.loading = false
         const { commentId, reactions, userReactions } = action.payload
         state.commentReactions[commentId] = { reactions, userReactions }
-        console.log('Comment reactions updated in reactions slice:', commentId, reactions)
       })
       .addCase(addCommentReaction.rejected, (state, action) => {
         state.loading = false

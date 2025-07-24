@@ -1,12 +1,11 @@
-import React, { useContext, useState } from "react";
+import React, { useContext } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChatInput } from "@/components/ui/chat-input";
 import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ChatPreview, ChatRoomType } from "@/types/chat";
+import { ChatPreview, ChatRoomType, Message } from "@/types/chat";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Search, Users, Trash2, Image as ImageIcon, File as FileIcon } from "lucide-react";
+import { ArrowLeft, Search, Users, Image as ImageIcon, File as FileIcon } from "lucide-react";
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store/store';
 import { SocketContext } from '@/store/Provider';
@@ -31,15 +30,13 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onSearchChange,
   activeChatId,
   className,
-  chatPreviews,
-  onChatDelete,
+  chatPreviews
 }) => {
   const myUserId = useSelector((state: RootState) => state.auth.user?._id);
   const socket = useContext(SocketContext);
   const messages = useSelector((state: RootState) => state.chat.messages);
   const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
   const dispatch = useDispatch();
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | null>(null);
 
   const handleChatSelect = (chatId: string) => {
     onChatSelect(chatId);
@@ -47,57 +44,15 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     // Mark messages as seen when selecting a chat
     if (socket && messages[chatId]) {
       const unseenMessages = messages[chatId].filter(msg => 
-        !msg.seenBy.includes(myUserId || '')
+        !msg.seenBy.includes(myUserId as string)
       );
       
       if (unseenMessages.length > 0) {
         const messageIds = unseenMessages.map(msg => msg._id);
         socket.emit('chat:seen', { roomId: chatId, messageIds });
         // Optimistically update Redux so badge disappears instantly
-        dispatch(setSeen({ roomId: chatId, seen: messageIds, userId: myUserId }));
+        dispatch(setSeen({ roomId: chatId, seen: messageIds, userId: myUserId as string }));
       }
-    }
-  };
-
-  const handleDeleteChat = async (chatId: string) => {
-    try {
-      console.log('Attempting to delete chat with chatId:', chatId);
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.error('No authentication token found');
-        return;
-      }
-
-      const response = await fetch(`/api/chat/rooms/${chatId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        // Call the parent's onChatDelete callback to update the UI
-        if (onChatDelete) {
-          onChatDelete(chatId);
-        }
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Failed to delete chat:', errorData);
-      }
-    } catch (error) {
-      console.error('Error deleting chat:', error);
-    }
-    setDeleteDialogOpen(null);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "online":
-        return "bg-primary";
-      case "away":
-        return "bg-warning";
-      default:
-        return "bg-gray-400";
     }
   };
 
@@ -118,7 +73,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
   const t = useTranslations("chat");
 
-  const renderLastMessagePreview = (lastMessage: any) => {
+  const renderLastMessagePreview = (lastMessage: Message | undefined | null) => {
     if (!lastMessage) return 'No messages yet';
     if (lastMessage.deleted) return 'Message deleted';
     if (lastMessage.type === 'image') return <span className="inline-flex items-center gap-1"><ImageIcon className="inline w-4 h-4" /> Image</span>;

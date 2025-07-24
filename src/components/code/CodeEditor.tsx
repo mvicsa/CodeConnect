@@ -6,7 +6,7 @@ import { useSelector } from 'react-redux'
 import { RootState } from '../../store/store'
 import { Button } from '../ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import { Code, Loader2, X } from 'lucide-react'
+import { Loader2, X } from 'lucide-react'
 import { Textarea } from '../ui/textarea'
 import { cn } from '@/lib/utils'
 
@@ -18,9 +18,10 @@ interface CodeEditorProps {
   placeholder?: string
   onRemove?: () => void
   showRemoveButton?: boolean
-  onError?: (error: string | null) => void
   className?: string
 }
+
+type Highlighter = Awaited<ReturnType<typeof createHighlighter>>
 
 export default function CodeEditor({
   value,
@@ -29,17 +30,15 @@ export default function CodeEditor({
   onLanguageChange,
   className,
   onRemove,
-  showRemoveButton = true,
-  onError
+  showRemoveButton = true
 }: CodeEditorProps) {
   const programmingLanguages = useSelector((state: RootState) => state.programmingLanguages?.languages || [])
   const [highlightedHtml, setHighlightedHtml] = useState('')
   const [isHighlighting, setIsHighlighting] = useState(false)
   const editorRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const [cursorPosition, setCursorPosition] = useState(0)
   const highlightTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const highlighterRef = useRef<any>(null)
+  const highlighterRef = useRef<Highlighter | null>(null)
 
   // Highlight code like CodeBlock with caching
   const highlightCode = useCallback(async (code: string, lang: string) => {
@@ -200,14 +199,7 @@ export default function CodeEditor({
   // Handle textarea input
   const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value
-    const newPosition = e.currentTarget.selectionStart
     onChange(newValue)
-    setCursorPosition(newPosition)
-  }
-
-    // Handle textarea key up to sync cursor position
-  const handleTextareaKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    setCursorPosition(e.currentTarget.selectionStart)
   }
 
   // Handle textarea scroll sync (horizontal only)
@@ -224,11 +216,6 @@ export default function CodeEditor({
     }
   }
 
-  // Handle textarea selection
-  const handleTextareaSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
-    setCursorPosition(e.currentTarget.selectionStart)
-  }
-
   // Handle textarea key events
   const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Tab') {
@@ -242,7 +229,6 @@ export default function CodeEditor({
       // Set cursor position after tab
       setTimeout(() => {
         target.setSelectionRange(start + 2, start + 2)
-        setCursorPosition(start + 2)
       }, 0)
     }
   }
@@ -253,11 +239,6 @@ export default function CodeEditor({
       textareaRef.current.value = value
     }
   }, [value])
-
-  // Sync cursor position on focus
-  const handleTextareaFocus = (e: React.FocusEvent<HTMLTextAreaElement>) => {
-    setCursorPosition(e.currentTarget.selectionStart)
-  }
 
   return (
     <div className={cn("space-y-3", className)}>
@@ -299,10 +280,7 @@ export default function CodeEditor({
           value={value}
           onChange={handleTextareaInput}
           onScroll={handleTextareaScroll}
-          onSelect={handleTextareaSelect}
           onKeyDown={handleTextareaKeyDown}
-          onKeyUp={handleTextareaKeyUp}
-          onFocus={handleTextareaFocus}
           spellCheck={false}
           autoCorrect="off"
           autoCapitalize="off"

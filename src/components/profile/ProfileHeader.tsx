@@ -14,10 +14,11 @@ import { SocketContext } from '@/store/Provider';
 import { useRouter } from 'next/navigation';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store/store';
-import { setRooms, setActiveRoom, addRoom } from '@/store/slices/chatSlice';
+import { setRooms, setActiveRoom } from '@/store/slices/chatSlice';
+import { User } from '@/types/user';
 
 interface ProfileHeaderProps {
-  user: any;
+  user: User;
   followersCount: number;
   followingCount: number;
   onFollowersClick: () => void;
@@ -58,7 +59,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   const dispatch = useDispatch();
   const currentUser = useSelector((state: RootState) => state.auth.user);
   const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
-  const status = user ? userStatuses[user._id?.toString()] || 'offline' : 'offline';
+  const status = user ? userStatuses[user._id?.toString() || ''] || 'offline' : 'offline';
   
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover') => {
     if (event.target.files && event.target.files[0]) {
@@ -92,14 +93,14 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     try {
       // Use a timeout to handle cases where the server doesn't respond
       const timeout = setTimeout(() => {
-        console.error('Timeout waiting for private room creation');
         setIsCreatingRoom(false);
       }, 5000);
 
       // Emit the createPrivateRoom event with acknowledgment
-      socket.emit('createPrivateRoom', { receiverId: user._id }, async (response: any) => {
+      socket.emit('createPrivateRoom', { receiverId: user._id }, async (response: unknown) => {
         clearTimeout(timeout);
-        if (response && response.roomId) {
+        const roomResponse = response as { roomId?: string; error?: string };
+        if (roomResponse && roomResponse.roomId) {
           // Fetch latest rooms from backend to get full data
           const token = localStorage.getItem('token');
           const res = await fetch('/api/chat/rooms', {
@@ -109,7 +110,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           if (data.rooms) {
             dispatch(setRooms(data.rooms));
           }
-          dispatch(setActiveRoom(response.roomId));
+          dispatch(setActiveRoom(roomResponse.roomId));
           router.push(`/chat`);
         } else {
           console.error('Failed to create private room - no roomId in response');

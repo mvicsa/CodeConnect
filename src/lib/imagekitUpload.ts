@@ -2,7 +2,6 @@
 // Requires NEXT_PUBLIC_IMAGEKIT_UPLOAD_PRESET in your .env.local
 
 export async function uploadToImageKit(file: File, folder: string): Promise<string> {
-  const urlEndpoint = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT!;
   const publicKey = process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY!;
 
   // 1. Get auth params from your backend

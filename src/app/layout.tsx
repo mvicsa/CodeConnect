@@ -4,12 +4,8 @@ import { NextIntlClientProvider } from "next-intl";
 import "@/styles/globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import ReduxProvider from "@/store/Provider";
-import { MainNavBar } from "@/components/layout/navigation/MainNavBar";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/layout/sidebar/AppSidebar";
 import { RtlProvider } from "@/components/RtlProvider";
 import { Toaster } from "@/components/ui/sonner";
-// import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 const josefinSans = Josefin_Sans({
   variable: "--font-josefin-sans",

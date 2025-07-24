@@ -1,11 +1,11 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 interface User {
   id: string;
   username: string;
   email: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface AuthState {
@@ -32,8 +32,9 @@ export const login = createAsyncThunk(
     try {
       const response = await axios.post(`${API_URL}/auth/login`, data);
       return response.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Login failed');
+    } catch (err: unknown) {
+      const error = err as AxiosError;
+      return rejectWithValue((error.response?.data as { message?: string })?.message || 'Login failed');
     }
   }
 );
@@ -47,8 +48,9 @@ export const register = createAsyncThunk(
     try {
       const response = await axios.post(`${API_URL}/auth/register`, data);
       return response.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Registration failed');
+    } catch (err: unknown) {
+      const error = err as AxiosError;
+      return rejectWithValue((error.response?.data as { message?: string })?.message || 'Registration failed');
     }
   }
 );
@@ -65,17 +67,18 @@ export const fetchProfile = createAsyncThunk(
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || '');
+    } catch (err: unknown) {
+      const error = err as AxiosError;
+      return rejectWithValue((error.response?.data as { message?: string })?.message || '');
     }
   }
 );
 
 export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
-  async (profileData: any, { getState, rejectWithValue }) => {
+  async (profileData: unknown, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as any;
+      const state = getState() as { auth: AuthState };
       const token = state.auth.token;
       const response = await axios.patch(
         `${API_URL}/users/me`,
@@ -83,8 +86,9 @@ export const updateProfile = createAsyncThunk(
         { headers: { Authorization: `Bearer ${token}` } }
       );
       return response.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to update profile');
+    } catch (err: unknown) {
+      const error = err as AxiosError;
+      return rejectWithValue((error.response?.data as { message?: string })?.message || 'Failed to update profile');
     }
   }
 );
@@ -95,8 +99,9 @@ export const githubLogin = createAsyncThunk(
     try {
       // Redirect to backend GitHub OAuth endpoint
       window.location.href = `${API_URL}/auth/github`;
-    } catch (err: any) {
-      return rejectWithValue('GitHub login failed');
+    } catch (err: unknown) {
+      const error = err as AxiosError;
+      return rejectWithValue((error.response?.data as { message?: string })?.message || 'GitHub login failed');
     }
   }
 );
@@ -106,8 +111,9 @@ export const handleGitHubCallback = createAsyncThunk(
   async (callbackData: { token: string; user: User }, { rejectWithValue }) => {
     try {
       return callbackData;
-    } catch (err: any) {
-      return rejectWithValue('GitHub callback failed');
+    } catch (err: unknown) {
+      const error = err as AxiosError;
+      return rejectWithValue((error.response?.data as { message?: string })?.message || 'GitHub callback failed');
     }
   }
 );
@@ -131,7 +137,6 @@ const authSlice = createSlice({
       state.token = action.payload;
       if (typeof window !== 'undefined') localStorage.setItem('token', action.payload);
       if (state.token) {
-        console.log('setting token', state.token);
         document.cookie = `token=${state.token}; path=/;`;
       }
     },

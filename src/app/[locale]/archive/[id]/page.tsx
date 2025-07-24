@@ -13,12 +13,6 @@ import { ArrowLeft, Calendar, Tag, Lightbulb, Code } from 'lucide-react';
 export const dynamicParams = true;
 export const revalidate = 60;
 
-interface ArchiveDetailPageProps {
-    params: {
-        id: string;
-    };
-}
-
 type BadgeVariant = VariantProps<typeof badgeVariants>['variant'];
 
 export async function generateStaticParams() {
@@ -51,12 +45,14 @@ const getDifficultyBadgeConfig = (difficulty: ArchiveItem['difficulty']): { vari
     };
 };
 
-export default async function ArchiveDetailPage({ params }: ArchiveDetailPageProps) {
-    console.log('[DEBUG] Rendering page for ID:', params.id);
-    const item = await ArchiveService.getArchiveItemById(params.id);
+export default async function ArchiveDetailPage({ params }: { params: Promise<{ id: string; locale: string }> }) {
+    const { id, locale } = await params;
+    console.log(id, locale);
+    console.log('[DEBUG] Rendering page for ID:', id);
+    const item = await ArchiveService.getArchiveItemById(id);
 
     if (!item) {
-        console.error('[ERROR] Item not found for ID:', params.id);
+        console.error('[ERROR] Item not found for ID:', id);
         notFound();
     }
 
