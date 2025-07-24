@@ -16,7 +16,7 @@ export default function TagPage() {
   const dispatch = useDispatch<AppDispatch>()
   const t = useTranslations()
   
-  const { postsByTag, loading, error, hasMore, page } = useSelector((state: RootState) => state.tags)
+  const { postsByTag, loading, error } = useSelector((state: RootState) => state.tags)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
 
   useEffect(() => {
@@ -27,12 +27,6 @@ export default function TagPage() {
         .finally(() => setIsInitialLoad(false))
     }
   }, [tag, dispatch])
-
-  const loadMorePosts = () => {
-    if (hasMore && !loading) {
-      dispatch(fetchPostsByTag({ tag, page }))
-    }
-  }
 
   const handleRefresh = () => {
     dispatch(fetchPostsByTag({ tag, refresh: true }))

@@ -8,7 +8,7 @@ import { CalendarIcon } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch } from '@/store/store';
-import { followUser, unfollowUser, fetchFollowers, fetchFollowing, fetchSuggestedUsers, resetFollowers, resetFollowing, resetSuggested } from '@/store/slices/followSlice';
+import { followUser, unfollowUser, fetchFollowers, fetchFollowing, fetchSuggestedUsers, resetSuggested } from '@/store/slices/followSlice';
 import { useEffect, useCallback, useState } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { fetchProfile, updateProfile, updateFollowing } from '@/store/slices/authSlice';
@@ -87,8 +87,8 @@ interface ProfileUser {
   cover?: string;
   skills?: string[];
   role?: string;
-  followers?: any[];
-  following?: any[];
+  followers?: object[];
+  following?: object[];
   bio?: string;
   birthdate?: string;
   gender?: string;
@@ -133,7 +133,6 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
   const user = userProp || reduxUser;
   const currentUser = reduxUser;
   const { followers, following } = useSelector((state: RootState) => state.follow);
-  const { suggested } = useSelector((state: RootState) => state.follow);
   const [followersOpen, setFollowersOpen] = useState(false);
   const [followingOpen, setFollowingOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -142,9 +141,9 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
   const hasFetchedProfile = React.useRef(false);
 
   // Force re-render when followers count changes
-  const [followersCount, setFollowersCount] = useState(user?.followers?.length || 0);
+  const [followersCount, setFollowersCount] = useState((user?.followers as object[])?.length || 0);
   // Add local following count state
-  const [followingCount, setFollowingCount] = useState(user?.following?.length || 0);
+  const [followingCount, setFollowingCount] = useState((user?.following as object[])?.length || 0);
   // Track if we're viewing our own profile or someone else's
   const isSelf = currentUser?._id === user?._id;
   
@@ -157,27 +156,27 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
   useEffect(() => {
     // When viewing someone else's profile, we need to update their followers count
     // from the API data
-    updateFollowersCount(user?.followers?.length || 0);
-  }, [user?.followers?.length, updateFollowersCount]);
+    updateFollowersCount((user?.followers as object[])?.length || 0);
+  }, [user?.followers, updateFollowersCount]);
 
   // Update following count when user data changes
   useEffect(() => {
-    setFollowingCount(user?.following?.length || 0);
-  }, [user?.following?.length]);
+    setFollowingCount((user?.following as object[])?.length || 0);
+  }, [user?.following]);
 
   // Profile edit form state
   const [editForm, setEditForm] = useState<EditForm>({
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
-    bio: user?.bio || '',
-    avatar: user?.avatar || '',
-    cover: user?.cover || '',
-    skills: user?.skills || [],
-    birthdate: user?.birthdate ? new Date(user.birthdate) : null,
-    gender: user?.gender || null,
-    city: user?.city || '',
-    country: user?.country || '',
-    socialLinks: user?.socialLinks || []
+    firstName: user?.firstName as string || '',
+    lastName: user?.lastName as string || '',
+    bio: user?.bio as string || '',
+    avatar: user?.avatar as string || '',
+    cover: user?.cover as string || '',
+    skills: user?.skills as string[] || [],
+    birthdate: user?.birthdate ? new Date(user.birthdate as string) : null,
+    gender: user?.gender as string || null,
+    city: user?.city as string || '',
+    country: user?.country as string || '',
+    socialLinks: user?.socialLinks as SocialLink[] || []
   });
 
   // Update the useEffect that sets the initial form state to handle social links properly
@@ -220,16 +219,16 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
       });
       
       setEditForm({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        bio: user.bio || '',
-        avatar: user.avatar || '',
-        cover: user.cover || '',
-        skills: user.skills || [],
-        birthdate: user.birthdate ? new Date(user.birthdate) : null,
-        gender: user.gender || null,
-        city: user.city || '',
-        country: user.country || '',
+        firstName: user.firstName as string || '',
+        lastName: user.lastName as string || '',
+        bio: user.bio as string || '',
+        avatar: user.avatar as string || '',
+        cover: user.cover as string || '',
+        skills: user.skills as string[] || [],
+        birthdate: user.birthdate ? new Date(user.birthdate as string) : null,
+        gender: user.gender as string || null,
+        city: user.city as string || '',
+        country: user.country as string || '',
         socialLinks: mappedSocialLinks
       });
       
@@ -277,6 +276,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
       new URL(url);
       return true;
     } catch (e) {
+      console.error(e)
       return false;
     }
   };
@@ -350,7 +350,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
         ...prev,
         avatar: url
       }));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Avatar update error:', error);
     } finally {
       setEditLoading(false);
@@ -373,7 +373,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
         ...prev,
         cover: url
       }));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Cover update error:', error);
     } finally {
       setEditLoading(false);
@@ -427,11 +427,10 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
     setEditDialogOpen(false);
 
     try {
-      const response = await dispatch(updateProfile(payload)).unwrap();
       await refetchUser(); // <-- use this instead of fetchProfile
-    } catch (error: any) {
+    } catch (error) {
       console.error('Profile update error:', error);
-      setEditError(error?.message || 'Failed to update profile');
+      setEditError((error as Error)?.message || 'Failed to update profile');
     } finally {
       setEditLoading(false);
     }
@@ -443,11 +442,11 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
       if (isSelf) {
         // If viewing own profile:
         // - Fetch our following list (people we follow)
-        dispatch(fetchFollowing({ userId: user._id }));
+        dispatch(fetchFollowing({ userId: user._id as string }));
       } else {
         // If viewing someone else's profile:
         // - Fetch their followers list (to see if we're in it)
-        dispatch(fetchFollowers({ userId: user._id }));
+        dispatch(fetchFollowers({ userId: user._id as string }));
       }
     }
   }, [dispatch, user?._id, isSelf]);
@@ -490,7 +489,6 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
   // Helper: get following IDs for the logged-in user (for button state)
   const followingIds = useMemo(() => (reduxUser?.following ?? []), [reduxUser?.following]);
   // Helper: get following IDs for the profile user (for dialog user list)
-  const profileFollowingIds = useMemo(() => (user?.following ?? []), [user?.following]);
 
   // Follow/unfollow handlers
   const handleFollow = useCallback(async () => {
@@ -513,12 +511,12 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
         }
         
         // Make API call
-        await dispatch(followUser(user._id)).unwrap();
+        await dispatch(followUser(user._id as string)).unwrap();
         
         // Update local following state for the current user
         // This avoids needing to call fetchProfile() which causes re-renders
-        if (reduxUser && !reduxUser.following?.includes(user._id)) {
-          dispatch(updateFollowing([...(reduxUser.following || []), user._id]));
+        if (reduxUser && reduxUser.following && Array.isArray(reduxUser.following) && !reduxUser.following.includes(user._id as string)) {
+          dispatch(updateFollowing([...(reduxUser.following as string[] || []), user._id as string]));
         }
         
         // No need to fetch followers/following again - we've already updated the counts locally
@@ -562,12 +560,12 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
         }
         
         // Make API call
-        await dispatch(unfollowUser(user._id)).unwrap();
+        await dispatch(unfollowUser(user._id as string)).unwrap();
         
         // Update local following state for the current user
         // This avoids needing to call fetchProfile() which causes re-renders
-        if (reduxUser && reduxUser.following?.includes(user._id)) {
-          dispatch(updateFollowing((reduxUser.following || []).filter((id: string) => id !== user._id)));
+        if (reduxUser && reduxUser.following && Array.isArray(reduxUser.following) && reduxUser.following.includes(user._id as string)) {
+          dispatch(updateFollowing((reduxUser.following as string[] || []).filter((id: string) => id !== user._id as string)));
         }
         
         // No need to fetch followers/following again - we've already updated the counts locally
@@ -595,7 +593,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
   const handleOpenFollowers = () => {
     setFollowersOpen(true);
     if (user?._id) {
-      dispatch(fetchFollowers({ userId: user._id, limit: 20, skip: 0 }));
+      dispatch(fetchFollowers({ userId: user._id as string, limit: 20, skip: 0 }));
     }
   };
 
@@ -603,46 +601,29 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
   const handleOpenFollowing = () => {
     setFollowingOpen(true);
     if (user?._id) {
-      dispatch(fetchFollowing({ userId: user._id, limit: 20, skip: 0 }));
+      dispatch(fetchFollowing({ userId: user._id as string, limit: 20, skip: 0 }));
     }
   };
 
   // Load more followers
   const handleLoadMoreFollowers = () => {
     if (user?._id && followers.hasMore && !followers.loading) {
-      dispatch(fetchFollowers({ userId: user._id, limit: followers.limit, skip: followers.skip }));
+      dispatch(fetchFollowers({ userId: user._id as string, limit: followers.limit, skip: followers.skip }));
     }
   };
 
   // Load more following
   const handleLoadMoreFollowing = () => {
     if (user?._id && following.hasMore && !following.loading) {
-      dispatch(fetchFollowing({ userId: user._id, limit: following.limit, skip: following.skip }));
+      dispatch(fetchFollowing({ userId: user._id as string, limit: following.limit, skip: following.skip }));
     }
-  };
-
-  // Load more suggestions
-  const handleLoadMoreSuggestions = () => {
-    if (suggested.hasMore && !suggested.loading) {
-      dispatch(fetchSuggestedUsers({ limit: suggested.limit, skip: suggested.skip }));
-    }
-  };
-
-  // Close dialogs
-  const handleCloseFollowers = () => {
-    setFollowersOpen(false);
-    dispatch(resetFollowers());
-  };
-  const handleCloseFollowing = () => {
-    setFollowingOpen(false);
-    dispatch(resetFollowing());
   };
 
   // Add state to track dialog follow/unfollow loading
   const [dialogFollowLoading, setDialogFollowLoading] = useState(false);
 
   // DRY follow/unfollow handler for dialogs
-  const handleDialogFollowToggle = async (userObj: any, isFollowing: boolean) => {
+  const handleDialogFollowToggle = async (userObj: ProfileUser, isFollowing: boolean) => {
     try {
       setDialogFollowLoading(true);
       
@@ -664,12 +645,12 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
       // Update local following state for the current user
       // This avoids needing to call fetchProfile() which causes re-renders
       if (reduxUser) {
-        if (isFollowing && reduxUser.following?.includes(userObj._id)) {
+        if (isFollowing && reduxUser.following && Array.isArray(reduxUser.following) && reduxUser.following.includes(userObj._id)) {
           // Remove from following list
-          dispatch(updateFollowing((reduxUser.following || []).filter((id: string) => id !== userObj._id)));
-        } else if (!isFollowing && !reduxUser.following?.includes(userObj._id)) {
+          dispatch(updateFollowing((reduxUser.following as string[] || []).filter((id: string) => id !== userObj._id)));
+        } else if (!isFollowing && reduxUser.following && Array.isArray(reduxUser.following) && !reduxUser.following.includes(userObj._id)) {
           // Add to following list
-          dispatch(updateFollowing([...(reduxUser.following || []), userObj._id]));
+          dispatch(updateFollowing([...(reduxUser.following as string[] || []), userObj._id as string]));
         }
       }
       
@@ -705,7 +686,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
         ) : (
           <>
             <ProfileHeader
-              user={user}
+              user={user as ProfileUser}
               followersCount={followersCount}
               followingCount={followingCount}
               onFollowersClick={handleOpenFollowers}
@@ -994,8 +975,8 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
               hasMore={followers.hasMore}
               onLoadMore={handleLoadMoreFollowers}
               onFollowToggle={handleDialogFollowToggle}
-              followingIds={followingIds}
-              currentUserId={currentUserId}
+              followingIds={followingIds as string[]}
+              currentUserId={currentUserId as string}
               loadingButton={dialogFollowLoading}
               emptyText='No followers yet.'
             />
@@ -1009,11 +990,10 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
               hasMore={following.hasMore}
               onLoadMore={handleLoadMoreFollowing}
               onFollowToggle={handleDialogFollowToggle}
-              followingIds={followingIds}
-              currentUserId={currentUserId}
+              followingIds={followingIds as string[]}
+              currentUserId={currentUserId as string}
               loadingButton={dialogFollowLoading}
               emptyText='Not following anyone yet.'
-              userLink
             />
             <div className='grid grid-cols-16 gap-4'>
               <div className='hidden md:block col-span-5'>
@@ -1021,82 +1001,82 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
                   <CardHeader>
                     <CardTitle className='text-xl font-bold mb-3'>About me</CardTitle>
                       <p className='text-sm'>
-                        {user?.bio || 'No bio yet'}
+                        {user?.bio as string || 'No bio yet'}
                       </p>
                     <div className='flex flex-row mt-4'>
                         <span className='text-sm text-muted-foreground w-19'>City</span>
                         <span className='text-sm'>
-                          {user?.city || 'No city yet'}
+                          {user?.city as string || 'No city yet'}
                         </span>
                     </div>
                     <div className='flex flex-row'>
                         <span className='text-sm text-muted-foreground w-19'>Country</span>
                         <span className='text-sm'>
-                            {user?.country || 'No country yet'}
+                            {user?.country as string || 'No country yet'}
                         </span>
                     </div>
                     <div className='flex flex-row'>
                         <span className='text-sm text-muted-foreground w-19'>Age</span>
                         <span className='text-sm'>
-                          {user?.birthdate ? calculateAge(user.birthdate) : 'No age yet'}
+                          {user?.birthdate ? calculateAge(user.birthdate as string) : 'No age yet'}
                         </span>
                     </div>
-                    
-                    {/* In the About me section, ensure the social links use the icon+color button style */}
-                    {user?.socialLinks && user.socialLinks.length > 0 && (
-                      <div className='mt-4'>
-                        <h4 className='text-sm font-medium mb-2'>Connect</h4>
-                        <div className='flex flex-wrap gap-2'>
-                          {user.socialLinks.map((link: SocialLink, index: number) => {
-                            // Try to find platform by exact match first
-                            let platform = SOCIAL_PLATFORMS.find(p => p.value === link.platform);
-                            
-                            // If not found, try case-insensitive match
-                            if (!platform) {
-                              platform = SOCIAL_PLATFORMS.find(p => 
-                                p.value.toLowerCase() === link.platform?.toLowerCase() ||
-                                p.label.toLowerCase() === link.platform?.toLowerCase()
+                    <>
+                      {user?.socialLinks && (user.socialLinks as SocialLink[]).length > 0 && (
+                        <div className='mt-4'>
+                          <h4 className='text-sm font-medium mb-2'>Connect</h4>
+                          <div className='flex flex-wrap gap-2'>
+                            {(user.socialLinks as SocialLink[]).map((link: SocialLink, index: number) => {
+                              // Try to find platform by exact match first
+                              let platform = SOCIAL_PLATFORMS.find(p => p.value === link.platform);
+                              
+                              // If not found, try case-insensitive match
+                              if (!platform) {
+                                platform = SOCIAL_PLATFORMS.find(p => 
+                                  p.value.toLowerCase() === link.platform?.toLowerCase() ||
+                                  p.label.toLowerCase() === link.platform?.toLowerCase()
+                                );
+                              }
+                              
+                              // If still not found, try matching by title
+                              if (!platform && link.title) {
+                                platform = SOCIAL_PLATFORMS.find(p => 
+                                  p.label.toLowerCase() === (link.title || '').toLowerCase()
+                                );
+                              }
+                              
+                              const Icon = platform?.icon || ExternalLink;
+                              const displayTitle = link.title || platform?.label || link.platform;
+                              const platformColor = platform ? PLATFORM_COLORS[platform.value as keyof typeof PLATFORM_COLORS] : '#6E6E6E';
+                              
+                              return (
+                                <a
+                                  key={index}
+                                  href={link.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className='inline-flex items-center justify-center rounded-md transition-all duration-200 hover:opacity-90 hover:scale-110 shadow-sm transform'
+                                  title={displayTitle}
+                                  style={{ backgroundColor: platformColor }}
+                                >
+                                  <div className="p-1.5">
+                                    <Icon className="h-4 w-4 text-white" />
+                                  </div>
+                                </a>
                               );
-                            }
-                            
-                            // If still not found, try matching by title
-                            if (!platform && link.title) {
-                              platform = SOCIAL_PLATFORMS.find(p => 
-                                p.label.toLowerCase() === (link.title || '').toLowerCase()
-                              );
-                            }
-                            
-                            const Icon = platform?.icon || ExternalLink;
-                            const displayTitle = link.title || platform?.label || link.platform;
-                            const platformColor = platform ? PLATFORM_COLORS[platform.value as keyof typeof PLATFORM_COLORS] : '#6E6E6E';
-                            
-                            return (
-                              <a
-                                key={index}
-                                href={link.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className='inline-flex items-center justify-center rounded-md transition-all duration-200 hover:opacity-90 hover:scale-110 shadow-sm transform'
-                                title={displayTitle}
-                                style={{ backgroundColor: platformColor }}
-                              >
-                                <div className="p-1.5">
-                                  <Icon className="h-4 w-4 text-white" />
-                                </div>
-                              </a>
-                            );
-                          })}
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </>
                   </CardHeader>
                 </Card>
-                {user?.skills?.length > 0 && (
+                {(user?.skills as string[])?.length > 0 && (
                   <div className='mt-8'>
                     <h4 className='mb-4 text-2xl font-bold'>Skills</h4>
                   <div className='flex flex-wrap gap-2'>
                     {/* loop through user skills */}
-                    {user?.skills?.map((skill: string, index: number) => (
+                    {(user?.skills as string[])?.map((skill: string, index: number) => (
                       <span key={index} className='bg-card border dark:border-0 px-3 py-1 rounded-full text-sm'>{skill}</span>
                       ))}
                     </div>
@@ -1104,7 +1084,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
                 )}
               </div>
               <div className='col-span-16 md:col-span-11'>
-                <PostsProfile userId={user?._id} />
+                <PostsProfile userId={user?._id as string} />
               </div>
             </div>
           </>

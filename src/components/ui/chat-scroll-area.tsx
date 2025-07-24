@@ -1,9 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-interface ScrollAreaProps extends React.HTMLAttributes<HTMLDivElement> {}
-
-const ChatScrollArea = React.forwardRef<HTMLDivElement, ScrollAreaProps>(
+const ChatScrollArea = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement> & { className?: string }>(
   ({ className, children, ...props }, ref) => (
     <div
       ref={ref}

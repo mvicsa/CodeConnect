@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '@/store/store';
 import { PostType } from '@/types/post';
 import Post from './Post';
 import { Skeleton } from '../ui/skeleton';
@@ -16,7 +14,6 @@ interface SinglePostViewProps {
 
 export default function SinglePostView({ postId }: SinglePostViewProps) {
   const t = useTranslations();
-  const dispatch = useDispatch<AppDispatch>();
   const [post, setPost] = useState<PostType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

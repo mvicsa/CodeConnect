@@ -1,4 +1,4 @@
-import { configureStore } from '@reduxjs/toolkit';
+import { configureStore, Middleware } from '@reduxjs/toolkit';
 import counterReducer from './slices/counterSlice'
 import commentsReducer from './slices/commentsSlice'
 import postReducer from './slices/postsSlice'
@@ -13,25 +13,50 @@ import userReducer from './slices/userSlice'
 import tagsReducer from './slices/tagsSlice';
 import searchReducer from './slices/searchSlice'
 import notificationsReducer from './slices/notificationsSlice';
+import type { Reactions, UserReaction } from './slices/reactionsSlice';
+import type { UserReaction as PostUserReaction } from '@/types/post';
 
-// Middleware to sync reactions between slices
-const reactionSyncMiddleware = (store: any) => (next: any) => (action: any) => {
-  const result = next(action)
-  
-  // If a post reaction was added, sync it to the posts slice
-  if (action.type === 'reactions/addPostReaction/fulfilled') {
-    const { postId, reactions, userReactions } = action.payload
+function isAddPostReactionFulfilledAction(
+  action: unknown
+): action is { type: string; payload: { postId: string; reactions: Reactions; userReactions: UserReaction[] } } {
+  return (
+    typeof action === 'object' &&
+    action !== null &&
+    'type' in action &&
+    action.type === 'reactions/addPostReaction/fulfilled' &&
+    'payload' in action &&
+    typeof (action as { payload: { postId: string, reactions: Reactions, userReactions: UserReaction[] } }).payload === 'object' &&
+    (action as { payload: { postId: string, reactions: Reactions, userReactions: UserReaction[] } }).payload !== null &&
+    'postId' in (action as { payload: { postId: string, reactions: Reactions, userReactions: UserReaction[] } }).payload &&
+    'reactions' in (action as { payload: { postId: string, reactions: Reactions, userReactions: UserReaction[] } }).payload &&
+    'userReactions' in (action as { payload: { postId: string, reactions: Reactions, userReactions: UserReaction[] } }).payload
+  );
+}
+
+export const reactionSyncMiddleware: Middleware = store => next => (action) => {
+  const result = next(action);
+
+  if (isAddPostReactionFulfilledAction(action)) {
+    const { postId, reactions, userReactions } = action.payload;
+
+    // Convert userReactions to the correct type
+    const convertedUserReactions: PostUserReaction[] = userReactions.map(ur => ({
+      ...ur,
+      userId: { _id: ur.userId } // or provide more User fields if needed
+    }));
+
     store.dispatch(editPost({
       id: postId,
       data: {
         reactions,
-        userReactions
+        userReactions: convertedUserReactions
       }
-    }))
+    }));
   }
-  
-  return result
-}
+
+  return result;
+};
+
 
 export const store = configureStore({
   reducer: {

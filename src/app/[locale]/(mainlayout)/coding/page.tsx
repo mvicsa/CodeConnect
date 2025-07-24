@@ -2,11 +2,9 @@
 import { Sidebar } from "@/components/layout/sidebar/Sidebar";
 import CreatePostWrapper from "@/components/post/CreatePostWrapper";
 import PostsListContainer from "@/components/post/PostsListContainer";
-import { useTranslations } from "next-intl";
 import Container from "@/components/Container";
 
 export default function CodingPage() {
-  const t = useTranslations();
 
   return (
     <Container>

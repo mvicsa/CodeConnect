@@ -1,27 +1,20 @@
-import { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+// import { getTranslations } from 'next-intl/server';
 import SinglePostWithHighlightedComment from '@/components/post/SinglePostWithHighlightedComment';
 
-type Props = {
-  params: {
-    id: string;
-    commentId: string;
-    locale: string;
-  };
-};
+// export async function generateMetadata({ params }: Props) {
+//   const { id, commentId } = params;
+//   const t = await getTranslations('PostPage');
+//   console.log(id, commentId);
+//   return {
+//     title: t('commentTitle'),
+//     description: t('commentDescription'),
+//   };
+// }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const t = await getTranslations('PostPage');
-  
-  return {
-    title: t('commentTitle'),
-    description: t('commentDescription'),
-  };
-}
-
-export default async function PostWithCommentPage({ params }: Props) {
+export default async function PostWithCommentPage({ params }: { params: Promise<{ id: string; commentId: string; locale: string }> }) {
   // Await the params to ensure they are properly resolved
-  const { id, commentId } = await Promise.resolve(params);
+  const { id, commentId, locale } = await params;
+  console.log(id, commentId, locale);
   
   // We pass the same ID as both highlightedCommentId and highlightedReplyId
   // The component will determine which one it is

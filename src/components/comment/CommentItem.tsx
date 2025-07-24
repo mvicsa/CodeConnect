@@ -42,7 +42,7 @@ import {
 } from '@/store/slices/commentsSlice'
 import { removeNotificationsByCriteria } from '@/store/slices/notificationsSlice'
 import { useState, useMemo, useEffect, useContext } from 'react'
-import { Comment, Reply, User } from '@/types/comments'
+import { Comment, CommentUser, Reply, User } from '@/types/comments'
 import Link from 'next/link'
 import AdminBadge from '../AdminBadge'
 import { SocketContext } from '@/store/Provider'
@@ -60,11 +60,11 @@ interface ExtendedUser extends User {
 }
 
 // Helper type guards
-function hasCreatedBy(obj: any): obj is { createdBy: any } {
-  return obj && typeof obj === 'object' && 'createdBy' in obj && obj.createdBy;
+function hasCreatedBy(obj: Comment | Reply): obj is Comment | Reply & { createdBy: User } {
+  return obj && typeof obj === 'object' && 'createdBy' in obj && !!obj.createdBy;
 }
-function has_id(obj: any): obj is { _id: string } {
-  return obj && typeof obj === 'object' && '_id' in obj && obj._id;
+function has_id(obj: Comment | Reply): obj is Comment | Reply & { _id: string } {
+  return obj && typeof obj === 'object' && '_id' in obj && !!obj._id;
 }
 
 function isCommentWithReplies(obj: Comment | Reply): obj is Comment {
@@ -106,7 +106,7 @@ export default function CommentItem({
   const [visibleReplies, setVisibleReplies] = useState(0) // Start with 0 visible replies
 
   const isReply = !!comment.parentCommentId
-  const commentId = has_id(comment) ? comment._id : (comment as any).id
+  const commentId = has_id(comment) ? comment._id : ''
   const rootCommentId = rootId || String(commentId)
   const { user } = useSelector((state: RootState) => state.auth)
 
@@ -179,7 +179,7 @@ export default function CommentItem({
     }
     
     try {
-      const result = await dispatch(addReplyAsync({
+      await dispatch(addReplyAsync({
         parentCommentId: parentId,
         text: text,
         postId: comment.postId,
@@ -215,7 +215,7 @@ export default function CommentItem({
             code: editValue.code,
             codeLang: editValue.codeLang,
             postId: comment.postId,
-            createdBy: (hasCreatedBy(comment) ? comment.createdBy : (comment as any).user?._id) || ''
+            createdBy: (hasCreatedBy(comment) ? comment.createdBy._id : (comment as CommentUser).user?._id) || user?._id as string || ''
           }
         }))
         
@@ -435,7 +435,7 @@ export default function CommentItem({
   return (
     <div className="flex gap-3 items-start relative z-2">
       <Link href={`/profile/${comment.createdBy.username}`} className='relative'>
-        <UserAvatar src={hasCreatedBy(comment) ? (comment.createdBy.avatar || '') : ''} firstName={hasCreatedBy(comment) ? (comment.createdBy.firstName || '') : ((comment as any).user?.name || '')} />
+        <UserAvatar src={hasCreatedBy(comment) ? (comment.createdBy.avatar || '') : ''} firstName={hasCreatedBy(comment) ? (comment.createdBy.firstName || '') : ((comment as CommentUser).user?.username || '')} />
         <span
           className={
             `absolute bottom-0.5 end-0.5 w-3 h-3 rounded-full border-2 border-card ` +
@@ -545,8 +545,7 @@ export default function CommentItem({
               replyId={isReply ? String(commentId) : undefined}
               reactions={comment.reactions}
               userReactions={comment.userReactions}
-              currentUserId={user?._id}
-              currentUsername={user?.username || ''}
+              currentUserId={user?._id as string || ''}
             />
             { user && (
               <button onClick={handleReplyClick} className="flex items-center hover:text-foreground transition-all duration-300 gap-1 cursor-pointer">

@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 interface User {
   _id: string;
@@ -28,7 +28,6 @@ interface UserListDialogProps {
   currentUserId: string | undefined;
   loadingButton?: boolean;
   emptyText?: string;
-  userLink?: boolean;
 }
 
 const UserListDialog = ({
@@ -44,7 +43,6 @@ const UserListDialog = ({
   currentUserId,
   loadingButton = false,
   emptyText = 'No users found.',
-  userLink = false,
 }: UserListDialogProps) => {
   const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
   // Track followed/unfollowed users locally to avoid needing a full refresh

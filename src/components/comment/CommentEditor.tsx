@@ -26,7 +26,6 @@ export default function CommentEditor({
   })
   const [showCodeEditor, setShowCodeEditor] = useState(!!initialValue.code)
   const [codeLanguage, setCodeLanguage] = useState(initialValue.codeLang || 'javascript')
-  const [syntaxError, setSyntaxError] = useState<string | null>(null)
 
   // Update content when initialValue changes
   useEffect(() => {
@@ -42,11 +41,6 @@ export default function CommentEditor({
   const handleSubmit = () => {
     if (!content.text.trim() && (!content.code || !content.code.trim())) return
     
-    // Don't submit if there's a syntax error
-    if (syntaxError) {
-      return;
-    }
-    
     // Clean up empty code blocks
     const cleanContent = {
       text: content.text.trim(),
@@ -56,7 +50,6 @@ export default function CommentEditor({
     onSubmit(cleanContent)
     setContent({ text: '', code: '', codeLang: 'javascript' })
     setShowCodeEditor(false)
-    setSyntaxError(null)
   }
 
   const handleAddCode = () => {
@@ -66,13 +59,11 @@ export default function CommentEditor({
       code: '',
       codeLang: 'javascript'
     }))
-    setSyntaxError(null)
   }
 
   const handleRemoveCode = () => {
     setShowCodeEditor(false)
     setContent(prev => ({ ...prev, code: '' }))
-    setSyntaxError(null)
   }
 
   const updateCode = (code: string) => {
@@ -89,10 +80,6 @@ export default function CommentEditor({
       ...prev,
       codeLang: language
     }))
-  }
-
-  const handleCodeError = (error: string | null) => {
-    setSyntaxError(error);
   }
 
   return (
@@ -121,7 +108,7 @@ export default function CommentEditor({
               size="sm"
               onClick={handleSubmit}
               className="h-8 w-8 p-0"
-              disabled={(!content.text.trim() && (!content.code || !content.code.trim())) || !!syntaxError}
+              disabled={!content.text.trim() && (!content.code || !content.code.trim())}
             >
               <Send className="size-4" />
             </Button>
@@ -137,7 +124,6 @@ export default function CommentEditor({
             language={content.codeLang || codeLanguage}
             onLanguageChange={updateLanguage}
             onRemove={handleRemoveCode}
-            onError={handleCodeError}
           />
         )}
     </div>

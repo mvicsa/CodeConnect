@@ -41,7 +41,6 @@ interface ReactionsMenuProps {
   };
   userReactions?: UserReaction[];
   currentUserId?: string; // Should be the user's _id from backend
-  currentUsername?: string;
 }
 
 export default function ReactionsMenu({ 
@@ -52,14 +51,12 @@ export default function ReactionsMenu({
   replyId,
   reactions = { like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 },
   userReactions = [],
-  currentUserId,
-  currentUsername
+  currentUserId
 }: ReactionsMenuProps) {
   const { 
     handlePostReaction, 
     handleCommentReaction,
     handleReplyReaction,
-    getCurrentUserReaction 
   } = useReactions();
   
   const [open, setOpen] = useState(false);
@@ -78,17 +75,6 @@ export default function ReactionsMenu({
   );
   const currentUserReactionType = currentUserReaction?.reaction || null;
   const selectedReaction = currentUserReactionType ? reactionImageMap[currentUserReactionType as keyof typeof reactionImageMap] : null;
-
-  // Helper function to check if user has reacted
-  const hasUserReacted = (userId: string, reactionType?: string) => {
-    if (!userId) return false; // No user logged in
-    const userReaction = userReactions.find(ur => ur.userId._id === userId);
-    if (!reactionType) return !!userReaction; // Check if user has any reaction
-    return userReaction?.reaction === reactionType; // Check specific reaction type
-  };
-
-  // Check if current user has reacted
-  const isCurrentUserReacted = hasUserReacted(currentUserId || '');
 
   // Calculate total reactions
   const totalReactions = Object.values(reactions).reduce((sum, count) => sum + count, 0);

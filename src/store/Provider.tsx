@@ -8,18 +8,29 @@ import { RootState, AppDispatch } from './store'
 import io from 'socket.io-client'
 import {
   setRooms, setMessages, addMessage, setTyping, setSeen, setError,
-  setConnected, deleteMessage, removeRoom, setHasMore, setUserStatus
+  setConnected, deleteMessage, setHasMore, setUserStatus
 } from './slices/chatSlice'
 import { useSelector as useReduxSelector } from 'react-redux'
-import { addNotification, updateNotification, deleteNotification, deleteByPostAndUser, clearNotifications, removeCommentNotifications, removeNotificationsByCriteria, removePostNotifications, removeMentionNotifications } from './slices/notificationsSlice';
+import { addNotification, updateNotification, deleteNotification, clearNotifications, removeCommentNotifications, removeNotificationsByCriteria, removeMentionNotifications, setNotifications } from './slices/notificationsSlice';
 import { removePost } from './slices/postsSlice';
-import { Notification } from '@/types/notification';
+import { Notification, NotificationDeletePayload, isPostDeletePayload, isReactionDeletePayload, isCommentDeletePayload, isMentionDeletePayload, isFollowDeletePayload } from '@/types/notification';
 import NotificationProvider from '@/components/NotificationProvider';
 import axios from 'axios';
+import { Reactions } from '@/types/comments'
+// import { SocketType } from '@/types/socket' // No longer needed
+import { ChatRoom, Message } from '@/types/chat'
+import { updateCommentReactions, updatePostReactions, UserReaction } from './slices/reactionsSlice'
 
-let socket: any = null
+export const SocketContext = createContext<ReturnType<typeof io> | null>(null)
 
-export const SocketContext = createContext<any>(null)
+function hasId(obj: unknown): obj is { _id: string } {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    '_id' in obj &&
+    typeof (obj as { _id: unknown })._id === 'string'
+  );
+}
 
 function AuthInitializer() {
   const dispatch = useDispatch<AppDispatch>()
@@ -34,7 +45,7 @@ function AuthInitializer() {
 }
 
 export function ReduxProvider({ children }: { children: ReactNode }) {
-  const [socketInstance, setSocketInstance] = useState<any>(null);
+  const [socketInstance, setSocketInstance] = useState<ReturnType<typeof io> | null>(null);
 
   return (
     <Provider store={store}>
@@ -49,17 +60,14 @@ export function ReduxProvider({ children }: { children: ReactNode }) {
   )
 }
 
-function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) => void }) {
+function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: ReturnType<typeof io> | null) => void }) {
   const dispatch = useDispatch()
   const token = useReduxSelector((state: RootState) => state.auth.token)
   const user = useReduxSelector((state: RootState) => state.auth.user)
-  const activeRoomId = useReduxSelector((state: RootState) => state.chat.activeRoomId) || ''
-  const notificationSocketRef = useRef<any>(null);
+  const notificationSocketRef = useRef<ReturnType<typeof io> | null>(null);
 
   useEffect(() => {
     if (!token || typeof window === 'undefined') {
-      console.log('No token or not in browser environment, skipping socket connection');
-      dispatch(setConnected(false));
       setSocket(null);
       return;
     }
@@ -72,7 +80,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       reconnectionAttempts: 5
-    });
+    }) as ReturnType<typeof io>;
 
     // Initialize notification socket connection (root)
     const notificationSocket = io(`${process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000'}`, {
@@ -82,15 +90,10 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       reconnectionAttempts: 5
-    });
+    }) as ReturnType<typeof io>;
     notificationSocketRef.current = notificationSocket;
 
-    console.log('🔗 Notification socket connecting to:', process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000');
-    console.log('🔑 Auth token present:', !!token);
-    console.log('👤 User ID:', user?._id);
-
     notificationSocket.on('connect', () => {
-      console.log('✅ [SOCKET][NOTIFICATIONS] Connected!', notificationSocket.id);
       const userId = user?._id;
       if (userId) {
         notificationSocket.emit('join', userId);
@@ -100,7 +103,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
       }
     });
     
-    notificationSocket.on('connect_error', (error: any) => {
+    notificationSocket.on('connect_error', (error: Error) => {
       console.error('❌ [SOCKET][NOTIFICATIONS] Connection error:', error);
     });
     
@@ -113,18 +116,11 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
       }
     });
     
-    notificationSocket.on('disconnect', (reason: any) => {
+    notificationSocket.on('disconnect', (reason: string) => {
       console.log('❌ [SOCKET][NOTIFICATIONS] Disconnected! Reason:', reason);
     });
     
     notificationSocket.on('notification', (notification: Notification) => {
-      console.log('📨 [SOCKET][NOTIFICATIONS] New notification received:', {
-        id: notification._id,
-        type: notification.type,
-        content: notification.content,
-        fromUser: notification.fromUserId?.username,
-        isRead: notification.isRead
-      });
       dispatch(addNotification(notification));
       
       // Play notification sound if enabled
@@ -156,27 +152,16 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
     });
 
     // استقبال موحد لحذف الإشعارات من الباك إند
-    notificationSocket.on('notification:delete', (payload: any) => {
-      console.log('🗑️ [SOCKET] Received notification:delete:', payload);
+    notificationSocket.on('notification:delete', (payload: NotificationDeletePayload) => {
       
       // حذف مباشر بالـ id
       if (payload?.notificationId) {
-        console.log('🗑️ [SOCKET] Deleting notification by ID:', payload.notificationId);
         dispatch(deleteNotification(payload.notificationId));
         return;
       }
       
       // 🔥 حذف كل إشعارات البوست (البوست، التعليقات، الردود، reactions، المنشن)
-      if (payload?.type === 'POST' && payload?.postId) {
-        console.log('🗑️ [SOCKET] Deleting ALL post-related notifications:', {
-          postId: payload.postId,
-          affectedTypes: payload.affectedTypes || 'all',
-          willDeletePost: true,
-          willDeleteComments: true,
-          willDeleteReplies: true,
-          willDeleteMentions: true,
-          willDeleteReactions: true
-        });
+      if (isPostDeletePayload(payload) && payload.postId) {
         
         // 🔥 حذف البوست من UI
         dispatch(removePost(payload.postId));
@@ -210,15 +195,13 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
         // إعادة تحميل الإشعارات للتأكد من التحديث
         if (payload.forceRefresh && user?._id) {
           setTimeout(() => {
-            console.log('🔄 [SOCKET] Force refreshing notifications after post deletion');
             const token = localStorage.getItem('token');
             if (token) {
               axios.get(`${process.env.NEXT_PUBLIC_API_URL}/notifications/user/${user._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
               })
               .then(response => {
-                dispatch(require('./slices/notificationsSlice').setNotifications(response.data));
-                console.log('✅ [SOCKET] Notifications refreshed successfully after post deletion');
+                dispatch(setNotifications(response.data));
               })
               .catch(error => {
                 console.error('❌ [SOCKET] Failed to refresh notifications after post deletion:', error);
@@ -232,19 +215,12 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
       
       // حذف تفاعل (reaction) بناءً على postId/commentId/replyId/fromUserId
       if (
-        (payload?.type === 'POST_REACTION' || payload?.type === 'COMMENT_REACTION') &&
+        isReactionDeletePayload(payload) &&
         (payload?.postId || payload?.commentId)
       ) {
-        console.log('🗑️ [SOCKET] Deleting reaction notifications with NEW method:', payload);
         
         // إذا كانت العلامة deleteAllReactions موجودة، احذف كل التفاعلات
         if (payload.deleteAllReactions) {
-          console.log('🗑️ [SOCKET] Deleting ALL reactions for:', {
-            type: payload.type,
-            postId: payload.postId,
-            commentId: payload.commentId
-          });
-          
           dispatch(removeNotificationsByCriteria({
             type: payload.type,
             postId: payload.postId,
@@ -267,15 +243,13 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
           setTimeout(() => {
             // إعادة تحميل الإشعارات من السيرفر
             if (user?._id) {
-              console.log('🔄 [SOCKET] Refreshing notifications after reaction deletion');
               const token = localStorage.getItem('token');
               if (token) {
                 axios.get(`${process.env.NEXT_PUBLIC_API_URL}/notifications/user/${user._id}`, {
                   headers: { Authorization: `Bearer ${token}` }
                 })
                 .then(response => {
-                  dispatch(require('./slices/notificationsSlice').setNotifications(response.data));
-                  console.log('✅ [SOCKET] Notifications refreshed successfully after reaction deletion');
+                  dispatch(setNotifications(response.data));
                 })
                 .catch(error => {
                   console.error('❌ [SOCKET] Failed to refresh notifications after reaction deletion:', error);
@@ -289,22 +263,10 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
       }
       
       // حذف إشعار كومنت وجميع الردود المرتبطة به - الطريقة الجديدة! 🔥
-      if (payload?.type === 'COMMENT_ADDED' && (payload?.commentId || payload?.deleteAllComments)) {
-        console.log('🗑️ [SOCKET] Deleting comment and all related notifications using NEW method:', {
-          commentId: payload.commentId,
-          type: payload.type,
-          willAlsoDeleteReplies: true,
-          willAlsoDeleteMentions: true,
-          willAlsoDeleteReactions: true,
-          hasMentions: payload.hasMentions,
-          mentions: payload.mentions,
-          forceBroadcast: payload.forceBroadcast,
-          deleteAllComments: payload.deleteAllComments
-        });
+      if (isCommentDeletePayload(payload) && (payload?.commentId || payload?.deleteAllComments)) {
         
         if (payload.deleteAllComments && payload.postId) {
           // حذف جميع إشعارات التعليقات والردود المرتبطة بالمنشور
-          console.log('🗑️ [SOCKET] Deleting ALL comment notifications for post:', payload.postId);
           dispatch(removeNotificationsByCriteria({
             type: 'COMMENT_ADDED',
             postId: payload.postId
@@ -312,7 +274,6 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
           }));
         } else if (payload.commentId) {
           // حذف تعليق محدد وجميع الردود المرتبطة به
-          console.log('🗑️ [SOCKET] Deleting comment and ALL its replies:', payload.commentId);
           
           // حذف إشعار التعليق نفسه
           dispatch(removeNotificationsByCriteria({
@@ -344,21 +305,18 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
         }
         
         // تأكيد حذف الإشعارات وتحديث الحالة المحلية
-        console.log('✅ [SOCKET] Notifications deleted successfully for comment:', payload.commentId);
         
         // إضافة تأخير قصير ثم إعادة تحميل الإشعارات (لضمان التحديث)
         setTimeout(() => {
           // إعادة تحميل الإشعارات من السيرفر
           if (user?._id) {
-            console.log('🔄 [SOCKET] Refreshing notifications after deletion');
             const token = localStorage.getItem('token');
             if (token) {
               axios.get(`${process.env.NEXT_PUBLIC_API_URL}/notifications/user/${user._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
               })
               .then(response => {
-                dispatch(require('./slices/notificationsSlice').setNotifications(response.data));
-                console.log('✅ [SOCKET] Notifications refreshed successfully');
+                dispatch(setNotifications(response.data));
               })
               .catch(error => {
                 console.error('❌ [SOCKET] Failed to refresh notifications:', error);
@@ -371,8 +329,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
       }
       
       // حذف إشعار رد منفرد
-      if (payload?.type === 'COMMENT_ADDED' && payload?.commentId) {
-        console.log('🗑️ [SOCKET] Deleting individual reply notification with NEW method:', payload);
+      if (isCommentDeletePayload(payload) && payload?.commentId) {
         dispatch(removeNotificationsByCriteria({
           type: payload.type,
           commentId: payload.commentId,
@@ -381,19 +338,10 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
       }
       
       // 🔥 حذف إشعارات المنشن (شامل: بوست/تعليق/رد) - الطريقة المحسنة!
-      if (payload?.type === 'USER_MENTIONED') {
-        console.log('🗑️ [SOCKET] Deleting mention notifications with ENHANCED method:', {
-          postId: payload.postId,
-          commentId: payload.commentId,
-          replyId: payload.replyId,
-          mentionedUserId: payload.mentionedUserId,
-          fromUserId: payload.fromUserId,
-          deleteAllMentions: payload.deleteAllMentions
-        });
+      if (isMentionDeletePayload(payload)) {
         
         if (payload.deleteAllMentions && payload.postId) {
           // حذف جميع إشعارات المنشن المرتبطة بالمنشور
-          console.log('🗑️ [SOCKET] Deleting ALL mention notifications for post:', payload.postId);
           dispatch(removeNotificationsByCriteria({
             type: 'USER_MENTIONED',
             postId: payload.postId
@@ -410,21 +358,18 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
         }
         
         // تأكيد حذف الإشعارات وتحديث الحالة المحلية
-        console.log('✅ [SOCKET] Mention notifications deleted successfully');
         
         // إضافة تأخير قصير ثم إعادة تحميل الإشعارات (لضمان التحديث)
         setTimeout(() => {
           // إعادة تحميل الإشعارات من السيرفر
           if (user?._id) {
-            console.log('🔄 [SOCKET] Refreshing notifications after mention deletion');
             const token = localStorage.getItem('token');
             if (token) {
               axios.get(`${process.env.NEXT_PUBLIC_API_URL}/notifications/user/${user._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
               })
               .then(response => {
-                dispatch(require('./slices/notificationsSlice').setNotifications(response.data));
-                console.log('✅ [SOCKET] Notifications refreshed successfully after mention deletion');
+                dispatch(setNotifications(response.data));
               })
               .catch(error => {
                 console.error('❌ [SOCKET] Failed to refresh notifications after mention deletion:', error);
@@ -437,8 +382,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
       }
       
       // حذف إشعارات المتابعة
-      if (payload?.type === 'FOLLOWED_USER' && (payload?.fromUserId || payload?.followId)) {
-        console.log('🗑️ [SOCKET] Deleting follow notifications with NEW method:', payload);
+      if (isFollowDeletePayload(payload) && (payload?.fromUserId || payload?.followId)) {
         dispatch(removeNotificationsByCriteria({
           type: payload.type,
           fromUserId: payload.fromUserId || payload.followId || '',
@@ -446,25 +390,21 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
         return;
       }
       
-      console.log('⚠️ [SOCKET] Unhandled notification:delete payload:', payload);
     });
 
 
 
     // استقبال حذف كل الإشعارات
     notificationSocket.on('notification:delete_all', () => {
-      console.log('notification:delete_all received');
       dispatch(clearNotifications());
     });
 
     // Connection events
     newSocket.on('connect', () => {
-      console.log('Socket.IO connected!', newSocket.id);
       dispatch(setConnected(true));
     });
   
     newSocket.on('disconnect', () => {
-      console.log('Socket.IO disconnected!');
       dispatch(setConnected(false));
     });
 
@@ -475,14 +415,12 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
     });
 
     // Initial data
-    newSocket.on('connected', ({ rooms }: { rooms: any[] }) => {
-      console.log('[SOCKET] Connected event received with rooms:', rooms);
+    newSocket.on('connected', ({ rooms }: { rooms: ChatRoom[] }) => {
       dispatch(setRooms(rooms));
 
       // Join all room channels for real-time updates
       rooms.forEach(room => {
-        console.log(`[SOCKET] Joining room channel: ${room._id}`);
-        newSocket.emit('chat:join_room', { roomId: room._id }, (error: any) => {
+        newSocket.emit('chat:join_room', { roomId: room._id }, (error: Error) => {
           if (error) {
             console.error(`[SOCKET] Error joining room ${room._id}:`, error);
           } else {
@@ -494,23 +432,18 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
 
     // Listen for join_room event from server (when re-added to a room)
     newSocket.on('chat:join_room', ({ roomId }: { roomId: string }) => {
-      console.log('[SOCKET] Received chat:join_room for room:', roomId);
-      newSocket.emit('chat:join_room', { roomId }, (error: any) => {
+      newSocket.emit('chat:join_room', { roomId }, (error: Error) => {
         if (error) {
-          console.error(`[SOCKET] Error joining room ${roomId}:`, error);
         } else {
-          console.log(`[SOCKET] Successfully joined room ${roomId}`);
         }
       });
     });
 
     // Message events
-    newSocket.on('chat:messages', ({ roomId, messages, hasMore }: { roomId: string; messages: any[]; hasMore: boolean }) => {
-      console.log('[SOCKET] Received messages for room:', roomId, 'Count:', messages.length, 'Has more:', hasMore);
+    newSocket.on('chat:messages', ({ roomId, messages, hasMore }: { roomId: string; messages: Message[]; hasMore: boolean }) => {
       
       // Get existing messages for this room
       const existingMessages = store.getState().chat.messages[roomId] || [];
-      console.log('[SOCKET] Existing messages:', existingMessages.length);
       
       // Merge messages, avoiding duplicates
       const mergedMessages = [...existingMessages];
@@ -528,36 +461,25 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
         return aTime - bTime;
       });
       
-      console.log('[SOCKET] Merged messages:', mergedMessages.length);
       dispatch(setMessages({ roomId, messages: mergedMessages }));
       dispatch(setHasMore({ roomId, hasMore }));
     });
 
-    newSocket.on('chat:message_error', (error: any) => {
-      console.error('Message error from server:', error);
+    newSocket.on('chat:message_error', (error: Error) => {
       dispatch(setError(error.message || 'Failed to send message'));
     });
 
-    newSocket.on('chat:message_sent', (msg: any) => {
-      console.log('Message sent confirmation from server:', msg);
+    newSocket.on('chat:message_sent', (msg: Message) => {
       // Add the message to the local state
       dispatch(addMessage({ roomId: msg.chatRoom, message: msg }));
     });
 
-    newSocket.on('chat:new_message', (msg: any) => {
-      console.log('Received new message:', {
-        _id: msg._id,
-        chatRoom: msg.chatRoom,
-        sender: msg.sender,
-        // Log the full message to see its structure
-        fullMessage: msg
-      });
+    newSocket.on('chat:new_message', (msg: Message) => {
       dispatch(addMessage({ roomId: msg.chatRoom, message: msg }));
     });
 
     newSocket.on('chat:typing', ({ roomId, userId, isTyping }: { roomId: string; userId: string; isTyping: boolean }) => {
       if (!roomId) {
-        console.warn('Received chat:typing with undefined roomId', { roomId, userId, isTyping });
         return;
       }
       dispatch(setTyping({ roomId, typing: [{ userId, isTyping }] }));
@@ -584,17 +506,33 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
     });
 
     // Listen for post reaction updates (realtime)
-    newSocket.on('post:reaction_updated', (data: { postId: string; reactions: any; userReactions: any }) => {
+    newSocket.on('post:reaction_updated', (data: { postId: string; reactions: Reactions; userReactions: UserReaction[] }) => {
       const { postId, reactions, userReactions } = data;
-      console.log('[SOCKET] post:reaction_updated', { postId, reactions, userReactions });
-      dispatch(require('./slices/reactionsSlice').updatePostReactions({ postId, reactions, userReactions }));
+      dispatch(updatePostReactions({
+        postId,
+        reactions,
+        userReactions: userReactions
+          .map(ur => ({
+            ...ur,
+            userId: hasId(ur.userId) ? ur.userId._id : ur.userId || ''
+          }))
+          .filter((ur): ur is UserReaction => typeof ur.userId === 'string' && ur.userId !== '')
+      }));
     });
 
     // Listen for comment reaction updates (realtime)
-    newSocket.on('comment:reaction_updated', (data: { commentId: string; reactions: any; userReactions: any }) => {
+    newSocket.on('comment:reaction_updated', (data: { commentId: string; reactions: Reactions; userReactions: UserReaction[] }) => {
       const { commentId, reactions, userReactions } = data;
-      console.log('[SOCKET] comment:reaction_updated', { commentId, reactions, userReactions });
-      dispatch(require('./slices/reactionsSlice').updateCommentReactions({ commentId, reactions, userReactions }));
+      dispatch(updateCommentReactions({
+        commentId,
+        reactions,
+        userReactions: userReactions
+          .map(ur => ({
+            ...ur,
+            userId: hasId(ur.userId) ? ur.userId._id : ur.userId || ''
+          }))
+          .filter((ur): ur is UserReaction => typeof ur.userId === 'string' && ur.userId !== '')
+      }));
     });
 
     // Set the socket instance
@@ -650,7 +588,6 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: any) =
     if (notificationSocketRef.current && user?._id) {
       const notificationSocket = notificationSocketRef.current;
       if (notificationSocket.connected) {
-        console.log('🔄 [SOCKET][NOTIFICATIONS] User loaded, joining room for:', user._id);
         notificationSocket.emit('join', user._id);
       }
     }

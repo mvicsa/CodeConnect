@@ -9,7 +9,6 @@ import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { Input } from '../ui/input'
 import { Badge } from '../ui/badge'
-import Tags from '../Tags'
 import { 
   Code, 
   Image as ImageIcon, 
@@ -25,9 +24,9 @@ import CodeEditor from '../code/CodeEditor'
 import UserAvatar from '../UserAvatar'
 import { PostType } from '@/types/post'
 import { toast } from 'sonner';
-import { Toaster } from 'sonner';
 import { uploadToImageKit } from '@/lib/imagekitUpload';
 import { useTranslations } from 'next-intl';
+import Image from 'next/image'
 
 interface PostFormProps {
   mode: 'create' | 'edit'
@@ -296,7 +295,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
     <Card className={`w-full dark:border-none shadow-none gap-4 ${className}`}>
       <CardHeader>
         <div className="flex items-center gap-3">
-          <UserAvatar src={isEditMode ? post?.createdBy?.avatar : user?.avatar} firstName={isEditMode ? post?.createdBy?.firstName : user?.firstName} />
+          <UserAvatar src={isEditMode ? post?.createdBy?.avatar as string : user?.avatar as string} firstName={isEditMode ? post?.createdBy?.firstName as string : user?.firstName as string} />
           <div className="flex-1">
             <h3 className="font-semibold">{isEditMode ? 'Edit Post' : 'Create Post'}</h3>
             <p className="text-sm text-muted-foreground">
@@ -393,10 +392,12 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
             </div>
             {content.image ? (
               <div className="space-y-3">
-                <img
+                <Image
                   src={content.image instanceof File ? URL.createObjectURL(content.image) : content.image}
                   alt="Preview"
                   className="max-w-full max-h-64 rounded-lg object-cover"
+                  width={400}
+                  height={256}
                 />
               </div>
             ) : (

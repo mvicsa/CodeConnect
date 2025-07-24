@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { 
   Video, 
@@ -45,19 +45,6 @@ interface Room {
   };
 }
 
-interface Session {
-  _id: string;
-  room: string;
-  roomId: string;
-  participants: Array<{
-    userId: string;
-    username: string;
-    joinedAt: string;
-  }>;
-  createdAt: string;
-  updatedAt: string;
-}
-
 const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://codeconnect-1r7agrz5.livekit.cloud';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -65,14 +52,12 @@ export default function MeetingPage() {
   const [token, setToken] = useState<string | null>(null);
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [sessions, setSessions] = useState<Session[]>([]);
   const [error, setError] = useState('');
   const [joined, setJoined] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('join');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [secretId, setSecretId] = useState('');
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [newRoomData, setNewRoomData] = useState({
@@ -81,37 +66,9 @@ export default function MeetingPage() {
     isPrivate: false,
     maxParticipants: 10
   });
-  const [isClient, setIsClient] = useState(false);
-  const [tokenStatus, setTokenStatus] = useState<'Loading' | 'Present' | 'Missing'>('Loading');
   const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
 
   const t = useTranslations('meeting');
-
-  // Handle client-side hydration
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // Get user info from JWT
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const jwt = localStorage.getItem('token');
-      if (jwt) {
-        try {
-          jwtDecode(jwt);
-          setTokenStatus('Present');
-          fetchRooms();
-          fetchSessions();
-        } catch {
-          setError('Invalid token. Please login again.');
-          setTokenStatus('Missing');
-        }
-      } else {
-        setError('No authentication token found. Please login.');
-        setTokenStatus('Missing');
-      }
-    }
-  }, []);
 
   const getAuthHeaders = (): Record<string, string> => {
     const headers: Record<string, string> = {
@@ -130,48 +87,12 @@ export default function MeetingPage() {
     return headers;
   };
 
-  const fetchRooms = async () => {
-    try {
-      console.log('Fetching rooms from:', `${API_BASE_URL}/livekit/rooms/user/my-rooms`);
-      const headers = getAuthHeaders();
-      console.log('Request headers:', headers);
-      
-      const response = await fetch(`${API_BASE_URL}/livekit/rooms/user/my-rooms`, {
-        headers
-      });
-      
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Rooms data:', data);
-        setRooms(data);
-      } else {
-        const errorText = await response.text();
-        console.error('Failed to fetch rooms:', response.status, errorText);
-        toast.error(`Failed to fetch rooms: ${response.status}`);
-      }
-    } catch (error) {
-      console.error('Network error fetching rooms:', error);
-      toast.error('Network error fetching rooms');
-    }
-  };
-
-  const fetchSessions = async () => {
-    // Sessions endpoint not implemented yet - skip for now
-    console.log('Sessions endpoint not implemented yet');
-    setSessions([]);
-  };
-
   const createRoom = async () => {
     setIsLoading(true);
     try {
-      console.log('Creating room with data:', newRoomData);
       const headers = getAuthHeaders();
-      console.log('Create room headers:', headers);
       
-      let roomName = newRoomData.name;
+      const roomName = newRoomData.name;
       
       const roomDataToSend = {
         ...newRoomData,
@@ -184,18 +105,14 @@ export default function MeetingPage() {
         body: JSON.stringify(roomDataToSend)
       });
 
-      console.log('Create room response status:', response.status);
-      
       if (response.ok) {
         const room = await response.json();
-        console.log('Created room:', room);
         setRooms(prev => [room, ...prev]);
         setShowCreateDialog(false);
         setNewRoomData({ name: '', description: '', isPrivate: false, maxParticipants: 10 });
         toast.success(t('roomCreated'));
       } else {
         const errorText = await response.text();
-        console.error('Failed to create room:', response.status, errorText);
         try {
           const error = JSON.parse(errorText);
           // Handle specific duplicate name error
@@ -217,6 +134,45 @@ export default function MeetingPage() {
     }
   };
 
+  // Get user info from JWT
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const headers = getAuthHeaders();
+        
+        const response = await fetch(`${API_BASE_URL}/livekit/rooms/user/my-rooms`, {
+          headers
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setRooms(data);
+        } else {
+          const errorText = await response.text();
+          console.error('Failed to fetch rooms:', response.status, errorText);
+          toast.error(`Failed to fetch rooms: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Network error fetching rooms:', error);
+        toast.error('Network error fetching rooms');
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      const jwt = localStorage.getItem('token');
+      if (jwt) {
+        try {
+          jwtDecode(jwt);
+          fetchRooms();
+        } catch {
+          setError('Invalid token. Please login again.');
+        }
+      } else {
+        setError('No authentication token found. Please login.');
+      }
+    }
+  }, []);
+
   // Refactor joinRoomBySecretId to accept an optional sid parameter
   const joinRoomBySecretId = async (sid?: string) => {
     const idToJoin = sid ?? secretId;
@@ -227,17 +183,13 @@ export default function MeetingPage() {
 
     setIsLoading(true);
     try {
-      console.log('Joining room with secret ID:', idToJoin);
       const headers = getAuthHeaders();
-      console.log('Join room headers:', headers);
       
       // Get room details by secret ID
       const roomResponse = await fetch(`${API_BASE_URL}/livekit/rooms/join/${idToJoin}`, {
         headers
       });
 
-      console.log('Join room response status:', roomResponse.status);
-      
       if (!roomResponse.ok) {
         const errorText = await roomResponse.text();
         console.error('Failed to join room:', roomResponse.status, errorText);
@@ -246,17 +198,12 @@ export default function MeetingPage() {
       }
 
       const room = await roomResponse.json();
-      console.log('Room details:', room);
       setCurrentRoom(room);
 
       // Get LiveKit token
-      console.log('Getting LiveKit token for secret ID:', idToJoin);
       const tokenResponse = await fetch(`${API_BASE_URL}/livekit/token?secretId=${idToJoin}`, {
         headers
       });
-
-      console.log('Token response status:', tokenResponse.status);
-      console.log('Token response headers:', Object.fromEntries(tokenResponse.headers.entries()));
       
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
@@ -289,7 +236,6 @@ export default function MeetingPage() {
       
       setToken(livekitToken);
       setJoined(true);
-      setShowJoinDialog(false);
       setSecretId('');
       toast.success(t('joinedRoom'));
     } catch (error) {
@@ -318,25 +264,8 @@ export default function MeetingPage() {
         toast.error('Failed to update room');
       }
     } catch (error) {
+      console.error('Failed to update room:', error);
       toast.error('Failed to update room');
-    }
-  };
-
-  const deleteRoom = async (roomId: string) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/livekit/rooms/${roomId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-
-      if (response.ok) {
-        setRooms(prev => prev.filter(room => room._id !== roomId));
-        toast.success(t('roomDeleted'));
-      } else {
-        toast.error(t('failedToDeleteRoom'));
-      }
-    } catch (error) {
-      toast.error(t('failedToDeleteRoom'));
     }
   };
 
@@ -354,6 +283,7 @@ export default function MeetingPage() {
         return null;
       }
     } catch (error) {
+      console.error('Failed to get secret ID:', error);
       toast.error('Failed to get secret ID');
       return null;
     }
@@ -366,6 +296,7 @@ export default function MeetingPage() {
         await navigator.clipboard.writeText(secretId);
         toast.success(t('secretIdCopied'));
       } catch (error) {
+        console.error('Failed to copy secret ID:', error);
         toast.error(t('failedToCopyId'));
       }
     }
@@ -390,8 +321,10 @@ export default function MeetingPage() {
         toast.success(t('roomDeleted'));
       } else {
         toast.error(t('failedToDeleteRoom'));
+        console.error('Failed to delete room:', response.status, response.statusText);
       }
     } catch (error) {
+      console.error('Failed to delete room:', error);
       toast.error(t('failedToDeleteRoom'));
     } finally {
       setRoomToDelete(null);

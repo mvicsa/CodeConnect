@@ -27,7 +27,7 @@ const initialState: PostsState = {
 // Fetch all posts with pagination and type filter
 export const fetchPosts = createAsyncThunk<PostType[], { page?: number; limit?: number; type?: string; refresh?: boolean }>(
   'posts/fetchPosts',
-  async ({ page = 1, limit = 10, type, refresh = false }) => {
+  async ({ page = 1, limit = 10, type}) => {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) })
     if (type) params.append('type', type)
     const url = `${API_URL}?${params.toString()}`
@@ -41,7 +41,7 @@ export const fetchPosts = createAsyncThunk<PostType[], { page?: number; limit?: 
 // Fetch posts by user
 export const fetchPostsByUser = createAsyncThunk<PostType[], { userId: string; page?: number; limit?: number; refresh?: boolean }>(
   'posts/fetchPostsByUser',
-  async ({ userId, page = 1, limit = 10, refresh = false }) => {
+  async ({ userId, page = 1, limit = 10 }) => {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) })
     const url = `${API_URL}/user/${userId}?${params.toString()}`
     const response = await axios.get(url)
@@ -114,13 +114,7 @@ const postsSlice = createSlice({
     // 🔥 دالة لحذف البوست من UI (للـ socket events)
     removePost: (state, action: PayloadAction<string>) => {
       const postId = action.payload;
-      const beforeCount = state.posts.length;
       state.posts = state.posts.filter(p => p._id !== postId);
-      const afterCount = state.posts.length;
-      const deletedCount = beforeCount - afterCount;
-      
-      console.log(`🗑️ removePost: Removed post ${postId} from UI`);
-      console.log(`📊 Posts count: ${beforeCount} → ${afterCount} (deleted: ${deletedCount})`);
       
       // Force immutability to trigger re-renders
       state.posts = [...state.posts];
@@ -165,10 +159,8 @@ const postsSlice = createSlice({
           
           // Safety check: don't let page go too high
           if (state.page > 10) {
-            console.warn('Page number too high, resetting to 1')
             state.page = 1
           }
-          console.log('Pagination mode - posts updated:', state.posts.length)
         }
         
         // Check if we have more posts using pagination info

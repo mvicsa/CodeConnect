@@ -1,9 +1,8 @@
-import { GalleryVerticalEnd } from "lucide-react"
 import React from "react"
 import { ThemeSwitcher } from "@/components/ThemeSwitcher"
 import LanguageSwitcher from "@/components/LanguageSwitcher"
 import Logo from "../Logo"
-import Link from "next/link"
+import Image from "next/image"
 
 interface AuthPageLayoutProps {
   children: React.ReactNode
@@ -14,9 +13,11 @@ export function AuthPageLayout({ children, maxWidth = "max-w-xs" }: AuthPageLayo
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
       <div className="bg-muted relative hidden lg:block">
-        <img
+        <Image
           src="/sign.jpg"
           alt="Image"
+          width={500}
+          height={500}
           className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.6] dark:grayscale"
         />
       </div>

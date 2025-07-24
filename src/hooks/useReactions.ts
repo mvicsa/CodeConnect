@@ -11,14 +11,11 @@ import {
 } from '../store/slices/commentsSlice'
 import { editPost } from '../store/slices/postsSlice'
 import { useCallback, useRef } from 'react'
-import { Reactions, UserReaction as CommentUserReaction, User } from '@/types/comments'
 import { UserReaction as ReactionUserReaction } from '../store/slices/reactionsSlice'
 
 export const useReactions = () => {
   const dispatch = useDispatch<AppDispatch>()
   const { postReactions, commentReactions } = useSelector((state: RootState) => state.reactions)
-  const { comments } = useSelector((state: RootState) => state.comments)
-  const { posts } = useSelector((state: RootState) => state.posts)
   const pendingReactionsRef = useRef<Set<string>>(new Set())
 
   // Add/remove post reaction
@@ -31,7 +28,6 @@ export const useReactions = () => {
     
     // Check if this reaction is already pending
     if (pendingReactionsRef.current.has(reactionKey)) {
-      console.log('🚫 Reaction already pending:', reactionKey)
       return { success: false, error: 'Reaction already pending' }
     }
     
@@ -39,7 +35,6 @@ export const useReactions = () => {
     pendingReactionsRef.current.add(reactionKey)
     
     try {
-      console.log('🚀 handlePostReaction called:', { postId, reaction })
       
       const result = await dispatch(addPostReaction({
         postId,
@@ -47,7 +42,6 @@ export const useReactions = () => {
         token: localStorage.getItem('token') || ''
       })).unwrap()
       
-      console.log('✅ addPostReaction result:', result)
       
       // Update reactions slice state immediately for better UX
       if (result) {
@@ -67,7 +61,6 @@ export const useReactions = () => {
       
       return { success: true, data: result }
     } catch (error) {
-      console.error('❌ Failed to add post reaction:', error)
       return { success: false, error }
     } finally {
       // Remove from pending set
@@ -85,7 +78,6 @@ export const useReactions = () => {
     
     // Check if this reaction is already pending
     if (pendingReactionsRef.current.has(reactionKey)) {
-      console.log('🚫 Comment reaction already pending:', reactionKey)
       return { success: false, error: 'Reaction already pending' }
     }
     
@@ -117,7 +109,6 @@ export const useReactions = () => {
       
       return { success: true, data: result }
     } catch (error) {
-      console.error('Failed to add comment reaction:', error)
       return { success: false, error }
     } finally {
       // Remove from pending set
@@ -136,7 +127,6 @@ export const useReactions = () => {
     
     // Check if this reaction is already pending
     if (pendingReactionsRef.current.has(reactionKey)) {
-      console.log('🚫 Reply reaction already pending:', reactionKey)
       return { success: false, error: 'Reaction already pending' }
     }
     
@@ -170,7 +160,6 @@ export const useReactions = () => {
       
       return { success: true, data: result }
     } catch (error) {
-      console.error('Failed to add reply reaction:', error)
       return { success: false, error }
     } finally {
       // Remove from pending set

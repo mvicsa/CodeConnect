@@ -44,7 +44,7 @@ export const fetchAllTags = createAsyncThunk<TagInfo[]>(
 // Fetch posts by tag with pagination
 export const fetchPostsByTag = createAsyncThunk<PostType[], { tag: string; page?: number; limit?: number; refresh?: boolean }>(
   'tags/fetchPostsByTag',
-  async ({ tag, page = 1, limit = 10, refresh = false }) => {
+  async ({ tag, page = 1, limit = 10 }) => {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) })
     const url = `${API_URL}/tag/${encodeURIComponent(tag)}?${params.toString()}`
     const response = await axios.get(url)

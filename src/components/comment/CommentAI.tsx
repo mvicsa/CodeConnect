@@ -1,13 +1,9 @@
 'use client'
 
 import UserAvatar from '../UserAvatar'
-import ReactionMenu from '../ReactionsMenu'
-import { useTranslations } from 'next-intl'
 import { useSelector } from 'react-redux'
 import { RootState } from '@/store/store'
-import { Comment } from '@/types/comments'
 import AIBadge from '../AiBadge'
-import CodeBlock from '../code/CodeBlock'
 import MarkdownWithCode from '../MarkdownWithCode'
 import { useTheme } from 'next-themes';
 
@@ -26,8 +22,6 @@ export default function CommentAI({
   suggestion?: AISuggestion
   postId: string
 }) {
-  const t = useTranslations()
-  const { user } = useSelector((state: RootState) => state.auth)
   const { loading } = useSelector((state: RootState) => state.aiSuggestions)
   const { theme } = useTheme();
 

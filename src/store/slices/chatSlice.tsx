@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { ChatRoom, Message, TypingIndicator, MessageType, ChatRoomType, User } from '@/types/chat';
+import { ChatRoom, Message, TypingIndicator, ChatRoomType, User } from '@/types/chat';
 
 interface ChatState {
   rooms: ChatRoom[];
@@ -53,10 +53,10 @@ const chatSlice = createSlice({
         let chatRoomId: string;
         if (typeof msg.chatRoom === 'string') {
           chatRoomId = msg.chatRoom;
-        } else if (msg.chatRoom && typeof (msg.chatRoom as any)._id === 'string') {
-          chatRoomId = (msg.chatRoom as any)._id;
-        } else if (msg.chatRoom && typeof (msg.chatRoom as any).toString === 'function') {
-          chatRoomId = (msg.chatRoom as any).toString();
+        } else if (msg.chatRoom && typeof (msg.chatRoom as unknown as { _id: string })._id === 'string') {
+          chatRoomId = (msg.chatRoom as unknown as { _id: string })._id;
+        } else if (msg.chatRoom && typeof (msg.chatRoom as unknown as { toString: () => string }).toString === 'function') {
+          chatRoomId = (msg.chatRoom as unknown as { toString: () => string }).toString();
         } else {
           chatRoomId = '';
         }
@@ -83,10 +83,10 @@ const chatSlice = createSlice({
       let chatRoomId: string;
       if (typeof message.chatRoom === 'string') {
         chatRoomId = message.chatRoom;
-      } else if (message.chatRoom && typeof (message.chatRoom as any)._id === 'string') {
-        chatRoomId = (message.chatRoom as any)._id;
-      } else if (message.chatRoom && typeof (message.chatRoom as any).toString === 'function') {
-        chatRoomId = (message.chatRoom as any).toString();
+      } else if (message.chatRoom && typeof (message.chatRoom as unknown as { _id: string })._id === 'string') {
+        chatRoomId = (message.chatRoom as unknown as { _id: string })._id;
+      } else if (message.chatRoom && typeof (message.chatRoom as unknown as { toString: () => string }).toString === 'function') {
+        chatRoomId = (message.chatRoom as unknown as { toString: () => string }).toString();
       } else {
         chatRoomId = '';
       }

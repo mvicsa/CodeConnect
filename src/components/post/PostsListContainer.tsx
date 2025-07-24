@@ -3,7 +3,7 @@
 import { useEffect, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { AppDispatch, RootState } from '../../store/store'
-import { fetchPosts, fetchPostsByUser } from '../../store/slices/postsSlice'
+import { fetchPosts } from '../../store/slices/postsSlice'
 import PostsList from './PostsList'
 import { Loader2 } from 'lucide-react'
 
@@ -66,7 +66,7 @@ export default function PostsListContainer({ type, limit = 10, page: initialPage
       )}
       {!hasMore && posts.length > 0 && (
         <div className="text-center pb-8 text-muted-foreground">
-          <p>You've reached the end of the posts</p>
+          <p>You&apos;ve reached the end of the posts</p>
         </div>
       )}
     </>
