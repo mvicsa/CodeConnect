@@ -9,7 +9,6 @@ import MobileMenuWithIcon from "./MobileMenuWithIcon";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import Container from "@/components/Container";
-import NotificationPage from "@/components/Notification";
 import navItems from "@/config/nav.config";
 
 export function MainNavBar() {
