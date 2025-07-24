@@ -269,7 +269,6 @@ const NotificationPage = ({ isActive }: { isActive?: boolean }) => {
                         </div>
                 </NavigationMenuItem>
             </DialogTrigger>
-
             <DialogContent className="max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden">
                 <DialogHeader className="p-6 pb-4 border-b">
                     <div className="flex items-center justify-between">
