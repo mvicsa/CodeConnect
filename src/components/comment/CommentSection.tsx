@@ -10,7 +10,6 @@ import CommentEditor from './CommentEditor'
 import { MessageCircle, ChevronDown } from 'lucide-react'
 import { Button } from '../ui/button'
 import CommentAI from './CommentAI'
-import { Comment, Reply } from '@/types/comments'
 
 interface CommentSectionProps {
   postId: string;
@@ -149,9 +148,10 @@ const CommentSection = memo(function CommentSection({
 
   const handleAddComment = async (content: { text: string, code: string, codeLang: string }) => {
     try {
+      if (!user || typeof user._id !== 'string') return; // Ensure user._id is a string
       const newComment = {
         postId: postId, // use the prop directly
-        createdBy: user?._id,
+        createdBy: user._id,
         text: content.text,
         code: content.code,
         codeLang: content.codeLang,
@@ -160,7 +160,6 @@ const CommentSection = memo(function CommentSection({
         userReactions: []
       }
       await dispatch(addCommentAsync(newComment))
-      console.log('Comment added successfully')
     } catch (error) {
       console.error('Failed to add comment:', error)
     }

@@ -6,15 +6,13 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Home,
-  Bookmark,
-  Info,
   Menu,
   Code2,
   Images,
   Video,
   Presentation,
 } from 'lucide-react';
-import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetClose } from '@/components/ui/sheet';
+import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 
 export function SheetD() {

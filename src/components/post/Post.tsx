@@ -326,8 +326,7 @@ const Post = memo(function Post({
                 postId={_id}
                 reactions={reactions}
                 userReactions={normalizedUserReactions}
-                currentUserId={createdBy?._id}
-                currentUsername={createdBy?.username}
+                currentUserId={createdBy?._id as string}
               />
               <button 
                 onClick={ toggleComments }

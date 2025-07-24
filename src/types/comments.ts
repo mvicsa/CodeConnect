@@ -9,6 +9,8 @@ export type User = {
   email: string
   createdAt: Date | string
   updatedAt: Date | string
+  role?: string
+  skills?: string[]
 }
 
 export type UserReaction = {
@@ -52,5 +54,14 @@ export type Comment = {
   reactions: Reactions
   userReactions: UserReaction[]
   replies: Reply[]
+  user?: User
 }
   
+export type CommentUser = { 
+  text?: string | undefined; 
+  code?: string | undefined; 
+  codeLang?: string | undefined; 
+  postId: string; 
+  createdBy: string;
+  user?: User
+}

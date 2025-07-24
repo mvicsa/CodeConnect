@@ -130,7 +130,7 @@ export default function SinglePostWithHighlightedComment({
     }
     
     return false;
-  }, [comments, targetId, targetIdType]);
+  }, [comments, targetId, targetIdType, parentCommentId]);
 
   // Scroll to the target element when it's loaded
   useEffect(() => {

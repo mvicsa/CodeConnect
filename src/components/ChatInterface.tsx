@@ -7,8 +7,9 @@ import { useTranslations } from "next-intl";
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store/store';
 import { setActiveRoom, removeRoom } from '@/store/slices/chatSlice';
-import { ChatPreview, ChatRoomType } from "@/types/chat";
+import { ChatPreview, Message } from "@/types/chat";
 import { createSelector } from 'reselect';
+import { User } from "@/types/user";
 
 // Memoized selector for chatRooms
 const selectChatRoomsForUser = createSelector(
@@ -20,7 +21,7 @@ const selectChatRoomsForUser = createSelector(
     Array.isArray(rooms)
       ? rooms.filter(room =>
           Array.isArray(room.members)
-            ? room.members.some((m: any) => (typeof m === 'string' ? m === myUserId : m._id === myUserId))
+            ? room.members.some((m: User) => (typeof m === 'string' ? m === myUserId : m._id === myUserId))
             : false
         )
       : []
@@ -42,7 +43,7 @@ const ChatInterface: React.FC = () => {
   // Transform chat rooms into previews
   const chatPreviews: ChatPreview[] = chatRooms.map(room => {
     const roomMessages = messages[room._id] || [];
-    const unreadCount = roomMessages.filter(m => !m.seenBy.includes(myUserId)).length;
+    const unreadCount = roomMessages.filter((m: Message) => !m.seenBy.includes(myUserId as string)).length;
     return {
       _id: room._id,
       type: room.type,

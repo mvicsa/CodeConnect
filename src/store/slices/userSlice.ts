@@ -1,25 +1,35 @@
+import { User } from '@/types/user';
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
-export const fetchUserByUsername = createAsyncThunk<any, string>(
+export const fetchUserByUsername = createAsyncThunk<User, string>(
   'user/fetchByUsername',
   async (username, { rejectWithValue }) => {
     try {
       const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/users/${username}`);
       return response.data;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data || 'Failed to fetch user');
+    } catch (error: unknown) {
+      const axiosError = error as AxiosError;
+      return rejectWithValue((axiosError.response?.data as { message?: string })?.message || 'Failed to fetch user');
     }
   }
 );
 
+interface UserState {
+  data: User | null;
+  loading: boolean;
+  error: string | null;
+}
+
+const initialState: UserState = {
+  data: null,
+  loading: false,
+  error: null,
+};
+
 const userSlice = createSlice({
   name: 'user',
-  initialState: {
-    data: null,
-    loading: false,
-    error: null,
-  },
+  initialState,
   reducers: {},
   extraReducers: (builder) => {
     builder
@@ -33,7 +43,7 @@ const userSlice = createSlice({
       })
       .addCase(fetchUserByUsername.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as any;
+        state.error = action.payload as string;
       });
   },
 });

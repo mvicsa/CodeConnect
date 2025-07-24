@@ -2,7 +2,6 @@ import React, { useContext } from "react";
 import { ChatButton } from "@/components/ui/chat-button";
 import { Message } from "@/types/chat";
 import { Reply, Copy, Trash2, MoreHorizontal } from "lucide-react";
-import { useTranslations } from "next-intl";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +25,6 @@ const MessageActions: React.FC<MessageActionsProps> = ({
   onDelete,
   isCurrentUser,
 }) => {
-  const t = useTranslations("chat");
   const socket = useContext(SocketContext);
 
   const handleCopy = () => {

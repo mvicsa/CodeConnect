@@ -1,4 +1,3 @@
-import { cookies } from 'next/headers';
 import UserMenu from './UserMenu';
 
 export default function AuthStateProvider() {

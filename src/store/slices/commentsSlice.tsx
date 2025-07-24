@@ -1,6 +1,6 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import axios from 'axios'
-import { Comment, Reply, Reactions, UserReaction } from '@/types/comments'
+import { Comment, Reply } from '@/types/comments'
 
 // Backend URL configuration
 const API_URL = `${process.env.NEXT_PUBLIC_API_URL}/comments`
@@ -37,6 +37,7 @@ export const fetchComments = createAsyncThunk<Comment[], string>(
             replies: new Array(repliesResponse.data.length).fill(null)
           };
         } catch (error) {
+          console.error('Error fetching replies:', error);
           return {
             ...comment,
             replies: []
@@ -90,7 +91,6 @@ export const addCommentAsync = createAsyncThunk<Comment, {
         replies: [] // Initialize empty replies array
       };
     } catch (error) {
-      console.error('Error adding comment:', error);
       throw error;
     }
   }
@@ -128,7 +128,6 @@ export const addReplyAsync = createAsyncThunk<Reply, {
       
       return response.data;
     } catch (error) {
-      console.error('Error adding reply:', error);
       throw error;
     }
   }
@@ -157,7 +156,6 @@ export const editCommentOrReplyAsync = createAsyncThunk<Comment, { id: string; d
       );
       return response.data;
     } catch (error) {
-      console.error('Error editing comment:', error);
       throw error;
     }
   }
@@ -178,11 +176,8 @@ export const deleteCommentOrReplyAsync = createAsyncThunk<
       },
     });
     
-    console.log('✅ Comment/reply deleted from backend successfully');
-    
     return idToDelete;
   } catch (error) {
-    console.error('❌ Error deleting comment/reply:', error);
     throw error;
   }
 })
@@ -208,7 +203,6 @@ export const updateCommentReactionsAsync = createAsyncThunk<
       // Return the full updated comment
       return response.data;
     } catch (error) {
-      console.error('Error updating comment reactions:', error);
       throw error;
     }
   }
@@ -239,124 +233,17 @@ export const updateReplyReactionsAsync = createAsyncThunk<
       // Return the full updated comment with updated replies
       return response.data;
     } catch (error) {
-      console.error('Error updating reply reactions:', error);
       throw error;
     }
   }
 );
 
-// Helper function to normalize reply data
-const normalizeReply = (reply: any): Reply => {
-  // Convert Date objects to ISO strings to ensure serializability
-  const serializeDate = (date: any): string => {
-    if (!date) return new Date().toISOString();
-    if (date instanceof Date) return date.toISOString();
-    if (typeof date === 'string') return date;
-    return new Date().toISOString();
-  };
-
-  // Create a base reply object with default values
-  const baseReply: Reply = {
-    _id: reply._id || reply.id || `temp-${Date.now()}`,
-    parentCommentId: reply.parentCommentId || '',
-    createdBy: {
-      _id: 'unknown',
-      firstName: 'Unknown',
-      lastName: '',
-      username: 'user',
-      avatar: '',
-      email: '',
-      createdAt: serializeDate(new Date()),
-      updatedAt: serializeDate(new Date())
-    },
-    text: '',
-    code: '',
-    codeLang: '',
-    createdAt: serializeDate(reply.createdAt),
-    postId: reply.postId || '',
-    reactions: { like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 },
-    userReactions: []
-  };
-
-  // Handle createdBy field
-  if (reply.createdBy) {
-    // If createdBy is already a proper object
-    baseReply.createdBy = {
-      _id: reply.createdBy._id || 'unknown',
-      firstName: reply.createdBy.firstName || reply.createdBy.name || 'Unknown',
-      lastName: reply.createdBy.lastName || '',
-      username: reply.createdBy.username || 'user',
-      avatar: reply.createdBy.avatar || '',
-      email: reply.createdBy.email || '',
-      createdAt: serializeDate(reply.createdBy.createdAt),
-      updatedAt: serializeDate(reply.createdBy.updatedAt)
-    };
-  } else if (reply.user) {
-    // If user field is available instead
-    baseReply.createdBy = {
-      _id: reply.user._id || 'unknown',
-      firstName: reply.user.name || reply.user.firstName || 'Unknown',
-      lastName: reply.user.lastName || '',
-      username: reply.user.username || 'user',
-      avatar: reply.user.avatar || '',
-      email: reply.user.email || '',
-      createdAt: serializeDate(new Date()),
-      updatedAt: serializeDate(new Date())
-    };
-  }
-
-  // Handle content field
-  if (reply.content && typeof reply.content === 'object') {
-    baseReply.text = reply.content.text || reply.text || '';
-    baseReply.code = reply.content.code?.code || reply.code || '';
-    baseReply.codeLang = reply.content.code?.language || reply.codeLang || '';
-  } else {
-    baseReply.text = reply.text || '';
-    baseReply.code = reply.code || '';
-    baseReply.codeLang = reply.codeLang || '';
-  }
-
-  // Handle reactions
-  if (reply.reactions) {
-    baseReply.reactions = {
-      like: reply.reactions.like || 0,
-      love: reply.reactions.love || 0,
-      wow: reply.reactions.wow || 0,
-      funny: reply.reactions.funny || 0,
-      dislike: reply.reactions.dislike || 0,
-      happy: reply.reactions.happy || 0
-    };
-  }
-
-  // Handle userReactions
-  if (Array.isArray(reply.userReactions)) {
-    baseReply.userReactions = reply.userReactions.map((ur: any) => ({
-      userId: typeof ur.userId === 'string' ? {
-        _id: ur.userId,
-        firstName: ur.username || 'User',
-        lastName: '',
-        username: ur.username || 'user',
-        avatar: '',
-        email: '',
-        createdAt: serializeDate(new Date()),
-        updatedAt: serializeDate(new Date())
-      } : ur.userId,
-      username: ur.username || (typeof ur.userId === 'object' ? ur.userId.username : 'user'),
-      reaction: ur.reaction || 'like',
-      createdAt: serializeDate(ur.createdAt)
-    }));
-  }
-
-  return baseReply;
-};
-
 // ✅ Fetch replies for a specific comment
-export const fetchReplies = createAsyncThunk<Reply[], string>(
+export const fetchReplies = createAsyncThunk<Reply[], string, { rejectValue: string }>(
   'comments/fetchReplies',
-  async (parentCommentId) => {
+  async (parentCommentId, { rejectWithValue }) => {
     try {
       const response = await axios.get<Reply[]>(`${API_URL}/replies/${parentCommentId}`);
-
       return response.data;
     } catch (error) {
       console.error('Error fetching replies:', error);
@@ -367,10 +254,11 @@ export const fetchReplies = createAsyncThunk<Reply[], string>(
           message: error.message
         });
       }
-      return []; // Return empty array on error to prevent UI breaking
+      return rejectWithValue('Failed to fetch replies');
     }
   }
 );
+
 
 const commentsSlice = createSlice({
   name: 'comments',

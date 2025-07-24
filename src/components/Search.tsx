@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Search, Filter, Calendar, User as UserIcon, Star, Clock, ChevronDown, Loader2 } from 'lucide-react';
+import { Search, Filter, Loader2 } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { RootState, AppDispatch } from '@/store/store';
@@ -11,7 +11,7 @@ import { PostType } from '@/types/post';
 import { User } from '@/types/user';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import PostsList, { PostSkeleton } from '@/components/post/PostsList';
+import PostsList from '@/components/post/PostsList';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import AdminBadge from '@/components/AdminBadge';
@@ -24,64 +24,6 @@ interface SearchResultsProps {
   error: string | null;
   hasMore: boolean;
 }
-
-// Loading skeleton component
-const SearchResultSkeleton = () => (
-    <div className="bg-card border border-border rounded-2xl p-6 animate-pulse">
-        <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-                <div className="h-6 bg-muted rounded-lg w-3/4 mb-2"></div>
-                <div className="h-4 bg-muted rounded w-full mb-2"></div>
-                <div className="h-4 bg-muted rounded w-2/3"></div>
-            </div>
-            <div className="h-6 bg-muted rounded-full w-16 ml-4"></div>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center space-x-4">
-                <div className="h-4 bg-muted rounded w-24"></div>
-                <div className="h-4 bg-muted rounded w-20"></div>
-            </div>
-            <div className="flex items-center space-x-2">
-                <div className="h-4 bg-muted rounded w-12"></div>
-                <div className="h-4 bg-muted rounded w-16"></div>
-            </div>
-        </div>
-    </div>
-);
-
-// Search result card component
-const SearchResultCard: React.FC<{ result: PostType; onResultClick: (id: string) => void }> = ({ result, onResultClick }) => (
-    <div
-        className="bg-card border border-border rounded-2xl p-6 hover:shadow-lg transition-all duration-300 group cursor-pointer"
-        onClick={() => onResultClick(result._id)}
-    >
-        <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-                <h3 className="text-xl font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
-                    {result.text}
-                </h3>
-                <p className="text-muted-foreground leading-relaxed">
-                    {result.code || result.image || result.video || ''}
-                </p>
-            </div>
-            <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium ml-4 whitespace-nowrap">
-                Post
-            </span>
-        </div>
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-1">
-                    <UserIcon className="h-4 w-4" />
-                    <span>{result.createdBy?.username}</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                    <Calendar className="h-4 w-4" />
-                    <span>{new Date(result.createdAt).toLocaleDateString()}</span>
-                </div>
-            </div>
-        </div>
-    </div>
-);
 
 const UserSearchResultCard: React.FC<{ user: User }> = ({ user }) => (
   <Card className="flex flex-col p-6 gap-3 h-full border dark:border-transparent shadow-none transition-all duration-200 group">
@@ -115,7 +57,7 @@ const EmptyState = () => (
         </div>
         <h3 className="text-xl font-semibold text-foreground mb-2">No results found</h3>
         <p className="text-muted-foreground max-w-md">
-            Try adjusting your search query or filters to find what you're looking for.
+            Try adjusting your search query or filters to find what you&apos;re looking for.
         </p>
     </div>
 );
@@ -158,7 +100,7 @@ const SearchResults = React.memo(function SearchResults({
           )}
           {!hasMore && posts.length > 0 && (
             <div className="text-center pb-8 text-muted-foreground">
-              <p>You've reached the end of the posts</p>
+              <p>You&apos;ve reached the end of the posts</p>
             </div>
           )}
         </>
@@ -261,7 +203,7 @@ export default function SearchPage() {
             {query && (
               <div className="flex items-center space-x-2">
                 <span>for</span>
-                <span className="font-medium text-foreground">"{query}"</span>
+                <span className="font-medium text-foreground">{query}</span>
               </div>
             )}
           </div>

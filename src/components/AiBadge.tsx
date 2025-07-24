@@ -1,6 +1,6 @@
 import { HoverCard } from "@/components/ui/hover-card";
 import { HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import {  Bot, TrainFront } from "lucide-react";
+import {  Bot } from "lucide-react";
 
 export default function AIBadge({ role, size = 'sm' }: { role: string, size?: 'xs' | 'sm' | 'md' | 'lg' }) {
   const sizeMap = {

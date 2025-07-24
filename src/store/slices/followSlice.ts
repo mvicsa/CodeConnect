@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import type { User } from '@/types/user';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -32,13 +32,14 @@ export const fetchFollowers = createAsyncThunk(
   'follow/fetchFollowers',
   async ({ userId, limit, skip }: { userId: string; limit?: number; skip?: number }, { rejectWithValue, getState }) => {
     try {
-      const state: any = getState();
+      const state = getState() as { auth: { token: string } };
       const token = state.auth.token;
       const response = await axios.get(`${API_URL}/users/${userId}/followers?limit=${limit || defaultPageSize}&skip=${skip || 0}`,
         { headers: { Authorization: `Bearer ${token}` } });
       return { items: response.data, limit: limit || defaultPageSize, skip: skip || 0 };
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch followers');
+    } catch (err: unknown) {
+      const error = err as AxiosError;
+      return rejectWithValue((error.response?.data as { message?: string })?.message || 'Failed to fetch followers');
     }
   }
 );
@@ -48,13 +49,14 @@ export const fetchFollowing = createAsyncThunk(
   'follow/fetchFollowing',
   async ({ userId, limit, skip }: { userId: string; limit?: number; skip?: number }, { rejectWithValue, getState }) => {
     try {
-      const state: any = getState();
+      const state = getState() as { auth: { token: string } };
       const token = state.auth.token;
       const response = await axios.get(`${API_URL}/users/${userId}/following?limit=${limit || defaultPageSize}&skip=${skip || 0}`,
         { headers: { Authorization: `Bearer ${token}` } });
       return { items: response.data, limit: limit || defaultPageSize, skip: skip || 0 };
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch following');
+    } catch (err: unknown) {
+      const error = err as AxiosError;
+      return rejectWithValue((error.response?.data as { message?: string })?.message || 'Failed to fetch following');
     }
   }
 );
@@ -64,14 +66,15 @@ export const followUser = createAsyncThunk(
   'follow/followUser',
   async (targetId: string, { rejectWithValue, getState }) => {
     try {
-      const state: any = getState();
+      const state = getState() as { auth: { token: string } };
       const token = state.auth.token;
       const response = await axios.post(`${API_URL}/users/follow/${targetId}`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to follow user');
+    } catch (err: unknown) {
+      const error = err as AxiosError;
+      return rejectWithValue((error.response?.data as { message?: string })?.message || 'Failed to follow user');
     }
   }
 );
@@ -81,14 +84,15 @@ export const unfollowUser = createAsyncThunk(
   'follow/unfollowUser',
   async (targetId: string, { rejectWithValue, getState }) => {
     try {
-      const state: any = getState();
+      const state = getState() as { auth: { token: string } };
       const token = state.auth.token;
       const response = await axios.delete(`${API_URL}/users/unfollow/${targetId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to unfollow user');
+    } catch (err: unknown) {
+      const error = err as AxiosError;
+      return rejectWithValue((error.response?.data as { message?: string })?.message || 'Failed to unfollow user');
     }
   }
 );
@@ -98,13 +102,14 @@ export const fetchSuggestedUsers = createAsyncThunk(
   'follow/fetchSuggestedUsers',
   async ({ limit, skip }: { limit?: number; skip?: number } = {}, { rejectWithValue, getState }) => {
     try {
-      const state: any = getState();
+      const state = getState() as { auth: { token: string } };
       const token = state.auth.token;
       const response = await axios.get(`${API_URL}/users/suggestions?limit=${limit || defaultPageSize}&skip=${skip || 0}`,
         { headers: { Authorization: `Bearer ${token}` } });
       return { items: response.data, limit: limit || defaultPageSize, skip: skip || 0 };
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch suggestions');
+    } catch (err: unknown) {
+      const error = err as AxiosError;
+      return rejectWithValue((error.response?.data as { message?: string })?.message || 'Failed to fetch suggestions');
     }
   }
 );
@@ -162,12 +167,6 @@ const followSlice = createSlice({
       .addCase(fetchFollowing.rejected, (state, action) => {
         state.following.loading = false;
         state.following.error = action.payload as string;
-      })
-      .addCase(followUser.fulfilled, (state, action) => {
-        // Optionally update state.following/followers if needed
-      })
-      .addCase(unfollowUser.fulfilled, (state, action) => {
-        // Optionally update state.following/followers if needed
       })
       .addCase(fetchSuggestedUsers.pending, (state) => {
         state.suggested.loading = true;

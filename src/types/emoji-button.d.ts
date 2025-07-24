@@ -1,4 +1,4 @@
 declare module "emoji-button" {
-  const EmojiButton: any;
+  const EmojiButton: unknown;
   export default EmojiButton;
 }

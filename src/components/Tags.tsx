@@ -1,7 +1,6 @@
 import { Badge } from './ui/badge'
 import { Hash } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
 
 interface TagsProps {
   tags: string[]
@@ -11,7 +10,6 @@ interface TagsProps {
 
 export default function Tags({ tags, className = '', clickable = true }: TagsProps) {
   const router = useRouter()
-  const t = useTranslations()
 
   if (!tags || tags.length === 0) {
     return null

@@ -7,16 +7,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchUserByUsername } from '@/store/slices/userSlice';
 import { AppDispatch, RootState } from '@/store/store';
 import { Loader2 } from 'lucide-react';
-
-type User = {
-  id: number;
-  name: string;
-  username: string;
-  email: string;
-  avatar: string;
-  skills: string[];
-  role: string;
-};
+import { User } from '@/types/comments';
 
 const Page = () => {
   const params = useParams();
@@ -36,7 +27,7 @@ const Page = () => {
   if (error) return <div className="text-center mt-10 text-red-500">{String(error)}</div>;
   if (!user) return null;
 
-  return <ProfilePageClient user={user} />;
+  return <ProfilePageClient user={user as User} />;
 };
 
 export default Page;

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Bell, Search, Clock, Trash2, Check, ExternalLink, MessageSquare, Heart, UserPlus, ThumbsUp, FileText, Reply, Volume2, VolumeX, Smartphone, RefreshCw, BellDot } from 'lucide-react';
+import { Bell, Search, Clock, Trash2, Check, MessageSquare, Heart, UserPlus, ThumbsUp, FileText, Volume2, VolumeX, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,15 +9,21 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications } from '@/hooks/useNotifications';
-import { NotificationFilter, Notification, NotificationType, NotificationUser, NotificationPost, NotificationComment } from '@/types/notification';
+import { NotificationFilter, Notification, NotificationType, NotificationUser } from '@/types/notification';
+
+// Type for notification data structure
+interface NotificationData {
+    postId?: string | { _id: string };
+    comment?: { postId: string | { _id: string } };
+    commentId?: string | { postId: string | { _id: string } };
+    post?: { _id: string };
+    extra?: { postId: string };
+    reaction?: string;
+    [key: string]: unknown;
+}
 import Image from 'next/image';
 import { formatTime } from '@/lib/utils';
-import { toast } from 'sonner';
-import { useDispatch } from 'react-redux';
-import { addNotification } from '@/store/slices/notificationsSlice';
-import { motion } from 'framer-motion';
 import Link from 'next/link';
-import NavItem from './layout/navigation/NavItem';
 import { NavigationMenuItem, navigationMenuTriggerStyle } from './ui/navigation-menu';
 
 // Helper function to get icon based on notification type
@@ -42,94 +48,7 @@ const getNotificationIcon = (type: NotificationType) => {
     }
 };
 
-// Helper function to get notification link
-const getNotificationLink = (notification: Notification): string | undefined => {
-    console.log('🔗 Getting notification link for:', {
-        type: notification.type,
-        data: notification.data,
-        fromUserId: notification.fromUserId
-    });
 
-    if (notification.type.toLowerCase().includes('post')) {
-        let postId = notification.data?.postId || notification.data?._id;
-        if (typeof postId === 'string') return `/posts/${postId}`;
-    } else if (notification.type.toLowerCase().includes('comment') || notification.type.toLowerCase().includes('reply')) {
-        console.log('🔗 Getting notification link for comment/reply:', notification.data);
-        
-        // Try multiple ways to get postId
-        let postId: string | undefined = undefined;
-        
-        // Method 1: Direct postId in data
-        if (notification.data?.postId) {
-            postId = String(notification.data.postId);
-        }
-        // Method 2: postId in comment object
-        else if (notification.data?.comment?.postId) {
-            const rawPostId = notification.data.comment.postId;
-            if (typeof rawPostId === 'object' && '_id' in rawPostId) {
-                postId = (rawPostId as { _id: string })._id;
-            } else if (typeof rawPostId === 'string') {
-                postId = rawPostId;
-            }
-        }
-        // Method 2.1: Check populated commentId structure  
-        else if (notification.data?.commentId && typeof notification.data.commentId === 'object') {
-            const commentData = notification.data.commentId as any;
-            if (commentData.postId) {
-                if (typeof commentData.postId === 'object' && commentData.postId._id) {
-                    postId = commentData.postId._id;
-                    console.log(`🔍 Found postId in populated commentId.postId: ${postId}`);
-                } else if (typeof commentData.postId === 'string') {
-                    postId = commentData.postId;
-                    console.log(`🔍 Found postId in commentId.postId string: ${postId}`);
-                }
-            }
-        }
-        // Method 3: Look for post object
-        else if (notification.data?.post?._id) {
-            postId = notification.data.post._id;
-        }
-        // Method 4: Try to extract from extra data
-        else if (notification.data?.extra?.postId) {
-            postId = String(notification.data.extra.postId);
-        }
-        // Method 5: Check if there's a nested structure
-        else if (notification.data && typeof notification.data === 'object') {
-            // Look for any property that might contain postId
-            const dataKeys = Object.keys(notification.data);
-            for (const key of dataKeys) {
-                const value = (notification.data as any)[key];
-                if (value && typeof value === 'object' && value.postId) {
-                    postId = String(value.postId);
-                    console.log(`🔍 Found postId in nested property: ${key}`);
-                    break;
-                }
-            }
-        }
-        
-        // Get commentId
-        let commentId = notification.data?._id || notification.data?.commentId;
-        
-        console.log('🔗 Extracted IDs:', { postId, commentId });
-        
-        if (postId && commentId) {
-            const link = `/posts/${postId}/${commentId}`;
-            console.log('🔗 Generated link:', link);
-            return link;
-        } else if (postId) {
-            // If we have postId but no commentId, go to post page
-            const link = `/posts/${postId}`;
-            console.log('🔗 Fallback to post link:', link);
-            return link;
-        } else {
-            // Last resort: if no postId found, show warning and return profile link
-            console.warn('⚠️ Could not extract postId from notification data. Falling back to profile.');
-            return `/profile/${notification.fromUserId?.username}`;
-        }
-    } else {
-        return `/profile/${notification.fromUserId?.username}`;
-    }
-};
 
 // Helper function to get notification title
 const getNotificationTitle = (notification: Notification): string => {
@@ -168,8 +87,7 @@ const reactionImageMap = {
   dislike: '/reactions/dislike.png',
 };
 
-const NotificationPage = ({ isActive }: { isActive?: boolean }) => {
-    const dispatch = useDispatch();
+const NotificationPage = () => {
     const [showNotifications, setShowNotifications] = useState(false);
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [filter, setFilter] = useState<NotificationFilter>('all');
@@ -178,22 +96,80 @@ const NotificationPage = ({ isActive }: { isActive?: boolean }) => {
 
     const {
         notifications,
-        unreadCount,
         handleMarkAsRead,
         handleMarkAllAsRead,
         handleDeleteNotification,
-        handleDeleteAllNotifications,
-        handleDeleteReactionNotification,
+        handleDeleteAllNotifications
     } = useNotifications();
     
-    // 🔥 Debug: Log when notifications change in component
-    console.log('🔍 NotificationPage: Notifications updated:', {
-        total: notifications.length,
-        unread: unreadCount,
-        ids: notifications.map(n => n._id).slice(0, 5),
-        timestamp: new Date().toISOString()
-    });
+    // Helper function to get notification link using useState
+    const getNotificationLink = (notification: Notification): string | undefined => {
+        let postId: string | undefined = undefined;
 
+        if (notification.type.toLowerCase().includes('post')) {
+            const extractedPostId = notification.data?.postId || notification.data?._id;
+            if (typeof extractedPostId === 'string') return `/posts/${extractedPostId}`;
+        } else if (notification.type.toLowerCase().includes('comment') || notification.type.toLowerCase().includes('reply')) {
+            // Method 1: Direct postId in data
+            if (notification.data?.postId) {
+                postId = String(notification.data.postId);
+            }
+            // Method 2: postId in comment object
+            else if (notification.data?.comment?.postId) {
+                const rawPostId = notification.data.comment.postId;
+                if (typeof rawPostId === 'object' && '_id' in rawPostId) {
+                    postId = (rawPostId as { _id: string })._id;
+                } else if (typeof rawPostId === 'string') {
+                    postId = rawPostId;
+                }
+            }
+            // Method 2.1: Check populated commentId structure  
+            else if (notification.data?.commentId && typeof notification.data.commentId === 'object') {
+                const commentData = notification.data.commentId as NotificationData;
+                if (commentData.postId) {
+                    if (typeof commentData.postId === 'object' && commentData.postId._id) {
+                        postId = commentData.postId._id;
+                    } else if (typeof commentData.postId === 'string') {
+                        postId = commentData.postId;
+                    }
+                }
+            }
+            // Method 3: Look for post object
+            else if (notification.data?.post?._id) {
+                postId = notification.data.post._id;
+            }
+            // Method 4: Try to extract from extra data
+            else if (notification.data?.extra?.postId) {
+                postId = String(notification.data.extra.postId);
+            }
+            // Method 5: Check if there's a nested structure
+            else if (notification.data && typeof notification.data === 'object') {
+                const dataKeys = Object.keys(notification.data);
+                for (const key of dataKeys) {
+                    const value = (notification.data as NotificationData)[key];
+                    if (value && typeof value === 'object' && (value as NotificationData).postId) {
+                        postId = String((value as NotificationData).postId);
+                        break;
+                    }
+                }
+            }
+
+            // Get commentId
+            const commentId = notification.data?._id || notification.data?.commentId;
+
+            if (postId && commentId) {
+                return `/posts/${postId}/${commentId}`;
+            } else if (postId) {
+                return `/posts/${postId}`;
+            } else {
+                return `/profile/${notification.fromUserId?.username}`;
+            }
+        } else {
+            return `/profile/${notification.fromUserId?.username}`;
+        }
+    };
+    
+    
     // تحميل الإعدادات المحفوظة
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -387,21 +363,21 @@ const NotificationPage = ({ isActive }: { isActive?: boolean }) => {
                                 const link = getNotificationLink(notification);
                                 const title = getNotificationTitle(notification);
 
-                                // Reaction image logic must be inside the map for real-time updates
-                                let reactionImage = null;
+                                // Compute reaction image directly for this notification
+                                let reactionImage: React.ReactNode | null = null;
                                 if (
-                                  (notification.type === NotificationType.POST_REACTION || String(notification.type) === 'COMMENT_REACTION') &&
-                                  typeof notification.data.reaction === 'string' &&
-                                  notification.data.reaction in reactionImageMap
+                                    (notification.type === NotificationType.POST_REACTION || String(notification.type) === 'COMMENT_REACTION') &&
+                                    typeof notification.data.reaction === 'string' &&
+                                    notification.data.reaction in reactionImageMap
                                 ) {
-                                  reactionImage = (
-                                    <Image
-                                      src={reactionImageMap[notification.data.reaction as keyof typeof reactionImageMap]}
-                                      alt={notification.data.reaction}
-                                      width={15}
-                                      height={15}
-                                    />
-                                  );
+                                    reactionImage = (
+                                        <Image
+                                            src={reactionImageMap[notification.data.reaction as keyof typeof reactionImageMap]}
+                                            alt={notification.data.reaction}
+                                            width={15}
+                                            height={15}
+                                        />
+                                    );
                                 }
 
                                 return (
@@ -415,9 +391,11 @@ const NotificationPage = ({ isActive }: { isActive?: boolean }) => {
                                                     <div className="flex-shrink-0">
                                                         {notification.fromUserId ? (
                                                             <div className="relative">
-                                                                <img
+                                                                <Image
                                                                     src={notification.fromUserId.avatar || '/user.png'}
                                                                     alt={getUserDisplayName(notification.fromUserId)}
+                                                                    width={40}
+                                                                    height={40}
                                                                     className="w-10 h-10 rounded-full object-cover border-2"
                                                                     onError={(e) => {
                                                                         const target = e.target as HTMLImageElement;

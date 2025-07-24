@@ -47,7 +47,7 @@ const SuggestedUsers = ({ limit = 3, cardTitle = 'Suggested Users', className = 
           )}
           {suggested.items.map((u) => {
             const isSelf = u._id === currentUserId;
-            const isFollowing = followingIds.includes(u._id);
+            const isFollowing = followingIds && Array.isArray(followingIds) && followingIds.includes(u._id as string);
             return (
               <div key={u._id} className='flex items-center gap-2 p-2 rounded-lg hover:bg-accent transition'>
                 <Link href={`/profile/${u.username}`}>
@@ -65,7 +65,7 @@ const SuggestedUsers = ({ limit = 3, cardTitle = 'Suggested Users', className = 
                   <Button
                     size='sm'
                     variant={isFollowing ? 'outline' : 'default'}
-                    onClick={async () => { await dispatch(isFollowing ? unfollowUser(u._id) : followUser(u._id)); dispatch(fetchProfile()); dispatch(resetSuggested()); dispatch(fetchSuggestedUsers({ limit: suggested.limit, skip: 0 })); }}
+                    onClick={async () => { await dispatch(isFollowing ? unfollowUser(u._id || '') : followUser(u._id || '')); dispatch(fetchProfile()); dispatch(resetSuggested()); dispatch(fetchSuggestedUsers({ limit: suggested.limit, skip: 0 })); }}
                     disabled={suggested.loading}
                     className='cursor-pointer'
                   >

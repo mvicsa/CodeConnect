@@ -12,8 +12,8 @@ export interface User {
   birthdate?: string | null;
   gender?: string | null;
   role?: string;
-  followers?: any[];
-  following?: any[];
+  followers?: User[];
+  following?: User[];
   bio?: string;
   socialLinks?: { platform: string; url: string }[];
 }

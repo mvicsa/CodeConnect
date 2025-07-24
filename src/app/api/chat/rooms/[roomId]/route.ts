@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function DELETE(request: NextRequest, context: { params: { roomId?: string } }) {
-  const { params } = context;
+export async function DELETE(request: NextRequest, context: { params: Promise<{ roomId: string }> }) {
+  const { roomId } = await context.params;
   try {
-    console.log('API DELETE /api/chat/rooms/[roomId] called with params:', params);
-    if (!params || !params.roomId) {
-      console.error('No roomId provided in params:', params);
+    console.log('API DELETE /api/chat/rooms/[roomId] called with params:', roomId);
+    if (!roomId) {
+      console.error('No roomId provided in params:', roomId);
       return NextResponse.json({ error: 'No roomId provided' }, { status: 400 });
     }
     const token = request.headers.get('authorization')?.split(' ')[1];
@@ -14,7 +14,7 @@ export async function DELETE(request: NextRequest, context: { params: { roomId?:
     }
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-    const response = await fetch(`${backendUrl}/chat/rooms/${params.roomId}`, {
+    const response = await fetch(`${backendUrl}/chat/rooms/${roomId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,

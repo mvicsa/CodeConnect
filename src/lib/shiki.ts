@@ -1,11 +1,11 @@
-import { createHighlighter, type Highlighter } from 'shiki'
+import { BundledLanguage, createHighlighter, type Highlighter } from 'shiki'
 
 // Global highlighter instance
 let globalHighlighter: Highlighter | null = null
 let currentTheme: string | null = null
 let loadedLanguages: Set<string> = new Set()
 let loadedThemes: Set<string> = new Set()
-let themeCache: Map<string, any> = new Map()
+const themeCache: Map<string, unknown> = new Map()
 let loadingPromise: Promise<Highlighter> | null = null
 
 // Get current theme name
@@ -73,7 +73,7 @@ export const getHighlighter = async (
           
           // Create new highlighter
           globalHighlighter = await createHighlighter({
-            langs: [language as any],
+            langs: [language],
             themes: [{ name: themeName, ...customTheme }],
           })
           
@@ -84,7 +84,7 @@ export const getHighlighter = async (
           // Add new language or theme to existing highlighter
           if (globalHighlighter) {
             if (needsLanguage) {
-              await globalHighlighter.loadLanguage(language as any)
+              await globalHighlighter.loadLanguage(language as BundledLanguage)
               loadedLanguages.add(language)
             }
             if (needsTheme) {
@@ -131,7 +131,7 @@ export const highlightCode = async (
       const themeName = theme ? `code-${theme}` : getCurrentTheme();
       
       return highlighter.codeToHtml(code, {
-        lang: language as any,
+        lang: language as BundledLanguage,
         theme: themeName,
       });
     } catch (error) {
