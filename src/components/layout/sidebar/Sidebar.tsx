@@ -9,6 +9,7 @@ import {
   Home,
   Presentation,
   Zap,
+  Logs,
 } from "lucide-react";
 import TrendingTags from "@/components/TrendingTags";
 
@@ -33,7 +34,10 @@ export function Sidebar() {
     <>
       <aside className="space-y-6">
         <div>
-          <h2 className="text-lg font-medium mb-2 text-muted-foreground">Categories</h2>
+        <div className="flex items-center gap-2 mb-3">
+            <Logs className="w-5 h-5 text-primary" />
+            <h3 className="font-medium text-muted-foreground">Categories</h3>
+          </div>
           <nav className="space-y-1 -ms-3 mb-6">
             {navLinks.map((link) => {
               // Create locale-aware href

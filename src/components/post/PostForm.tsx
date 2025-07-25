@@ -155,7 +155,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
         setContent(prev => ({ ...prev, image: url }));
         toast.success('Image uploaded!');
       } catch (error) {
-        toast.error('Failed to upload image.');
+        toast.error('Failed to upload image => ' + error);
       }
       setImageUploading(false);
       setShowImageUpload(true);
@@ -192,7 +192,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
         setContent(prev => ({ ...prev, video: url }));
         toast.success('Video uploaded!');
       } catch (error) {
-        toast.error('Failed to upload video.');
+        toast.error('Failed to upload video => ' + error);
       }
       setVideoUploading(false);
       setShowVideoUpload(true);
@@ -402,8 +402,10 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
             {imageUploading ? (
               <div className="flex flex-col items-center justify-center py-8">
                 <div className="relative flex items-center justify-center h-24 w-24">
-                  <Loader2 className="animate-spin text-muted-foreground h-14 w-14" />
-                  <span className="absolute text-sm font-semibold text-muted-foreground">{imageUploadPercent}%</span>
+                  <Loader2 className="animate-spin text-primary h-14 w-14" />
+                  <span className="absolute text-sm font-semibold text-primary">
+                    {imageUploadPercent}%
+                  </span>
                 </div>
                 <span className="mt-2 text-sm text-muted-foreground">Uploading image...</span>
               </div>

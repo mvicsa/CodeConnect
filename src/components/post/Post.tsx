@@ -31,6 +31,7 @@ import { toast } from 'sonner';
 import AdminBadge from '../AdminBadge'
 import { SocketContext } from '@/store/Provider';
 import ReadMore from '../ReadMore';
+import { useRouter } from 'next/navigation';
 
 interface PostProps {
   post: PostType;
@@ -52,6 +53,7 @@ const Post = memo(function Post({
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth)
   const socket = useContext(SocketContext);
+  const router = useRouter();
   const [showComments, setShowComments] = useState(initialShowComments || !!highlightedCommentId);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -222,6 +224,8 @@ const Post = memo(function Post({
       
       toast.success('Post deleted successfully!');
       setShowDeleteDialog(false);
+      // Redirect to timeline
+      router.push('/');
     } catch (error) {
       toast.error('Failed to delete post.');
       console.error('Failed to delete post:', error);

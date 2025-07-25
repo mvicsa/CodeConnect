@@ -7,14 +7,14 @@ import { fetchSparkById, setCurrentSpark, forkSpark } from '@/store/slices/spark
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { SandpackProvider, SandpackPreview, SandpackCodeEditor, SandpackLayout } from '@codesandbox/sandpack-react';
-import { StarRating, StarRatingDisplay } from '@/components/ui/star-rating';
+import { StarRatingDisplay } from '@/components/ui/star-rating';
 import Container from '@/components/Container';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SparkRating } from '@/components/SparkCard';
 import { toast } from 'sonner';
+import { unwrapResult } from '@reduxjs/toolkit';
 
 function SparkPageSkeleton() {
   return (
@@ -65,18 +65,21 @@ export default function SparkPage() {
 
   useEffect(() => {
     if (sparkId) {
-      dispatch(fetchSparkById(sparkId)).then((action: any) => {
-        if (action.payload && action.payload.files) {
-          dispatch(setCurrentSpark(action.payload));
-          setSparkNotFound(false);
-        } else {
+      dispatch(fetchSparkById(sparkId))
+        .then((action) => {
+          const payload = unwrapResult(action);
+          if (payload && payload.files) {
+            dispatch(setCurrentSpark(payload));
+            setSparkNotFound(false);
+          } else {
+            setSparkNotFound(true);
+          }
+          setInitialLoading(false);
+        })
+        .catch(() => {
           setSparkNotFound(true);
-        }
-        setInitialLoading(false);
-      }).catch(() => {
-        setSparkNotFound(true);
-        setInitialLoading(false);
-      });
+          setInitialLoading(false);
+        });
     }
   }, [dispatch, sparkId]);
 
@@ -93,7 +96,7 @@ export default function SparkPage() {
         toast.error('Failed to fork spark');
       }
     } catch (err) {
-      toast.error('Failed to fork spark');
+      toast.error('Failed to fork spark => ' + err);
     } finally {
       setForking(false);
     }
@@ -110,7 +113,7 @@ export default function SparkPage() {
           <CardContent className="p-6 text-center">
             <h2 className="text-2xl font-bold mb-4">Spark Not Found</h2>
             <p className="text-muted-foreground mb-4">
-              The spark you're looking for doesn't exist or has been deleted.
+              The spark you&apos;re looking for doesn&apos;t exist or has been deleted.
             </p>
             <div className="flex gap-2 justify-center">
               <Button onClick={() => router.push('/sparks')}>
@@ -152,7 +155,7 @@ export default function SparkPage() {
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
                       <span>Created by</span>
                       <Link 
-                        href={`/profile/${currentSpark.owner.username}`}
+                        href={`/sparks/user/${currentSpark.owner._id}`}
                         className="text-primary hover:underline font-medium"
                       >
                         {currentSpark.owner.username}
@@ -215,7 +218,6 @@ export default function SparkPage() {
                 currentSpark.owner?._id !== user?._id && (
                   <SparkRating 
                     sparkId={sparkId} 
-                    sparkUserId={currentSpark.owner?._id || currentSpark.userId || ''} 
                   />
                 )
               }

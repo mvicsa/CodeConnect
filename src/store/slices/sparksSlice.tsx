@@ -1,5 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from '@/lib/axios';
+import { isAxiosError } from 'axios';
+import { RootState } from '../store';
 
 export interface Spark {
   _id: string;
@@ -8,6 +10,11 @@ export interface Spark {
   title: string;
   createdAt: string;
   updatedAt: string;
+  averageRating?: number;
+  ratings?: {
+    userId: string;
+    value: number;
+  }[];
   owner?: {
     _id: string;
     username: string;
@@ -71,8 +78,11 @@ export const fetchSparkById = createAsyncThunk<Spark, string>(
     try {
       const res = await axios.get(`/sparks/${id}`);
       return res.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch spark');
+    } catch (err) {
+      if (isAxiosError(err)) {
+        return rejectWithValue(err.response?.data?.message || 'Failed to fetch spark => ' + err);
+      }
+      return rejectWithValue('Failed to fetch spark => ' + err);
     }
   }
 );
@@ -98,33 +108,42 @@ export const fetchSparksByUser = createAsyncThunk<
         totalPages: res.headers['x-total-pages'] ? parseInt(res.headers['x-total-pages']) : undefined,
         totalItems: res.headers['x-total-count'] ? parseInt(res.headers['x-total-count']) : undefined
       };
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch sparks');
+    } catch (err) {
+      if (isAxiosError(err)) {
+        return rejectWithValue(err.response?.data?.message || 'Failed to fetch sparks => ' + err);
+      }
+      return rejectWithValue('Failed to fetch sparks => ' + err);
     }
   }
 );
 
-export const createSpark = createAsyncThunk<Spark, { files: any; title: string; previewImage?: string }>(
+export const createSpark = createAsyncThunk<Spark, { files: Record<string, { code: string }>; title: string; previewImage?: string }>(
   'sparks/createSpark',
   async (payload, { rejectWithValue }) => {
     try {
       const res = await axios.post('/sparks', payload);
       return res.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to create spark');
+    } catch (err) {
+      if (isAxiosError(err)) {
+        return rejectWithValue(err.response?.data?.message || 'Failed to create spark => ' + err);
+      }
+      return rejectWithValue('Failed to create spark => ' + err);
     }
   }
 );
 
-export const updateSpark = createAsyncThunk<Spark, { id: string; files?: any; title?: string; previewImage?: string }>(
+export const updateSpark = createAsyncThunk<Spark, { id: string; files?: Record<string, { code: string }>; title?: string; previewImage?: string }>(
   'sparks/updateSpark',
   async (payload, { rejectWithValue }) => {
     try {
       const { id, ...data } = payload;
       const res = await axios.put(`/sparks/${id}`, data);
       return res.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to update spark');
+    } catch (err) {
+      if (isAxiosError(err)) {
+        return rejectWithValue(err.response?.data?.message || 'Failed to update spark => ' + err);
+      }
+      return rejectWithValue('Failed to update spark => ' + err);
     }
   }
 );
@@ -135,14 +154,17 @@ export const deleteSpark = createAsyncThunk<string, string>(
     try {
       await axios.delete(`/sparks/${id}`);
       return id;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to delete spark');
+    } catch (err) {
+      if (isAxiosError(err)) {
+        return rejectWithValue(err.response?.data?.message || 'Failed to delete spark => ' + err);
+      }
+      return rejectWithValue('Failed to delete spark => ' + err);
     }
   }
 );
 
 export const rateSpark = createAsyncThunk<
-  { average: number; userRating: number; ratings: any[] },
+  { average: number; userRating: number; ratings: { userId: string; value: number }[] },
   { id: string; value: number }
 >(
   'sparks/rateSpark',
@@ -150,28 +172,34 @@ export const rateSpark = createAsyncThunk<
     try {
       const res = await axios.post(`/sparks/${id}/rate`, { value });
       return res.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to rate spark');
+    } catch (err) {
+      if (isAxiosError(err)) {
+        return rejectWithValue(err.response?.data?.message || 'Failed to rate spark => ' + err);
+      }
+      return rejectWithValue('Failed to rate spark => ' + err);
     }
   }
 );
 
-export const fetchSparkRatings = createAsyncThunk<{ average: number; ratings: any[]; userRating?: number }, string>(
+export const fetchSparkRatings = createAsyncThunk<{ average: number; ratings: { userId: string; value: number }[]; userRating?: number }, string>(
   'sparks/fetchSparkRatings',
   async (id, { getState, rejectWithValue }) => {
     try {
       const res = await axios.get(`/sparks/${id}/ratings`);
-      const userId = (getState() as any).auth.user?._id;
+      const userId = (getState() as RootState).auth.user?._id;
       const userRating = userId
-        ? res.data.ratings.find((r: any) => r.userId === userId)?.value
+        ? res.data.ratings.find((r: { userId: string; value: number }) => r.userId === userId)?.value
         : undefined;
       return {
         average: res.data.averageRating,
         ratings: res.data.ratings,
         userRating,
       };
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch ratings');
+    } catch (err) {
+      if (isAxiosError(err)) {
+        return rejectWithValue(err.response?.data?.message || 'Failed to fetch ratings => ' + err);
+      }
+      return rejectWithValue('Failed to fetch ratings => ' + err);
     }
   }
 );
@@ -197,8 +225,11 @@ export const fetchAllSparks = createAsyncThunk<
         totalPages: res.headers['x-total-pages'] ? parseInt(res.headers['x-total-pages']) : undefined,
         totalItems: res.headers['x-total-count'] ? parseInt(res.headers['x-total-count']) : undefined
       };
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch sparks');
+    } catch (err) {
+      if (isAxiosError(err)) {
+        return rejectWithValue(err.response?.data?.message || 'Failed to fetch sparks => ' + err);
+      }
+      return rejectWithValue('Failed to fetch sparks => ' + err);
     }
   }
 );
@@ -209,8 +240,11 @@ export const forkSpark = createAsyncThunk<Spark, string>(
     try {
       const res = await axios.post(`/sparks/${id}/fork`);
       return res.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fork spark');
+    } catch (err) {
+      if (isAxiosError(err)) {
+        return rejectWithValue(err.response?.data?.message || 'Failed to fork spark => ' + err);
+      }
+      return rejectWithValue('Failed to fork spark => ' + err);
     }
   }
 );

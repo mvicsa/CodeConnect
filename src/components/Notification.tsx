@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Bell, Search, Clock, Trash2, Check, MessageSquare, Heart, UserPlus, ThumbsUp, FileText, Volume2, VolumeX, Smartphone } from 'lucide-react';
+import { Bell, Search, Clock, Trash2, Check, MessageSquare, Heart, UserPlus, FileText, Volume2, VolumeX, Smartphone, AtSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationFilter, Notification, NotificationType, NotificationUser } from '@/types/notification';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 
 // Type for notification data structure
 interface NotificationData {
@@ -24,8 +35,8 @@ interface NotificationData {
 
 import Image from 'next/image';
 import { formatTime } from '@/lib/utils';
-import Link from 'next/link';
 import { NavigationMenuItem, navigationMenuTriggerStyle } from './ui/navigation-menu';
+import { useRouter } from 'next/navigation';
 
 // Helper function to get icon based on notification type
 const getNotificationIcon = (type: NotificationType) => {
@@ -41,7 +52,7 @@ const getNotificationIcon = (type: NotificationType) => {
         case NotificationType.MESSAGE_RECEIVED:
             return MessageSquare;
         case NotificationType.USER_MENTIONED:
-            return ThumbsUp;
+            return AtSign;
         case NotificationType.LOGIN:
             return Bell;
         default:
@@ -94,6 +105,7 @@ const NotificationPage = () => {
     const [filter, setFilter] = useState<NotificationFilter>('all');
     const [soundEnabled, setSoundEnabled] = useState(true);
     const [vibrationEnabled, setVibrationEnabled] = useState(true);
+    const [openDeleteDialogId, setOpenDeleteDialogId] = useState<string | null>(null);
 
     const {
         notifications,
@@ -102,6 +114,9 @@ const NotificationPage = () => {
         handleDeleteNotification,
         handleDeleteAllNotifications
     } = useNotifications();
+
+    // DEBUG: Log the current notification items
+    console.log('[DEBUG][NOTIFICATIONS STATE]', notifications);
     
     // Helper function to get notification link using useState
     const getNotificationLink = (notification: Notification): string | undefined => {
@@ -165,6 +180,14 @@ const NotificationPage = () => {
             } else {
                 return `/profile/${notification.fromUserId?.username}`;
             }
+        } else if (notification.type === NotificationType.USER_MENTIONED) {
+            if (notification.content?.toLowerCase().includes('post')) {
+                return `/posts/${notification.data?._id}`;
+            } else if (notification.content?.toLowerCase().includes('comment') || notification.content?.toLowerCase().includes('reply')) {
+                return `/posts/${notification.data?.postId}/${notification.data?._id}`;
+            } else {
+                return `/profile/${notification.fromUserId?.username}`;
+            }
         } else {
             return `/profile/${notification.fromUserId?.username}`;
         }
@@ -187,12 +210,12 @@ const NotificationPage = () => {
         setShowNotifications(false);
     };
 
-    // إزالة الإشعارات المكررة وإضافة key فريد
-    const uniqueNotifications = notifications.filter((notif: Notification, index: number, self: Notification[]) => 
-        index === self.findIndex((n: Notification) => n._id === notif._id)
-    );
+    // REMOVE: uniqueNotifications filter
+    // const uniqueNotifications = notifications.filter((notif: Notification, index: number, self: Notification[]) => 
+    //     index === self.findIndex((n: Notification) => n._id === notif._id)
+    // );
 
-    const filteredNotifications = uniqueNotifications.filter((notif: Notification) => {
+    const filteredNotifications = notifications.filter((notif: Notification) => {
         // Apply search filter
         const matchesSearch = notif.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
             getNotificationTitle(notif).toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -224,6 +247,8 @@ const NotificationPage = () => {
                 return 0;
         }
     };
+
+    const router = useRouter();
 
     return (
         <Dialog open={showNotifications} onOpenChange={setShowNotifications}>
@@ -274,19 +299,38 @@ const NotificationPage = () => {
                                 <Check className="h-4 w-4" />
                             </Button>
                             {notifications.length > 0 && (
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={async () => {
-                                        if (window.confirm('Are you sure you want to delete all notifications?')) {
-                                            await handleDeleteAllNotifications();
-                                        }
-                                    }}
-                                    className="h-8 w-8 text-destructive hover:text-destructive"
-                                    aria-label="Delete all notifications"
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={e => e.stopPropagation()}
+                                            className="h-8 w-8 text-destructive hover:text-destructive"
+                                            aria-label="Delete all notifications"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Delete All Notifications</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Are you sure you want to delete all notifications? This action cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    await handleDeleteAllNotifications();
+                                                }}
+                                            >
+                                                Delete All
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                             )}
                         </div>
                     </div>
@@ -382,10 +426,18 @@ const NotificationPage = () => {
                                 }
 
                                 return (
-                                    <Link key={notification._id} className='block' href={link || ''}>
+                                    <div
+                                        key={notification._id}
+                                        className='block'
+                                        style={openDeleteDialogId === notification._id ? { pointerEvents: 'none' } : {}}
+                                        onClick={() => {
+                                            if (link && openDeleteDialogId !== notification._id) router.push(link);
+                                            if (openDeleteDialogId !== notification._id) handleNotificationClick(notification);
+                                        }}
+                                    >
                                         <Card
                                             className={`relative group transition-all duration-200 hover:shadow-md cursor-pointer py-7 ${!notification.isRead ? 'bg-primary/20 border-primary' : 'dark:border-transparent hover:!border-primary'}`}
-                                            onClick={() => handleNotificationClick(notification)}
+                                            // onClick={() => handleNotificationClick(notification)} // Remove this, handled above
                                         >
                                             <CardContent className='px-5'>
                                                 <div className="flex items-start gap-3">
@@ -445,25 +497,53 @@ const NotificationPage = () => {
                                                                 </Button>
                                                             )}
 
-                                                            <Button
-                                                                variant="destructive"
-                                                                size="sm"
-                                                                onClick={async (e) => {
-                                                                    e.stopPropagation();
-                                                                    await handleDeleteNotification(notification._id);
-                                                                }}
-                                                                className="h-7 text-xs cursor-pointer"
-                                                                aria-label={`Delete notification: ${title}`}
-                                                            >
-                                                                <Trash2 className="h-3 w-3 mr-1" />
-                                                                Delete
-                                                            </Button>
+                                                            <AlertDialog open={openDeleteDialogId === notification._id} onOpenChange={open => setOpenDeleteDialogId(open ? notification._id : null)}>
+                                                                <AlertDialogTrigger asChild>
+                                                                    <Button
+                                                                        variant="destructive"
+                                                                        size="sm"
+                                                                        onClick={e => {
+                                                                            e.stopPropagation();
+                                                                            setOpenDeleteDialogId(notification._id);
+                                                                        }}
+                                                                        className="h-7 text-xs cursor-pointer"
+                                                                        aria-label={`Delete notification: ${title}`}
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3 mr-1" />
+                                                                        Delete
+                                                                    </Button>
+                                                                </AlertDialogTrigger>
+                                                                <AlertDialogContent>
+                                                                    <AlertDialogHeader>
+                                                                        <AlertDialogTitle>Delete Notification</AlertDialogTitle>
+                                                                        <AlertDialogDescription>
+                                                                            Are you sure you want to delete this notification?
+                                                                        </AlertDialogDescription>
+                                                                    </AlertDialogHeader>
+                                                                    <AlertDialogFooter>
+                                                                        <AlertDialogCancel onClick={e => {
+                                                                            e.stopPropagation();
+                                                                            setOpenDeleteDialogId(null);
+                                                                        }}>Cancel</AlertDialogCancel>
+                                                                        <AlertDialogAction
+                                                                            className='bg-destructive hover:bg-destructive/90'
+                                                                            onClick={async (e) => {
+                                                                                e.stopPropagation();
+                                                                                await handleDeleteNotification(notification._id);
+                                                                                setOpenDeleteDialogId(null);
+                                                                            }}
+                                                                        >
+                                                                            Delete
+                                                                        </AlertDialogAction>
+                                                                    </AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </CardContent>
                                         </Card>
-                                    </Link>
+                                    </div>
                                 );
                             })
                         )}

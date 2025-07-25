@@ -94,7 +94,7 @@ export default function SparksDashboardPage() {
             {/* End of results indicator */}
             {!allSparksHasMore && allSparks.length > 0 && (
               <div className="text-center py-8 text-muted-foreground">
-                <p className="text-sm">🎉 You've seen all sparks!</p>
+                <p className="text-sm">🎉 You&apos;ve seen all sparks!</p>
               </div>
             )}
           </>

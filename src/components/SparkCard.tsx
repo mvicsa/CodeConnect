@@ -41,10 +41,9 @@ export function SparkCardSkeleton({ className = "" }: { className?: string }) {
 
 interface SparkRatingProps {
   sparkId: string;
-  sparkUserId: string;
 }
 
-function SparkRating({ sparkId, sparkUserId }: SparkRatingProps) {
+function SparkRating({ sparkId }: SparkRatingProps) {
   const dispatch = useDispatch<AppDispatch>();
   const ratings = useSelector((state: RootState) => state.sparks.ratings[sparkId]);
   const user = useSelector((state: RootState) => state.auth.user);
@@ -86,7 +85,7 @@ function SparkRating({ sparkId, sparkUserId }: SparkRatingProps) {
   );
 }
 
-function SparkRatingSummary({ spark }: { spark: any }) {
+function SparkRatingSummary({ spark }: { spark: Spark }) {
   const averageRating = spark.averageRating || 0;
   const ratingsCount = spark.ratings?.length || 0;
   
@@ -130,7 +129,7 @@ export default function SparkCard({
         toast.error('Failed to fork spark');
       }
     } catch (err) {
-      toast.error('Failed to fork spark');
+      toast.error('Failed to fork spark => ' + err);
     } finally {
       setForking(false);
     }

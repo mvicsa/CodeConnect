@@ -65,6 +65,8 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
   const token = useReduxSelector((state: RootState) => state.auth.token)
   const user = useReduxSelector((state: RootState) => state.auth.user)
   const notificationSocketRef = useRef<ReturnType<typeof io> | null>(null);
+  // Robust fix: Only play sound for notifications after the first one received after connect
+  const firstNotificationReceived = useRef(false);
 
   useEffect(() => {
     if (!token || typeof window === 'undefined') {
@@ -122,19 +124,24 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
     
     notificationSocket.on('notification', (notification: Notification) => {
       dispatch(addNotification(notification));
+      // Only play sound if this is not the first notification after connect
+      if (!firstNotificationReceived.current) {
+        firstNotificationReceived.current = true;
+        return; // Don't play sound for the first notification
+      }
       
       // Play notification sound if enabled
-      if (typeof window !== 'undefined' && localStorage.getItem('notificationSound') !== 'disabled') {
-        try {
-          const audio = new Audio('/sounds/notification.wav');
-          audio.volume = 0.5;
-          audio.play().catch(error => {
-            console.warn('Failed to play notification sound:', error);
-          });
-        } catch (error) {
-          console.warn('Failed to create notification audio:', error);
-        }
-      }
+      // if (typeof window !== 'undefined' && localStorage.getItem('notificationSound') !== 'disabled') {
+      //   try {
+      //     const audio = new Audio('/sounds/notification.wav');
+      //     audio.volume = 0.5;
+      //     audio.play().catch(error => {
+      //       console.warn('Failed to play notification sound:', error);
+      //     });
+      //   } catch (error) {
+      //     console.warn('Failed to create notification audio:', error);
+      //   }
+      // }
       
       // Vibrate if enabled and supported
       if (typeof window !== 'undefined' && 
@@ -153,7 +160,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
 
     // استقبال موحد لحذف الإشعارات من الباك إند
     notificationSocket.on('notification:delete', (payload: NotificationDeletePayload) => {
-      
+      console.log('Received notification:delete', payload);
       // حذف مباشر بالـ id
       if (payload?.notificationId) {
         dispatch(deleteNotification(payload.notificationId));

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { SandpackProvider, SandpackLayout, SandpackCodeEditor, SandpackPreview } from '@codesandbox/sandpack-react';
 import { useSandpack } from '@codesandbox/sandpack-react';
 import { Button } from './ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { useSelector, useDispatch } from 'react-redux';
@@ -17,6 +17,7 @@ import {
   setCurrentSpark,
   rateSpark,
   fetchSparkRatings,
+  Spark,
 } from '@/store/slices/sparksSlice';
 import { useTheme } from "next-themes";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
@@ -24,7 +25,6 @@ import { FilePlus, Save, Trash2 } from 'lucide-react';
 import { StarRating, StarRatingDisplay } from './ui/star-rating';
 import Link from 'next/link';
 import Container from './Container';
-import SparkCard, { SparkCardSkeleton } from './SparkCard';
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -40,6 +40,8 @@ import { useRouter } from 'next/navigation';
 import { Skeleton } from './ui/skeleton';
 import { uploadToImageKit } from '@/lib/imagekitUpload';
 import { toast } from 'sonner';
+import { unwrapResult } from '@reduxjs/toolkit';
+import Image from 'next/image';
 
 const fileTemplates = {
   js: {
@@ -56,7 +58,7 @@ const fileTemplates = {
   },
 };
 
-function getUniqueFileName(files: Record<string, any>, base: string, ext: string): string {
+function getUniqueFileName(files: Record<string, { code: string }>, base: string, ext: string): string {
   let i = 1;
   let name = `/${base}${ext}`;
   while (files[name]) {
@@ -136,25 +138,7 @@ function PlaygroundSkeleton() {
   );
 }
 
-// Custom Sandpack theme using shadcn variables
-const sandpackTheme = {
-  colors: {
-    surface1: 'var(--background)',
-    surface2: 'var(--card)',
-    surface3: 'var(--muted)',
-    clickable: 'var(--foreground)',
-    base: 'var(--foreground)',
-    hover: 'var(--muted-foreground)',
-    accent: 'var(--primary)',
-    disabled: 'var(--muted-foreground)',
-    error: 'var(--danger)',
-    errorSurface: 'var(--danger)',
-    warning: 'var(--warning)',
-    warningSurface: 'var(--warning)',
-  },
-};
-
-function SandpackEditorAndPreview({ siteTheme, activeFile, setActiveFile }: { siteTheme: string; activeFile: string; setActiveFile: (file: string) => void }) {
+function SandpackEditorAndPreview({ activeFile, setActiveFile }: { activeFile: string; setActiveFile: (file: string) => void }) {
   const { sandpack } = useSandpack();
   // Update active file when tab is clicked
   useEffect(() => {
@@ -173,12 +157,12 @@ function SandpackEditorAndPreview({ siteTheme, activeFile, setActiveFile }: { si
 interface SaveButtonProps {
   sparkId: string | null;
   title: string;
-  dispatch: any;
+  dispatch: AppDispatch;
   setSparkId: (id: string) => void;
   setSaveMsg: (msg: string | null) => void;
   setSaving: (saving: boolean) => void;
   saving: boolean;
-  setFiles: (files: Record<string, any>) => void;
+  setFiles: (files: Record<string, { code: string }>) => void;
 }
 
 function SaveButton({ sparkId, title, dispatch, setSparkId, setSaveMsg, setSaving, saving, previewImage, setFiles }: SaveButtonProps & { previewImage: string | null }) {
@@ -196,12 +180,12 @@ function SaveButton({ sparkId, title, dispatch, setSparkId, setSaveMsg, setSavin
       }
       if (action.meta.requestStatus === 'fulfilled') {
         const data = action.payload;
-        if (data && data._id) {
-          setSparkId(data._id);
+        if (data && (data as Spark)._id) {
+          setSparkId((data as Spark)._id);
           setSaveMsg('Saved!');
-          dispatch(setCurrentSpark(data));
-          if (data.files) setFiles(data.files); // <-- Update files state
-          router.push(`/sparks/${data._id}`);
+          dispatch(setCurrentSpark(data as Spark));
+          if ((data as Spark).files) setFiles((data as Spark).files); // <-- Update files state
+          router.push(`/sparks/${(data as Spark)._id}`);
         } else {
           setSaveMsg('Failed to save.');
           toast.error('Failed to save spark. Please try again.');
@@ -212,7 +196,7 @@ function SaveButton({ sparkId, title, dispatch, setSparkId, setSaveMsg, setSavin
       }
     } catch (err) {
       setSaveMsg('Error saving.');
-      toast.error('Error saving spark.');
+      toast.error('Error saving spark => ' + err);
     } finally {
       setSaving(false);
       setTimeout(() => setSaveMsg(null), 2000);
@@ -273,15 +257,14 @@ function SparkRating({ sparkId, sparkUserId }: { sparkId: string, sparkUserId: s
 
 export default function SandpackPlayground() {
   const dispatch = useDispatch<AppDispatch>();
-  const router = useRouter();
-  const { sparks, currentSpark, loading, ratings, userSparksLoading } = useSelector((state: RootState) => state.sparks);
+  const { currentSpark, ratings, } = useSelector((state: RootState) => state.sparks);
   const userId = useSelector((state: RootState) => state.auth.user?._id) || (typeof window !== 'undefined' ? localStorage.getItem('userId') : null);
 
   const { theme: siteTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   
-  const [files, setFiles] = useState<Record<string, any>>(defaultFiles);
+  const [files, setFiles] = useState<Record<string, { code: string }>>(defaultFiles);
   const [activeFile, setActiveFile] = useState<string>('/App.js');
   const [sparkId, setSparkId] = useState<string | null>(null);
   const [title, setTitle] = useState<string>('Untitled Spark');
@@ -303,43 +286,31 @@ export default function SandpackPlayground() {
     if (urlSparkId) {
       setSparkId(urlSparkId);
       setPageLoading(true);
-      dispatch(fetchSparkById(urlSparkId)).then((action: any) => {
-        if (action.payload && action.payload.files) {
-          setFiles(action.payload.files);
-          setTitle(action.payload.title || 'Untitled Spark');
-          dispatch(setCurrentSpark(action.payload));
-          setSparkNotFound(false);
-        } else {
+      dispatch(fetchSparkById(urlSparkId))
+        .then((action) => {
+          const payload = unwrapResult(action);
+          if (payload && payload.files) {
+            setFiles(payload.files);
+            setTitle(payload.title || 'Untitled Spark');
+            dispatch(setCurrentSpark(payload));
+            setSparkNotFound(false);
+          } else {
+            setSparkNotFound(true);
+            toast.error('Spark not found or failed to load from the database.');
+          }
+          setPageLoading(false);
+        })
+        .catch((error: Error) => {
           setSparkNotFound(true);
-          toast.error('Spark not found or failed to load from the database.');
-        }
-        setPageLoading(false);
-      }).catch((error: any) => {
-        setSparkNotFound(true);
-        toast.error('Error loading spark from the database.');
-        setPageLoading(false);
-      });
+          toast.error('Error loading spark from the database => ' + error);
+          setPageLoading(false);
+        });
     } else {
       setPageLoading(false);
       setPreviewImage(null); // Ensure previewImage is null when entering the page with no spark
     }
   }, [dispatch]);
 
-  // Function to reset to new spark state
-  const resetToNewSpark = () => {
-    setSparkId(null);
-    setFiles(defaultFiles);
-    setTitle('Untitled Spark');
-    setPreviewImage(null); // <-- Reset preview image
-    dispatch(setCurrentSpark(null));
-    setSparkNotFound(false);
-    setPageLoading(false);
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('spark');
-      window.history.replaceState({}, '', url.toString());
-    }
-  };
 
   // Fetch user's sparks when user is available
   useEffect(() => {
@@ -405,12 +376,9 @@ export default function SandpackPlayground() {
       // Do not redirect, just show toast
       toast.success('Spark deleted successfully.');
     } catch (error) {
-      toast.error('Failed to delete spark from the database.');
+      toast.error('Failed to delete spark from the database => ' + error);
     }
   };
-
-  // Filter out current spark from the list
-  const otherSparks = sparks.filter(spark => !!spark._id && spark._id !== sparkId);
 
   // Compute owner protection
   const isNotOwner = Boolean(
@@ -539,8 +507,10 @@ export default function SandpackPlayground() {
                           <Skeleton className="h-24 w-24 rounded-lg" />
                         ) : previewImage ? (
                           <div className="relative w-full flex flex-col items-center">
-                            <img
+                            <Image
                               src={previewImage}
+                              width={240}
+                              height={240}
                               alt="Preview"
                               className="h-32 w-full object-cover rounded-lg shadow-md border border-primary/30 group-hover:opacity-80 transition-opacity"
                               style={{ maxWidth: 240 }}
@@ -581,7 +551,7 @@ export default function SandpackPlayground() {
                   theme={(siteTheme ?? 'light') === 'dark' ? 'dark' : 'light'}
                   files={files}
                 >
-                  <SandpackEditorAndPreview siteTheme={siteTheme ?? 'light'} activeFile={activeFile} setActiveFile={setActiveFile} />
+                  <SandpackEditorAndPreview activeFile={activeFile} setActiveFile={setActiveFile} />
                   {sparkId && (
                     <SparkRating sparkId={sparkId} sparkUserId={currentSpark?.owner?._id || currentSpark?.userId || ''} />
                   )}
@@ -597,7 +567,7 @@ export default function SandpackPlayground() {
                       previewImage={previewImage}
                       setFiles={setFiles}
                     />
-                    {sparkId && currentSpark && userId === (currentSpark as any)?.owner?._id && (
+                    {sparkId && currentSpark && userId === (currentSpark as Spark)?.owner?._id && (
                         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                           <AlertDialogTrigger asChild>
                             <Button variant="destructive" className='cursor-pointer'>
@@ -609,7 +579,7 @@ export default function SandpackPlayground() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete Spark</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to delete "{title}"? This action cannot be undone.
+                                Are you sure you want to delete &quot;{title}&quot;? This action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
