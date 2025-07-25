@@ -28,7 +28,6 @@ import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image'
 import { uploadToImageKit } from '@/lib/imagekitUpload';
-import { isAxiosError } from 'axios'
 
 interface PostFormProps {
   mode: 'create' | 'edit'

@@ -1,3 +1,5 @@
+import { UserReaction } from "@/store/slices/reactionsSlice";
+
 export interface TestCase {
     input: string;
     output: string;
@@ -57,7 +59,7 @@ export interface ArchiveItem {
         funny: number;
         dislike: number;
     };
-    userReactions: any[];
+    userReactions:  UserReaction[];
     image: string;
     video: string;
     hasAiSuggestions: boolean;

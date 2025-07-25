@@ -28,14 +28,6 @@ export const useArchive = () => {
     new Set(items.flatMap((item) => item.tags))
   ).sort();
 
-  const allStatuses = Array.from(
-    new Set(items.map((item) => item.status))
-  ).filter(Boolean).sort();
-
-  const allDifficulties = Array.from(
-    new Set(items.map((item) => item.difficulty))
-  ).filter(Boolean).sort();
-
   // Action dispatchers
   const loadArchiveItems = useCallback((params?: {
     search?: string;
@@ -85,8 +77,6 @@ export const useArchive = () => {
     
     // Computed values
     allTags,
-    allStatuses,
-    allDifficulties,
     
     // Actions
     loadArchiveItems,

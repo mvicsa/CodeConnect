@@ -1,12 +1,6 @@
 import ArchiveDetail from '@/components/ArchiveDetail';
 
-interface ArchiveItemPageProps {
-  params: {
-    id: string;
-  };
-}
-
-export default function ArchiveItemPage({ params }: ArchiveItemPageProps) {
-  const { id } = params;
+export default async function ArchiveItemPage({ params }: { params: Promise<{ id: string; locale: string }> }) {
+  const { id } = await params;
   return <ArchiveDetail id={id} />;
 }

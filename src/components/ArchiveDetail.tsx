@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Calendar, Tag, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, Tag } from 'lucide-react';
 import Link from 'next/link';
 import CodeBlock from '@/components/code/CodeBlock';
 import MarkdownWithCode from '@/components/MarkdownWithCode';
