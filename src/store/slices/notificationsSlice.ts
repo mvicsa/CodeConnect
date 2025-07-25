@@ -20,8 +20,14 @@ const notificationsSlice = createSlice({
   initialState,
   reducers: {
     setNotifications(state, action: PayloadAction<Notification[]>) {
-      state.notifications = action.payload;
-      state.unreadCount = action.payload.filter(n => !n.isRead).length;
+      // Remove duplicates by _id
+      const seen = new Set();
+      state.notifications = action.payload.filter(n => {
+        if (seen.has(n._id)) return false;
+        seen.add(n._id);
+        return true;
+      });
+      state.unreadCount = state.notifications.filter(n => !n.isRead).length;
     },
     addNotification(state, action: PayloadAction<Notification>) {
       const newId = action.payload._id;
@@ -304,13 +310,13 @@ const notificationsSlice = createSlice({
           // للتفاعلات على المنشورات
           if (type === 'POST_REACTION' && String(notification.type) === 'POST_REACTION') {
             if (postId && notifPostId === postId) {
-              // إذا لم يتم تحديد fromUserId أو reactionType، احذف كل التفاعلات على المنشور
-              if (!fromUserId && !reactionType) {
+              // Debug logging
+              console.log('[DEBUG][POST_REACTION] notifFromUserId:', notifFromUserId, 'fromUserId:', fromUserId, 'notification:', notification);
+              // More robust comparison
+              const matchUser = !fromUserId || notifFromUserId?.toString() == fromUserId?.toString();
+              const matchReaction = !reactionType || notifReactionType === String(reactionType);
+              if (matchUser && matchReaction) {
                 shouldRemove = true;
-              } else if (!fromUserId || notifFromUserId === fromUserId) {
-                if (!reactionType || notifReactionType === reactionType) {
-                  shouldRemove = true;
-                }
               }
             }
           }
