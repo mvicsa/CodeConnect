@@ -200,6 +200,10 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
   };
 
   const handleAddTag = () => {
+    if (tagInput.trim().length > 15) {
+      toast.error('Tag cannot be more than 15 characters.');
+      return;
+    }
     if (tagInput.trim() && !content.tags.includes(tagInput.trim())) {
       setContent(prev => ({
         ...prev,
@@ -226,6 +230,11 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
   const handleSubmit = async () => {
     if (!content.text.trim() && !content.code?.code.trim() && !content.image && !content.video) {
       return
+    }
+
+    if (tagInput.trim() && !content.tags.includes(tagInput.trim())) {
+      toast.error('You have a tag typed but not added. Please add it or clear the input.');
+      return;
     }
 
     setIsSubmitting(true)
@@ -283,8 +292,10 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
       
       onSuccess()
     } catch (error) {
-      toast.error(`Failed to ${mode} post.`);
-      console.error(`Failed to ${mode} post:`, error)
+      const message = (error && typeof error === 'object' && 'message' in error)
+        ? (error as Error).message
+        : String(error);
+      toast.error(`Failed to ${mode} post. ${message}`);
     } finally {
       setIsSubmitting(false)
     }

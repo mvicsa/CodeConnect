@@ -13,6 +13,7 @@ import userReducer from './slices/userSlice'
 import chatReducer from './slices/chatSlice'
 import sparksReducer from './slices/sparksSlice'
 import aiSuggestionsReducer from './slices/aiSuggestionsSlice'
+import archiveReducer from './slices/archiveSlice'
 
 export const store = configureStore({
   reducer: {
@@ -30,6 +31,7 @@ export const store = configureStore({
     chat: chatReducer,
     sparks: sparksReducer,
     aiSuggestions: aiSuggestionsReducer,
+    archive: archiveReducer,
   },
 })
 
