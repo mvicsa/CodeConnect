@@ -9,6 +9,7 @@ interface ReadMoreProps {
   readMoreText?: string
   readLessText?: string
   className?: string
+  render?: (text: string) => React.ReactNode
 }
 
 const ReadMore: React.FC<ReadMoreProps> = ({
@@ -16,7 +17,8 @@ const ReadMore: React.FC<ReadMoreProps> = ({
   maxLength = 150,
   readMoreText = 'Read More',
   readLessText = 'Read Less',
-  className = ''
+  className = '',
+  render
 }) => {
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -30,7 +32,7 @@ const ReadMore: React.FC<ReadMoreProps> = ({
   return (
     <div className={`${className}`}>
       <div className="whitespace-pre-line">
-        {displayText}
+        {render ? render(displayText) : displayText}
       </div>
       {canTruncate && (
         <button

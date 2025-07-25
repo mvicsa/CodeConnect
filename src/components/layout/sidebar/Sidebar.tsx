@@ -8,6 +8,7 @@ import {
   Images,
   Home,
   Presentation,
+  Zap,
 } from "lucide-react";
 import TrendingTags from "@/components/TrendingTags";
 
@@ -22,8 +23,7 @@ export function Sidebar() {
     { name: "Images", href: "/images", icon: <Images className="w-5 h-5" /> },
     { name: "Videos", href: "/videos", icon: <Video className="w-5 h-5" /> },
     { name: "Meeting", href: "/meeting", icon: <Presentation className="w-5 h-5" /> },
-    // { name: "Bookmarks", href: "/bookmarks", icon: <Bookmark className="w-5 h-5" /> },
-    // { name: "About", href: "/about", icon: <Info className="w-5 h-5" /> },
+    { name: "Discover Sparks", href: "/sparks", icon: <Zap className="w-5 h-5" /> },
   ];
 
   // Remove locale prefix from pathname for matching
@@ -31,9 +31,7 @@ export function Sidebar() {
 
   return (
     <>
-      <aside
-        className="space-y-6"
-      >
+      <aside className="space-y-6">
         <div>
           <h2 className="text-lg font-medium mb-2 text-muted-foreground">Categories</h2>
           <nav className="space-y-1 -ms-3 mb-6">
@@ -45,7 +43,7 @@ export function Sidebar() {
               const isActive = link.href === '/' 
                 ? pathWithoutLocale === '/' 
                 : pathWithoutLocale.startsWith(link.href);
-
+              
               return (
                 <Link
                   key={link.name}

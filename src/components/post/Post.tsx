@@ -30,6 +30,7 @@ import {
 import { toast } from 'sonner';
 import AdminBadge from '../AdminBadge'
 import { SocketContext } from '@/store/Provider';
+import ReadMore from '../ReadMore';
 
 interface PostProps {
   post: PostType;
@@ -245,6 +246,24 @@ const Post = memo(function Post({
     );
   }
   
+  // Helper to render text with @mentions as profile links
+  function renderTextWithMentions(text: string) {
+    if (!text) return null;
+    // Split by word boundaries, keep punctuation
+    const parts = text.split(/(\s+)/);
+    return parts.map((part, i) => {
+      if (part.startsWith('@') && part.length > 1 && /^@[\w.]+$/.test(part)) {
+        const username = part.slice(1);
+        return (
+          <Link key={i} href={`/profile/${username}`} className="text-primary hover:underline">
+            {part}
+          </Link>
+        );
+      }
+      return part;
+    });
+  }
+  
   return (
     <>
       <Card className='w-full  gap-4 shadow-none dark:border-transparent'>
@@ -311,7 +330,14 @@ const Post = memo(function Post({
               </CardAction>
           </CardHeader>
           <CardContent className='flex flex-col gap-4'>
-            { text && <p>{ text }</p> }
+            <ReadMore
+              text={text || ''}
+              maxLength={150}
+              readMoreText="Read More"
+              readLessText="Read Less"
+              render={renderTextWithMentions}
+            />
+                
             { image && <Image src={image} alt={text || ''} width={500} height={500} className='w-full max-h-96 rounded-lg object-cover' /> }
             { video && <VideoPlayer source={video} /> }
             { code && <CodeBlock

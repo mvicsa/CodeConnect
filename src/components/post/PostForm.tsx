@@ -18,15 +18,16 @@ import {
   Hash,
   Plus,
   ArrowLeft,
-  Save
+  Save,
+  Loader2
 } from 'lucide-react'
 import CodeEditor from '../code/CodeEditor'
 import UserAvatar from '../UserAvatar'
 import { PostType } from '@/types/post'
 import { toast } from 'sonner';
-import { uploadToImageKit } from '@/lib/imagekitUpload';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image'
+import { uploadToImageKit } from '@/lib/imagekitUpload';
 
 interface PostFormProps {
   mode: 'create' | 'edit'
@@ -64,6 +65,10 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
   const [showImageUpload, setShowImageUpload] = useState(!!post?.image)
   const [showVideoUpload, setShowVideoUpload] = useState(!!post?.video)
   const [tagInput, setTagInput] = useState('')
+  const [imageUploading, setImageUploading] = useState(false);
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [imageUploadPercent, setImageUploadPercent] = useState(0);
+  const [videoUploadPercent, setVideoUploadPercent] = useState(0);
   
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoInputRef = useRef<HTMLInputElement>(null)
@@ -142,15 +147,17 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
   const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
+      setImageUploading(true);
+      setImageUploadPercent(0);
       try {
         toast.info('Uploading image...');
-        const url = await uploadToImageKit(file, '/posts');
+        const url = await uploadToImageKit(file, '/posts', (percent) => setImageUploadPercent(percent));
         setContent(prev => ({ ...prev, image: url }));
         toast.success('Image uploaded!');
       } catch (error) {
         toast.error('Failed to upload image.');
-        console.error(error);
       }
+      setImageUploading(false);
       setShowImageUpload(true);
     }
   };
@@ -177,15 +184,17 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
   const handleVideoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type.startsWith('video/')) {
+      setVideoUploading(true);
+      setVideoUploadPercent(0);
       try {
         toast.info('Uploading video...');
-        const url = await uploadToImageKit(file, '/posts');
+        const url = await uploadToImageKit(file, '/posts', (percent) => setVideoUploadPercent(percent));
         setContent(prev => ({ ...prev, video: url }));
         toast.success('Video uploaded!');
       } catch (error) {
         toast.error('Failed to upload video.');
-        console.error(error);
       }
+      setVideoUploading(false);
       setShowVideoUpload(true);
     }
   };
@@ -390,7 +399,15 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
                 <X className="size-4" />
               </Button>
             </div>
-            {content.image ? (
+            {imageUploading ? (
+              <div className="flex flex-col items-center justify-center py-8">
+                <div className="relative flex items-center justify-center h-24 w-24">
+                  <Loader2 className="animate-spin text-muted-foreground h-14 w-14" />
+                  <span className="absolute text-sm font-semibold text-muted-foreground">{imageUploadPercent}%</span>
+                </div>
+                <span className="mt-2 text-sm text-muted-foreground">Uploading image...</span>
+              </div>
+            ) : content.image ? (
               <div className="space-y-3">
                 <Image
                   src={content.image instanceof File ? URL.createObjectURL(content.image) : content.image}
@@ -441,7 +458,15 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
                 <X className="size-4" />
               </Button>
             </div>
-            {content.video ? (
+            {videoUploading ? (
+              <div className="flex flex-col items-center justify-center py-8">
+                <div className="relative flex items-center justify-center h-24 w-24">
+                  <Loader2 className="animate-spin text-primary h-16 w-16" />
+                  <span className="absolute text-lg font-semibold text-primary">{videoUploadPercent}%</span>
+                </div>
+                <span className="mt-2 text-sm text-muted-foreground">Uploading video...</span>
+              </div>
+            ) : content.video ? (
               <div className="space-y-3">
                 <video
                   src={content.video instanceof File ? URL.createObjectURL(content.video) : content.video}
