@@ -111,46 +111,32 @@ const Post = memo(function Post({
   const handleConfirmDelete = async () => {
     setIsDeleting(true);
     try {
-      console.log('🗑️ Deleting post:', _id);
-      
-      // 🔥 IMMEDIATE: Clean up ALL notifications related to this post FIRST
-      console.log('🧹 IMMEDIATE CLEANUP: Removing ALL notifications for post:', _id);
-      
-      // حذف جميع أنواع الإشعارات المرتبطة بالمنشور
       dispatch(removeNotificationsByCriteria({
         type: 'POST',
         postId: _id,
       }));
-      
-      // حذف إشعارات التفاعلات على المنشور
+
       dispatch(removeNotificationsByCriteria({
         type: 'POST_REACTION',
         postId: _id,
       }));
       
-      // حذف إشعارات التعليقات والردود
       dispatch(removeNotificationsByCriteria({
         type: 'COMMENT_ADDED',
         postId: _id,
       }));
       
-      // حذف إشعارات الردود
       dispatch(removeNotificationsByCriteria({
         type: 'COMMENT_REACTION',
         postId: _id,
       }));
       
-      // حذف إشعارات المنشنات
       dispatch(removeNotificationsByCriteria({
         type: 'USER_MENTIONED',
         postId: _id,
       }));
       
-      // 🔥 إرسال socket events لحذف جميع الإشعارات المرتبطة بالمنشور
       if (socket && user?._id) {
-        console.log('🔄 Socket: Sending notification deletion events for post:', _id);
-        
-        // حذف إشعارات المنشور نفسه وكل ما يتعلق به
         socket.emit('notification:delete', {
           type: 'POST',
           postId: _id,
@@ -159,7 +145,6 @@ const Post = memo(function Post({
           forceRefresh: true
         });
         
-        // حذف جميع إشعارات التفاعلات على المنشور
         socket.emit('notification:delete', {
           type: 'POST_REACTION',
           postId: _id,
@@ -167,7 +152,6 @@ const Post = memo(function Post({
           forceRefresh: true
         });
         
-        // حذف جميع إشعارات التعليقات والردود
         socket.emit('notification:delete', {
           type: 'COMMENT_ADDED',
           postId: _id,
@@ -175,7 +159,6 @@ const Post = memo(function Post({
           forceRefresh: true
         });
         
-        // حذف جميع إشعارات تفاعلات التعليقات
         socket.emit('notification:delete', {
           type: 'COMMENT_REACTION',
           postId: _id,
@@ -183,7 +166,6 @@ const Post = memo(function Post({
           forceRefresh: true
         });
         
-        // حذف جميع إشعارات المنشنات في المنشور
         socket.emit('notification:delete', {
           type: 'USER_MENTIONED',
           postId: _id,
@@ -191,19 +173,13 @@ const Post = memo(function Post({
           forceRefresh: true
         });
         
-        console.log('✅ Socket: All notification deletion events sent for post:', _id);
-      } else {
-        console.warn('⚠️ Socket or user not available, cannot send notification deletion events');
       }
       
-      // Then delete the post from API
       await dispatch(deletePost({ id: _id, token: localStorage.getItem('token') || '' })).unwrap();
       
-      // 🔥 إعادة تحميل الإشعارات بعد الحذف للتأكد من التحديث
       if (user?._id) {
         setTimeout(async () => {
           try {
-            console.log('🔄 Refreshing notifications after post deletion');
             const token = localStorage.getItem('token');
             if (token) {
               const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications/user/${user._id}`, {
@@ -213,11 +189,10 @@ const Post = memo(function Post({
                 const data = await response.json();
                 const { setNotifications } = await import('@/store/slices/notificationsSlice');
                 dispatch(setNotifications(data));
-                console.log('✅ Notifications refreshed successfully after post deletion');
               }
             }
           } catch (error) {
-            console.error('❌ Failed to refresh notifications after post deletion:', error);
+            toast.error(error instanceof Error ? error.message : 'Failed to delete post');
           }
         }, 1500);
       }
@@ -227,8 +202,7 @@ const Post = memo(function Post({
       // Redirect to timeline
       router.push('/');
     } catch (error) {
-      toast.error('Failed to delete post.');
-      console.error('Failed to delete post:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to delete post');
     } finally {
       setIsDeleting(false);
     }
