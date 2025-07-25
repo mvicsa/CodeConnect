@@ -35,7 +35,7 @@ export default function TrendingTags({ limit = 5, className = '' }: TrendingTags
       <div className={`space-y-2 ${className}`}>
         <div className="flex items-center gap-2 mb-3">
           <TrendingUp className="h-4 w-4 text-primary" />
-          <h3 className="font-medium">{t('tags.trending')}</h3>
+          <h3 className="font-medium text-muted-foreground">{t('tags.trending')}</h3>
         </div>
         <div className="flex flex-wrap gap-2">
           {[...Array(limit)].map((_, i) => (
@@ -54,7 +54,7 @@ export default function TrendingTags({ limit = 5, className = '' }: TrendingTags
     <div className={`space-y-2 ${className}`}>
       <div className="flex items-center gap-2 mb-3">
         <TrendingUp className="h-4 w-4 text-primary" />
-        <h3 className="font-medium">{t('tags.trending')}</h3>
+        <h3 className="font-medium text-muted-foreground">{t('tags.trending')}</h3>
       </div>
       <Tags tags={trendingTags.map(tag => tag.name)} />
     </div>

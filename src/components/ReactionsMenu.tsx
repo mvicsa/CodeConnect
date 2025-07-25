@@ -139,7 +139,7 @@ export default function ReactionsMenu({
             type: 'POST_REACTION',
             postId: postId,
             fromUserId: currentUserId,
-            reactionType: reactionName
+            reactionType: reactionName // Match comment logic
           }));
           
           // إرسال حدث لحذف الإشعار
@@ -148,11 +148,10 @@ export default function ReactionsMenu({
               type: 'POST_REACTION',
               postId: postId,
               fromUserId: currentUserId,
-              reactionType: reactionName,
+              reactionType: reactionName, // Match comment logic
               forceRefresh: true
             });
           }
-          
           // استدعاء الدالة القديمة أيضًا للتوافق
           handleDeleteReactionNotification(postId, 'POST_REACTION', currentUserId, reactionName);
         }
