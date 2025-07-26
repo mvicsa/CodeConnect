@@ -123,6 +123,10 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
     });
     
     notificationSocket.on('notification', (notification: Notification) => {
+      console.log('[SOCKET][ALL]', notification);
+      if (notification.type === 'POST_CREATED') {
+        console.log('[SOCKET][POST_CREATED] إشعار بوست جديد:', notification);
+      }
       dispatch(addNotification(notification));
       // Only play sound if this is not the first notification after connect
       if (!firstNotificationReceived.current) {
@@ -174,6 +178,11 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         dispatch(removePost(payload.postId));
         
         // حذف كل أنواع الإشعارات المرتبطة بالمنشور
+        dispatch(removeNotificationsByCriteria({
+          type: 'POST_CREATED',
+          postId: payload.postId,
+        }));
+        
         dispatch(removeNotificationsByCriteria({
           type: 'POST',
           postId: payload.postId,
