@@ -40,9 +40,9 @@ import { useTranslations } from "next-intl";
 import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
 import Container from "@/components/Container";
-import Select from "react-select"; // New import
 import { useDebounce } from "use-debounce"; // New import
 import { User } from "@/types/user";
+import { MultiSelect, Option } from "@/components/ui/multi-select";
 // Types
 interface Room {
   _id: string;
@@ -198,26 +198,28 @@ export default function MeetingPage() {
     }
   };
 
-  // Filter users for react-select options
-  const filteredUsers = availableUsers
+  // Filter users for multi-select options
+  const filteredUsers: Option[] = availableUsers
     .filter(user =>
+      user._id && user.username && user.email &&
       (user.username.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
        user.email.toLowerCase().includes(debouncedSearchQuery.toLowerCase())) &&
       !newRoomData.invitedUsers.includes(user._id)
     )
     .map(user => ({
-      value: user._id,
+      value: user._id!,
       label: `${user.username} (${user.email})`
     }));
 
-  const filteredEditUsers = availableUsers
+  const filteredEditUsers: Option[] = availableUsers
     .filter(user =>
+      user._id && user.username && user.email &&
       (user.username.toLowerCase().includes(debouncedEditSearchQuery.toLowerCase()) ||
        user.email.toLowerCase().includes(debouncedEditSearchQuery.toLowerCase())) &&
       !(editingRoom?.invitedUsers?.map(u => u._id) || []).includes(user._id)
     )
     .map(user => ({
-      value: user._id,
+      value: user._id!,
       label: `${user.username} (${user.email})`
     }));
 
@@ -829,44 +831,21 @@ export default function MeetingPage() {
               {newRoomData.isPrivate && (
                 <div className="grid gap-2">
                   <label>Invited Users</label>
-                  <Select
-                    isMulti
-                    options={filteredUsers}
-                    value={newRoomData.invitedUsers.map(id => {
-                      const user = availableUsers.find(u => u._id === id);
-                      return user ? { value: user._id, label: `${user.username} (${user.email})` } : null;
-                    }).filter(Boolean)}
+                  <MultiSelect
+                    options={availableUsers
+                      .filter(user => user._id && user.username && user.email)
+                      .map(user => ({
+                        value: user._id!,
+                        label: `${user.username} (${user.email})`
+                      }))}
+                    selected={newRoomData.invitedUsers}
                     onChange={(selected) => setNewRoomData(prev => ({
                       ...prev,
-                      invitedUsers: selected.map(option => option.value)
+                      invitedUsers: selected
                     }))}
-                    onInputChange={(input) => setSearchQuery(input)}
                     placeholder="Search users by username or email"
-                    className="basic-multi-select"
-                    classNamePrefix="select"
+                    searchPlaceholder="Search users..."
                   />
-                  {newRoomData.invitedUsers.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-sm font-semibold">Invited Users:</p>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {newRoomData.invitedUsers.map(userId => {
-                          const user = availableUsers.find(u => u._id === userId);
-                          return user ? (
-                            <Badge key={userId} variant="secondary" className="flex items-center gap-1">
-                              {user.username}
-                              <X
-                                className="h-4 w-4 cursor-pointer"
-                                onClick={() => setNewRoomData(prev => ({
-                                  ...prev,
-                                  invitedUsers: prev.invitedUsers.filter(id => id !== userId)
-                                }))}
-                              />
-                            </Badge>
-                          ) : null;
-                        })}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -1026,45 +1005,28 @@ export default function MeetingPage() {
               {editingRoom?.isPrivate && (
                 <div className="grid gap-2">
                   <label>Invited Users</label>
-                  <Select
-                    isMulti
-                    options={filteredEditUsers}
-                    value={(editingRoom?.invitedUsers || []).map(user => ({
-                      value: user._id,
-                      label: `${user.username} (${user.email})`
-                    }))}
+                  <MultiSelect
+                    options={availableUsers
+                      .filter(user => user._id && user.username && user.email)
+                      .map(user => ({
+                        value: user._id!,
+                        label: `${user.username} (${user.email})`
+                      }))}
+                    selected={(editingRoom?.invitedUsers || []).map(user => user._id).filter(Boolean) as string[]}
                     onChange={(selected) => setEditingRoom(prev => prev ? {
                       ...prev,
-                      invitedUsers: selected.map(option => ({
-                        _id: option.value,
-                        username: availableUsers.find(u => u._id === option.value)?.username || '',
-                        email: availableUsers.find(u => u._id === option.value)?.email || ''
-                      }))
+                      invitedUsers: selected.map(userId => {
+                        const user = availableUsers.find(u => u._id === userId);
+                        return {
+                          _id: userId,
+                          username: user?.username || '',
+                          email: user?.email || ''
+                        };
+                      })
                     } : null)}
-                    onInputChange={(input) => setEditSearchQuery(input)}
                     placeholder="Search users by username or email"
-                    className="basic-multi-select"
-                    classNamePrefix="select"
+                    searchPlaceholder="Search users..."
                   />
-                  {editingRoom?.invitedUsers && editingRoom.invitedUsers.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-sm font-semibold">Invited Users:</p>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {editingRoom.invitedUsers.map(user => (
-                          <Badge key={user._id} variant="secondary" className="flex items-center gap-1">
-                            {user.username}
-                            <X
-                              className="h-4 w-4 cursor-pointer"
-                              onClick={() => setEditingRoom(prev => prev ? {
-                                ...prev,
-                                invitedUsers: prev.invitedUsers?.filter(u => u._id !== user._id) || []
-                              } : null)}
-                            />
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
