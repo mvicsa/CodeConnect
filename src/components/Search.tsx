@@ -15,6 +15,7 @@ import PostsList from '@/components/post/PostsList';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import AdminBadge from '@/components/AdminBadge';
+import { BlockStatusIndicator, BlockButton } from '@/components/block';
 import Link from 'next/link';
 
 interface SearchResultsProps {
@@ -37,14 +38,31 @@ const UserSearchResultCard: React.FC<{ user: User }> = ({ user }) => (
       <CardTitle className="text-lg font-semibold group-hover:text-primary transition-colors flex items-center gap-2 justify-center">
         {user.firstName} {user.lastName}
         {user.role === 'admin' && <AdminBadge role="admin" size="sm" />}
+        {user._id && (
+          <BlockStatusIndicator 
+            userId={user._id} 
+            className="ml-1"
+          />
+        )}
       </CardTitle>
       <CardDescription className="text-sm text-muted-foreground">@{user.username}</CardDescription>
     </CardHeader>
     {user.bio && <CardContent className="text-sm text-muted-foreground text-center p-0 mb-2 line-clamp-3">{user.bio}</CardContent>}
-    <CardContent className="w-full mt-auto p-0">
+    <CardContent className="w-full mt-auto p-0 space-y-2">
       <Button asChild variant="outline" className="w-full">
         <Link href={`/profile/${user.username}`}>View Profile</Link>
       </Button>
+      {user._id && (
+        <BlockButton
+          targetUserId={user._id}
+          targetUsername={user.username}
+          variant="outline"
+          size="sm"
+          showIcon={true}
+          showText={true}
+          className="w-full"
+        />
+      )}
     </CardContent>
   </Card>
 );

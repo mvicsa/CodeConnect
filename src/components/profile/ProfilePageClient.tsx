@@ -232,8 +232,6 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
         socialLinks: mappedSocialLinks
       });
       
-      // Log the mapped social links for debugging
-      console.log('Mapped social links:', mappedSocialLinks);
     }
   }, [user]);
 
@@ -332,6 +330,16 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
     } else {
       await dispatch(fetchProfile());
     }
+    
+    // Also fetch current user's profile to ensure following list is up to date
+    await dispatch(fetchProfile());
+    
+    // Update local follow status after refetching user data
+    // This ensures the unfollow button state is updated when blocking someone
+    if (user?._id && currentUser?.following) {
+      const updatedIsFollowing = Array.isArray(currentUser.following) && currentUser.following.includes(user._id);
+      setIsFollowing(updatedIsFollowing);
+    }
   };
 
   const handleUpdateAvatar = async (url: string) => {
@@ -412,16 +420,12 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
         return link;
       });
   
-    console.log('Social links before submission:', filteredSocialLinks);
-
     // Prepare data for API
     const payload = {
       ...editForm,
       socialLinks: filteredSocialLinks,
       birthdate: editForm.birthdate ? editForm.birthdate.toISOString().split('T')[0] : null,
     };
-
-    console.log('Submitting profile update:', payload);
     
     // Close dialog immediately
     setEditDialogOpen(false);
@@ -461,7 +465,6 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
   useEffect(() => {
     const fetchUserData = async () => {
       if (!reduxUser && !authLoading && !hasFetchedProfile.current) {
-        console.log('Fetching profile data...');
         hasFetchedProfile.current = true;
         try {
           await dispatch(fetchProfile());
@@ -479,10 +482,15 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
   // Add local state for follow status to prevent re-renders
   const [isFollowing, setIsFollowing] = useState(serverIsFollowing);
   
-  // Update local isFollowing state when server state changes
+  // Update local isFollowing state when server state changes or when following list changes
   useEffect(() => {
-    setIsFollowing(serverIsFollowing);
-  }, [serverIsFollowing]);
+    if (user?._id && currentUser?.following) {
+      const updatedIsFollowing = Array.isArray(currentUser.following) && currentUser.following.includes(user._id);
+      setIsFollowing(updatedIsFollowing);
+    } else {
+      setIsFollowing(serverIsFollowing);
+    }
+  }, [serverIsFollowing, user?._id, currentUser?.following]);
 
   // Helper: get current user ID (should be the logged-in user's _id)
   const currentUserId = reduxUser?._id;
@@ -700,6 +708,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
               onUpdateAvatar={handleUpdateAvatar}
               onUpdateCover={handleUpdateCover}
               onEditProfile={handleOpenEditDialog}
+              onBlockStatusChange={refetchUser}
             />
             {/* Edit Profile Dialog */}
             <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

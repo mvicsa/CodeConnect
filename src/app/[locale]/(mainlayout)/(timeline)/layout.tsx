@@ -3,6 +3,7 @@ import Container from "@/components/Container";
 import { Sidebar } from "@/components/layout/sidebar/Sidebar";
 import CreatePostWrapper from "@/components/post/CreatePostWrapper";
 import SuggestedUsers from "@/components/SuggestedUsers";
+import BlockStatusChecker from "@/components/BlockStatusChecker";
 import React from "react";
 
 export default async function RootLayout({
@@ -12,7 +13,8 @@ export default async function RootLayout({
 }>) {
   return (
     <Container>
-        <div className="grid grid-cols-12 gap-4">
+      <BlockStatusChecker />
+      <div className="grid grid-cols-12 gap-4">
         {/* Left Sidebar (visible on desktop, hidden on mobile) */}
         <div className="md:col-span-4 xl:col-span-3 hidden md:block">
             <Sidebar />

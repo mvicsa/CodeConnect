@@ -1,13 +1,14 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { useSelector } from 'react-redux'
-import { RootState } from '../../store/store'
+import React, { useState, useEffect, useRef } from 'react'
+import { useSelector, useDispatch } from 'react-redux'
+import { RootState, AppDispatch } from '../../store/store'
 import Post from './Post'
 import { PostType } from '../../types/post'
 import { Button } from '../ui/button'
 import { RefreshCw } from 'lucide-react'
 import { Skeleton } from '../ui/skeleton'
+import { useBlock } from '@/hooks/useBlock'
 
 interface PostsListProps {
   posts?: PostType[]
@@ -47,6 +48,14 @@ const PostsList = React.memo(function PostsList({
 }: PostsListProps) {
   const [localPosts, setLocalPosts] = useState<PostType[]>([])
   const [initialLoading, setInitialLoading] = useState(true)
+  const dispatch = useDispatch<AppDispatch>()
+  const { checkBlockStatus } = useBlock()
+  const checkBlockStatusRef = useRef(checkBlockStatus)
+
+  // Update ref when checkBlockStatus changes
+  useEffect(() => {
+    checkBlockStatusRef.current = checkBlockStatus
+  }, [checkBlockStatus])
 
   // Use Redux posts if no props provided
   const reduxPosts = useSelector((state: RootState) => state.posts.posts)
@@ -61,6 +70,22 @@ const PostsList = React.memo(function PostsList({
       setInitialLoading(false)
     }
   }, [posts, loading])
+
+  // Check block status for all post authors when posts change
+  useEffect(() => {
+    if (posts.length > 0) {
+      // Get unique author IDs from posts
+      const authorIds = [...new Set(posts.map(post => post.createdBy._id).filter(Boolean))]
+      
+      // Check block status for each author immediately
+      authorIds.forEach(authorId => {
+        if (authorId) {
+          // Check immediately without debouncing for better UX
+          checkBlockStatusRef.current(authorId)
+        }
+      })
+    }
+  }, [posts])
 
   if (error) {
     return (

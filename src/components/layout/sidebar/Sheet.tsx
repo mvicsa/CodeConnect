@@ -12,6 +12,7 @@ import {
   Video,
   Presentation,
   Zap,
+  Archive,
 } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ export function SheetD() {
     { name: "Videos", href: "/videos", icon: <Video className="w-5 h-5" /> },
     { name: "Meeting", href: "/meeting", icon: <Presentation className="w-5 h-5" /> },
     { name: "Discover Sparks", href: "/sparks", icon: <Zap className="w-5 h-5" /> },
+    { name: "Archive", href: "/archive", icon: <Archive className="w-5 h-5" /> },
   ];
 
   // Remove locale prefix from pathname for matching

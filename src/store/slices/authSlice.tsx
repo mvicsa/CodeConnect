@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios, { AxiosError } from 'axios';
 
 interface User {
-  id: string;
+  _id: string;
   username: string;
   email: string;
   [key: string]: unknown;

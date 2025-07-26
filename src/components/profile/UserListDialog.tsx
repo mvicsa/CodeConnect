@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { BlockButton } from '@/components/block';
 import { useState, useEffect } from 'react';
 
 interface User {
@@ -108,15 +109,31 @@ const UserListDialog = ({
                     </div>
                     {/* Hide follow/unfollow button if user is self */}
                     {!isSelf && (
-                      <Button
-                        size='sm'
-                        variant={isFollowing ? 'outline' : 'default'}
-                        onClick={() => handleFollowToggle(u, isFollowing)}
-                        disabled={loadingUserId === u._id || loadingButton}
-                        className='cursor-pointer ms-auto'
-                      >
-                        {loadingUserId === u._id ? <Loader2 className="h-4 w-4 animate-spin" /> : isFollowing ? 'Unfollow' : 'Follow'}
-                      </Button>
+                      <div className='flex gap-1 ms-auto'>
+                        <Button
+                          size='sm'
+                          variant={isFollowing ? 'outline' : 'default'}
+                          onClick={() => handleFollowToggle(u, isFollowing)}
+                          disabled={loadingUserId === u._id || loadingButton}
+                          className='cursor-pointer'
+                        >
+                          {loadingUserId === u._id ? <Loader2 className="h-4 w-4 animate-spin" /> : isFollowing ? 'Unfollow' : 'Follow'}
+                        </Button>
+                        <BlockButton
+                          targetUserId={u._id}
+                          targetUsername={u.username}
+                          variant="outline"
+                          size="sm"
+                          showIcon={true}
+                          showText={false}
+                          className="cursor-pointer"
+                          onBlockStatusChange={() => {
+                            // Refresh the dialog data when block status changes
+                            // This will update the following status for all users in the dialog
+                            window.location.reload();
+                          }}
+                        />
+                      </div>
                     )}
                   </div>
                 );

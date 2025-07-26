@@ -115,8 +115,7 @@ const NotificationPage = () => {
         handleDeleteAllNotifications
     } = useNotifications();
 
-    // DEBUG: Log the current notification items
-    console.log('[DEBUG][NOTIFICATIONS STATE]', notifications);
+
     
     // Helper function to get notification link using useState
     const getNotificationLink = (notification: Notification): string | undefined => {

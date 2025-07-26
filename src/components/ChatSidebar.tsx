@@ -1,16 +1,24 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect, useRef } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChatInput } from "@/components/ui/chat-input";
 import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
 import { ChatPreview, ChatRoomType, Message } from "@/types/chat";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Search, Users, Image as ImageIcon, File as FileIcon } from "lucide-react";
+import { ArrowLeft, Search, Users, Image as ImageIcon, File as FileIcon, MoreVertical } from "lucide-react";
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store/store';
 import { SocketContext } from '@/store/Provider';
 import { setSeen } from '@/store/slices/chatSlice';
+import { BlockButton } from '@/components/block';
+import { useBlock } from '@/hooks/useBlock';
 import Link from "next/link";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface ChatSidebarProps {
   onChatSelect: (chatId: string) => void;
@@ -37,6 +45,13 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   const messages = useSelector((state: RootState) => state.chat.messages);
   const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
   const dispatch = useDispatch();
+  const { checkBlockStatus } = useBlock();
+  const checkBlockStatusRef = useRef(checkBlockStatus);
+
+  // Update ref when checkBlockStatus changes
+  useEffect(() => {
+    checkBlockStatusRef.current = checkBlockStatus;
+  }, [checkBlockStatus]);
 
   const handleChatSelect = (chatId: string) => {
     onChatSelect(chatId);
@@ -73,6 +88,20 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
   const t = useTranslations("chat");
 
+  // Check block status for all chat members when chatPreviews change
+  useEffect(() => {
+    if (chatPreviews.length > 0) {
+      chatPreviews.forEach(preview => {
+        if (preview.type === ChatRoomType.PRIVATE) {
+          const otherMember = preview.members.find(m => m._id !== myUserId);
+          if (otherMember) {
+            checkBlockStatusRef.current(otherMember._id);
+          }
+        }
+      });
+    }
+  }, [chatPreviews, myUserId]);
+
   const renderLastMessagePreview = (lastMessage: Message | undefined | null) => {
     if (!lastMessage) return 'No messages yet';
     if (lastMessage.deleted) return 'Message deleted';
@@ -86,6 +115,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     const otherMember = preview.type === ChatRoomType.PRIVATE 
       ? preview.members.find(m => m._id !== myUserId)
       : null;
+    
+    // Check if user is blocked
+    const isBlocked = otherMember ? blockStatuses[otherMember._id]?.isBlocked : false;
+    const isBlockedBy = otherMember ? blockStatuses[otherMember._id]?.isBlockedBy : false;
 
     const renderChatContent = () => (
       <div
@@ -156,32 +189,42 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
               ? "bg-primary/10 border-s-primary" 
               : "hover:bg-accent dark:hover:bg-card"
           )}
-          onClick={() => handleChatSelect(preview._id)}
         >
-          <div className="relative">
-            <Avatar className="h-12 w-12">
-              <AvatarImage
-                src={otherMember.avatar}
-                alt={`${otherMember.firstName} ${otherMember.lastName}`}
-              />
-              <AvatarFallback>
-                {getInitials(`${otherMember.firstName} ${otherMember.lastName}`)}
-              </AvatarFallback>
-            </Avatar>
-            {/* Online/offline dot */}
-            <span
-              className={cn(
-                "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-background",
-                status === 'online' ? 'bg-primary' : 'bg-gray-400'
+          <div 
+            className="flex items-center space-x-3 flex-1 cursor-pointer"
+            onClick={() => handleChatSelect(preview._id)}
+          >
+            <div className="relative">
+              <Avatar className="h-12 w-12">
+                <AvatarImage
+                  src={otherMember.avatar}
+                  alt={`${otherMember.firstName} ${otherMember.lastName}`}
+                />
+                <AvatarFallback>
+                  {getInitials(`${otherMember.firstName} ${otherMember.lastName}`)}
+                </AvatarFallback>
+              </Avatar>
+              {/* Online/offline dot - hidden for blocked users */}
+              {!isBlocked && !isBlockedBy && (
+                <span
+                  className={cn(
+                    "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-background",
+                    status === 'online' ? 'bg-primary' : 'bg-gray-400'
+                  )}
+                  title={status.charAt(0).toUpperCase() + status.slice(1)}
+                />
               )}
-              title={status.charAt(0).toUpperCase() + status.slice(1)}
-            />
-          </div>
+            </div>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-accent-foreground truncate">
                 {`${otherMember.firstName} ${otherMember.lastName}`}
+                {(isBlocked || isBlockedBy) && (
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {isBlocked ? '(Blocked)' : '(Blocked by)'}
+                  </span>
+                )}
               </p>
               {preview.lastMessage && (
                 <p className="text-xs text-muted-foreground">
@@ -191,21 +234,52 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
             </div>
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground truncate">
-                {renderLastMessagePreview(preview.lastMessage)}
+                {(isBlocked || isBlockedBy) ? 'Messages blocked' : renderLastMessagePreview(preview.lastMessage)}
               </p>
-              {preview.unreadCount > 0 && (
+              {preview.unreadCount > 0 && !isBlocked && !isBlockedBy && (
                 <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-primary rounded-full">
                   {preview.unreadCount}
                 </span>
               )}
             </div>
+            </div>
           </div>
+          
+          {/* Block Button Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-accent rounded"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreVertical className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <div className="flex items-center gap-2">
+                  <BlockButton
+                    targetUserId={otherMember._id}
+                    targetUsername={otherMember.username}
+                    variant="ghost"
+                    size="sm"
+                    showIcon={true}
+                    showText={true}
+                    className="p-0 h-auto font-normal justify-start w-full"
+                  />
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       );
     }
     return null;
   };
 
+  // Get block statuses from Redux
+  const blockStatuses = useSelector((state: RootState) => state.block.blockStatuses);
+  
   // Filter chatPreviews based on searchQuery
   const filteredPreviews = chatPreviews.filter(preview => {
     if (!searchQuery) return true;

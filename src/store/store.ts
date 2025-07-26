@@ -14,6 +14,11 @@ import chatReducer from './slices/chatSlice'
 import sparksReducer from './slices/sparksSlice'
 import aiSuggestionsReducer from './slices/aiSuggestionsSlice'
 import archiveReducer from './slices/archiveSlice'
+import blockReducer from './slices/blockSlice'
+
+
+
+
 
 export const store = configureStore({
   reducer: {
@@ -32,7 +37,30 @@ export const store = configureStore({
     sparks: sparksReducer,
     aiSuggestions: aiSuggestionsReducer,
     archive: archiveReducer,
+    block: blockReducer
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        // Ignore these action types
+        ignoredActions: [
+          'comments/fetchReplies/pending',
+          'comments/fetchReplies/fulfilled',
+          'comments/addReplyAsync/pending',
+          'comments/addReplyAsync/fulfilled',
+          'comments/updateCommentReactionsAsync/pending',
+          'comments/updateCommentReactionsAsync/fulfilled',
+          'comments/updateReplyReactionsAsync/pending',
+          'comments/updateReplyReactionsAsync/fulfilled'
+        ],
+        // Ignore these field paths in the state
+        ignoredPaths: [
+          'comments.comments.replies',
+          'comments.comments.createdAt',
+          'comments.comments.updatedAt'
+        ]
+      }
+    })
 })
 
 export type RootState = ReturnType<typeof store.getState>

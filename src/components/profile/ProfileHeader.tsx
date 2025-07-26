@@ -5,9 +5,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { EllipsisVerticalIcon, UserPlusIcon, UserMinus, PencilIcon, Send } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import AdminBadge from '@/components/AdminBadge';
+import { BlockButton, BlockStatusIndicator } from '@/components/block';
+import { useBlock } from '@/hooks/useBlock';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import ImageCropper from './ImageCropper';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { SocketContext } from '@/store/Provider';
@@ -32,6 +34,7 @@ interface ProfileHeaderProps {
   onUpdateAvatar?: (url: string) => void;
   onUpdateCover?: (url: string) => void;
   onEditProfile?: () => void;
+  onBlockStatusChange?: () => void;
 }
 
 const ProfileHeader: React.FC<ProfileHeaderProps> = ({
@@ -49,6 +52,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   onUpdateAvatar,
   onUpdateCover,
   onEditProfile,
+  onBlockStatusChange,
 }) => {
   const [editingImage, setEditingImage] = useState<'avatar' | 'cover' | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -60,6 +64,25 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   const currentUser = useSelector((state: RootState) => state.auth.user);
   const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
   const status = user ? userStatuses[user._id?.toString() || ''] || 'offline' : 'offline';
+  const { isBlocked, isBlockedBy, checkBlockStatus } = useBlock();
+  const checkBlockStatusRef = useRef(checkBlockStatus);
+
+  // Update ref when checkBlockStatus changes
+  useEffect(() => {
+    checkBlockStatusRef.current = checkBlockStatus;
+  }, [checkBlockStatus]);
+  
+  // Check block status when profile loads
+  useEffect(() => {
+    if (user?._id && currentUser?._id && !isOwnProfile) {
+      checkBlockStatusRef.current(user._id);
+    }
+  }, [user?._id, currentUser?._id, isOwnProfile])
+  
+  // Early return if no user
+  if (!user) {
+    return null;
+  }
   
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover') => {
     if (event.target.files && event.target.files[0]) {
@@ -187,14 +210,16 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                 <AvatarImage src={user?.avatar || "/user.png"} />
                 <AvatarFallback>{user?.firstName?.charAt(0)?.toUpperCase() || 'U'}</AvatarFallback>
               </Avatar>
-              {/* Online/offline dot */}
-              <span
-                className={
-                  `absolute bottom-2 left-5 w-5 h-5 rounded-full border-3 border-card ` +
-                  (status === 'online' ? 'bg-primary' : 'bg-gray-400')
-                }
-                title={status.charAt(0).toUpperCase() + status.slice(1)}
-              />
+              {/* Online/offline dot - hidden for blocked users */}
+                {!isBlocked(user?._id || '') && !isBlockedBy(user?._id || '') && (
+                  <span
+                    className={
+                      `absolute bottom-2 left-5 w-5 h-5 rounded-full border-3 border-card ` +
+                      (status === 'online' ? 'bg-primary' : 'bg-gray-400')
+                    }
+                    title={status.charAt(0).toUpperCase() + status.slice(1)}
+                  />
+                )}
               {isOwnProfile && (
                 <label htmlFor="avatar-upload" className="absolute bottom-0 right-0 cursor-pointer">
                   <div className="bg-background/80 backdrop-blur-sm p-1.5 rounded-full shadow-md hover:bg-background/90 transition-colors">
@@ -217,13 +242,20 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
               {user?.role === 'admin' && (
                 <AdminBadge role={user?.role} size='md' />
               )}
+              {/* Add Block Status Indicator */}
+              {!isOwnProfile && user._id && (
+                <BlockStatusIndicator 
+                  userId={user._id} 
+                  className="ms-2"
+                />
+              )}
             </div>
             <p className='text-lg text-muted-foreground'>@{user?.username || 'username'}</p>
 
             {!isOwnProfile && user && (
               <div className='flex items-center justify-center gap-2 mt-2'>
                 {/* Show follow/unfollow button (disabled for self-profile) */}
-                <>
+                { !isBlocked(user?._id || '') && !isBlockedBy(user?._id || '') && (
                   <Button
                     className='cursor-pointer self-center'
                     onClick={isFollowing ? onUnfollow : onFollow}
@@ -233,6 +265,8 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                     {isFollowing ? <UserMinus className='w-4 h-4' /> : <UserPlusIcon className='w-4 h-4' />}
                     {isFollowing ? 'Unfollow' : 'Follow'}
                   </Button>
+                )}
+                { !isBlocked(user?._id || '') && !isBlockedBy(user?._id || '') && (
                   <Button 
                     variant='outline' 
                     className='cursor-pointer self-center'
@@ -242,7 +276,20 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                     <Send className='w-4 h-4' />
                     {isCreatingRoom ? 'Creating...' : 'Send Message'}
                   </Button>
-                </>
+                )}
+                  
+                  {/* Add Block Button */}
+                  {user._id && currentUser?._id && user._id !== currentUser._id && (
+                    <BlockButton
+                      targetUserId={user._id}
+                      targetUsername={user.username}
+                      variant="outline"
+                      showIcon={true}
+                      showText={true}
+                      className="cursor-pointer self-center"
+                      onBlockStatusChange={onBlockStatusChange}
+                    />
+                  )}
               </div>
             )}
           </div>

@@ -1,12 +1,17 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '@/store/store';
+import { fetchPostById } from '@/store/slices/postsSlice';
 import { PostType } from '@/types/post';
 import Post from './Post';
 import { Skeleton } from '../ui/skeleton';
 import { useTranslations } from 'next-intl';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { useBlock } from '@/hooks/useBlock';
+import PostBlockStatusChecker from './PostBlockStatusChecker';
 
 interface SinglePostViewProps {
   postId: string;
@@ -14,46 +19,30 @@ interface SinglePostViewProps {
 
 export default function SinglePostView({ postId }: SinglePostViewProps) {
   const t = useTranslations();
-  const [post, setPost] = useState<PostType | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Get the token from local storage
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  const dispatch = useDispatch<AppDispatch>();
+  const { posts, loading, error } = useSelector((state: RootState) => state.posts);
+  const { loadBlockedUsers, loading: blockLoading } = useBlock();
+  
+  // Find the post in the Redux store
+  const post = posts.find(p => p._id === postId) || null;
 
   useEffect(() => {
     const fetchPost = async () => {
-      setLoading(true);
-      setError(null);
-
       try {
-        // Replace this with your actual API call
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/posts/${postId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch post: ${response.status}`);
-        }
-
-        const data = await response.json();
-        setPost(data);
+        // Always fetch the post to ensure we have the latest data
+        await dispatch(fetchPostById(postId)).unwrap();
       } catch (err) {
         console.error('Error fetching post:', err);
-        setError(t('errorFetchingPost'));
-      } finally {
-        setLoading(false);
       }
     };
 
     if (postId) {
       fetchPost();
     }
-  }, [postId, token, t]);
+  }, [postId, dispatch]);
 
-  if (loading) {
+  // Show skeleton while loading post or block data
+  if (loading || blockLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-12 w-full" />
@@ -73,15 +62,20 @@ export default function SinglePostView({ postId }: SinglePostViewProps) {
     );
   }
 
-  if (!post) {
+  if (!post && !loading) {
     return (
       <Alert>
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>{t('notFound')}</AlertTitle>
-        <AlertDescription>{t('postNotFound')}</AlertDescription>
+        <AlertTitle>Post not found</AlertTitle>
+        <AlertDescription>The post you are looking for does not exist.</AlertDescription>
       </Alert>
     );
   }
 
-  return <Post post={post} />;
+  return post ? (
+    <>
+      <PostBlockStatusChecker post={post} />
+      <Post post={post} />
+    </>
+  ) : null;
 } 

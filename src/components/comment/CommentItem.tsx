@@ -8,6 +8,7 @@ import {
   FlagIcon,
   XIcon,
   ChevronDown,
+  UserX,
 } from 'lucide-react'
 import ReplyForm from './ReplyForm'
 import CommentEditor from './CommentEditor'
@@ -41,13 +42,16 @@ import {
   fetchReplies
 } from '@/store/slices/commentsSlice'
 import { removeNotificationsByCriteria } from '@/store/slices/notificationsSlice'
-import { useState, useMemo, useEffect, useContext } from 'react'
+import { useBlock } from '@/hooks/useBlock'
+import { BlockButton } from '@/components/block'
+import { useState, useMemo, useEffect, useContext, useRef } from 'react'
 import { Comment, CommentUser, Reply, User } from '@/types/comments'
 import Link from 'next/link'
 import AdminBadge from '../AdminBadge'
 import { SocketContext } from '@/store/Provider'
 import CommentAI from './CommentAI'
 import { AIEvaluation } from '@/types/ai'
+import { Skeleton } from '../ui/skeleton'
 
 
 // Define CommentContent type
@@ -130,6 +134,21 @@ export default function CommentItem({
   const isReply = !!comment.parentCommentId
   const rootCommentId = rootId || String(commentId)
   const { user } = useSelector((state: RootState) => state.auth)
+  const { checkBlockStatus, isBlocked, isBlockedBy } = useBlock();
+  const checkBlockStatusRef = useRef(checkBlockStatus);
+
+  // Update ref when checkBlockStatus changes
+  useEffect(() => {
+    checkBlockStatusRef.current = checkBlockStatus;
+  }, [checkBlockStatus]);
+  
+  // Get block status directly from Redux to avoid re-renders
+  const blockStatuses = useSelector((state: RootState) => state.block.blockStatuses, (prev, next) => {
+    // Only re-render if the specific author's block status changed
+    const authorId = comment.createdBy?._id?.toString();
+    if (!authorId) return prev === next;
+    return prev[authorId] === next[authorId];
+  });
 
   const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
   const status = user ? userStatuses[comment.createdBy?._id?.toString()] || 'offline' : 'offline';
@@ -145,20 +164,25 @@ export default function CommentItem({
     }
   }, [highlightedReplyId, comment]);
 
-  // Get visible replies based on pagination
+  // Get visible replies based on pagination and filter blocked users
   const visibleRepliesList = useMemo(() => {
     if (!isCommentWithReplies(comment) || !comment.replies || comment.replies.length === 0) {
       return [];
     }
 
-    // Always show replies in reverse chronological order (newest first)
+    // Always show replies in reverse chronological order (newest first) and filter blocked users
     const sortedReplies = [...comment.replies];
-    return sortedReplies.slice(0, Math.max(visibleReplies, 0)).filter(Boolean) as Reply[];
-  }, [comment, visibleReplies]);
+    return sortedReplies
+      .slice(0, Math.max(visibleReplies, 0))
+      .filter(Boolean)
+      .filter((reply) => !isBlocked(reply.createdBy._id)) as Reply[];
+  }, [comment, visibleReplies, isBlocked]);
 
-  // Check if there are more replies to load
-  const hasMoreReplies = isCommentWithReplies(comment) && 
-    comment.replies.length > visibleRepliesList.length;
+  // Check if there are more replies to load (after filtering blocked users)
+  const filteredReplies = isCommentWithReplies(comment) && comment.replies 
+    ? comment.replies.filter((reply) => reply && !isBlocked(reply.createdBy._id))
+    : [];
+  const hasMoreReplies = isCommentWithReplies(comment) && filteredReplies.length > visibleRepliesList.length;
 
   const handleReplyClick = () => {
     // If this is a reply, trigger the reply form on the parent comment
@@ -179,7 +203,15 @@ export default function CommentItem({
       if (has_id(comment)) {
         dispatch(fetchReplies(comment._id))
           .unwrap()
-          .then(() => {
+          .then((replies) => {
+            // Check block status for reply authors
+            const replyAuthorIds = replies.map(reply => reply.createdBy._id).filter(Boolean);
+            replyAuthorIds.forEach(authorId => {
+              if (authorId) {
+                checkBlockStatusRef.current(authorId);
+              }
+            });
+            
             setShowReplies(true);
             setVisibleReplies(2);
           });
@@ -453,17 +485,63 @@ export default function CommentItem({
     }
   }
 
+  // Block filtering logic
+  const authorId = comment.createdBy?._id?.toString();
+  
+  // Get block status directly from Redux state
+  const authorBlockStatus = authorId ? blockStatuses[authorId] : null;
+  const isAuthorBlocked = authorBlockStatus?.isBlocked || false;
+  const isAuthorBlockedBy = authorBlockStatus?.isBlockedBy || false;
+  
+  // Check if block status is still loading (not yet checked)
+  const isBlockStatusLoading = authorId && !authorBlockStatus;
+  
+  // Show skeleton while block status is loading
+  if (isBlockStatusLoading) {
+    return (
+      <div className="flex gap-3 items-start relative z-2">
+        <Skeleton className="h-8 w-8 rounded-full" />
+        <div className="flex-1">
+          <div className="bg-accent p-3 rounded-xl relative">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-2 w-12" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-3/4" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Don't show comments from blocked users
+  if (authorId && isAuthorBlocked) {
+    return null;
+  }
+  
+  // Don't show comments to users who blocked you
+  if (authorId && isAuthorBlockedBy) {
+    return null;
+  }
+
   return (
     <div className="flex gap-3 items-start relative z-2">
       <Link href={`/profile/${comment.createdBy.username}`} className='relative'>
         <UserAvatar src={hasCreatedBy(comment) ? (comment.createdBy.avatar || '') : ''} firstName={hasCreatedBy(comment) ? (comment.createdBy.firstName || '') : ((comment as CommentUser).user?.username || '')} />
-        <span
-          className={
-            `absolute bottom-0.5 end-0.5 w-3 h-3 rounded-full border-2 border-card ` +
-            (status === 'online' ? 'bg-primary' : 'bg-gray-400')
-          }
-          title={status.charAt(0).toUpperCase() + status.slice(1)}
-        />
+        {!isBlocked(comment.createdBy?._id || '') && !isBlockedBy(comment.createdBy?._id || '') && (
+          <span
+            className={
+              `absolute bottom-0.5 end-0.5 w-3 h-3 rounded-full border-2 border-card ` +
+              (status === 'online' ? 'bg-primary' : 'bg-gray-400')
+            }
+            title={status.charAt(0).toUpperCase() + status.slice(1)}
+          />
+        )}
       </Link>
 
       <div className="flex-1">
@@ -491,6 +569,22 @@ export default function CommentItem({
                     <FlagIcon className="size-4" />
                     {t('report')}
                   </DropdownMenuItem>
+                  {user?._id !== comment.createdBy._id && (
+                    <DropdownMenuItem asChild className='cursor-pointer'>
+                      <div className='flex items-center gap-2'>
+                        <UserX className="size-4" />
+                        <BlockButton
+                          targetUserId={comment.createdBy?._id || ''}
+                          targetUsername={comment.createdBy?.username}
+                          variant="ghost"
+                          size="sm"
+                          showIcon={false}
+                          showText={true}
+                          className="p-0 h-auto font-normal justify-start"
+                        />
+                      </div>
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -570,7 +664,7 @@ export default function CommentItem({
             />
             { user && (
               <button onClick={handleReplyClick} className="flex items-center hover:text-foreground transition-all duration-300 gap-1 cursor-pointer">
-                <ReplyIcon className="size-4" /> {isCommentWithReplies(comment) && comment.replies.length > 0 ? comment.replies.length : ''}
+                <ReplyIcon className="size-4" /> {isCommentWithReplies(comment) && filteredReplies.length > 0 ? filteredReplies.length : ''}
               </button>
             )}
             <Link href={`/posts/${comment.postId}/${commentId}`} className='hover:underline'>
@@ -636,8 +730,8 @@ export default function CommentItem({
               >
                 <ChevronDown className="size-3 mr-1" />
                 {!showReplies 
-                  ? `View ${comment.replies.length - visibleRepliesList.length} ${comment.replies.length - visibleRepliesList.length === 1 ? 'reply' : 'replies'}`
-                  : `Load More Replies (${comment.replies.length - visibleRepliesList.length} more)`
+                  ? `View ${filteredReplies.length - visibleRepliesList.length} ${filteredReplies.length - visibleRepliesList.length === 1 ? 'reply' : 'replies'}`
+                  : `Load More Replies (${filteredReplies.length - visibleRepliesList.length} more)`
                 }
               </Button>
             </div>

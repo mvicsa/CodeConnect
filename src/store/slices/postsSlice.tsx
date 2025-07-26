@@ -52,9 +52,28 @@ export const fetchPostsByUser = createAsyncThunk<PostType[], { userId: string; p
 // Fetch post by ID
 export const fetchPostById = createAsyncThunk<PostType, string>(
   'posts/fetchPostById',
-  async (id) => {
-    const response = await axios.get(`${API_URL}/${id}`)
-    return response.data
+  async (id, { rejectWithValue }) => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: any = {};
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      
+      const response = await axios.get(`${API_URL}/${id}`, { headers })
+      return response.data
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          return rejectWithValue('Unauthorized - Please log in again');
+        }
+        if (error.response?.status === 404) {
+          return rejectWithValue('Post not found');
+        }
+      }
+      return rejectWithValue('Failed to fetch post');
+    }
   }
 )
 
@@ -210,6 +229,26 @@ const postsSlice = createSlice({
       // Delete Post
       .addCase(deletePost.fulfilled, (state, action) => {
         state.posts = state.posts.filter(p => p._id !== action.payload)
+      })
+      // Fetch Post by ID
+      .addCase(fetchPostById.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(fetchPostById.fulfilled, (state, action) => {
+        state.loading = false
+        // Add the post to the posts array if it doesn't exist
+        const existingPostIndex = state.posts.findIndex(p => p._id === action.payload._id)
+        if (existingPostIndex === -1) {
+          state.posts.unshift(action.payload)
+        } else {
+          // Update existing post
+          state.posts[existingPostIndex] = action.payload
+        }
+      })
+      .addCase(fetchPostById.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.error.message || 'Failed to fetch post'
       })
       // Update post reactions (from reactions slice)
       .addCase(addPostReaction.fulfilled, (state, action) => {

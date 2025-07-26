@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import SinglePostClient from '@/components/post/SinglePostClient';
+import BlockStatusChecker from '@/components/BlockStatusChecker';
 
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string; locale: string }> }) {
@@ -21,6 +22,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   
   return (
     <div className="max-w-3xl mx-auto">
+        <BlockStatusChecker />
         <SinglePostClient postId={id} />
     </div>
   );

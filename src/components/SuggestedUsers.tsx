@@ -9,7 +9,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
+import { BlockButton } from '@/components/block';
 import Link from 'next/link';
+import { useBlock } from '@/hooks/useBlock';
 
 interface SuggestedUsersProps {
   limit?: number;
@@ -23,15 +25,36 @@ const SuggestedUsers = ({ limit = 3, cardTitle = 'Suggested Users', className = 
   const { user } = useSelector((state: RootState) => state.auth);
   const followingIds = user?.following ?? [];
   const currentUserId = user?._id;
+  const { checkBlockStatus, isBlocked, isBlockedBy, loading: blockLoading } = useBlock();
 
   useEffect(() => {
     dispatch(resetSuggested());
     dispatch(fetchSuggestedUsers({ limit, skip: 0 }));
   }, [dispatch, limit]);
 
+  // Check block status for suggested users when they are loaded
+  useEffect(() => {
+    if (suggested.items.length > 0) {
+      suggested.items.forEach(user => {
+        if (user._id && user._id !== currentUserId) {
+          checkBlockStatus(user._id);
+        }
+      });
+    }
+  }, [suggested.items, currentUserId, checkBlockStatus]);
+
   const handleLoadMoreSuggestions = () => {
     if (suggested.hasMore && !suggested.loading) {
-      dispatch(fetchSuggestedUsers({ limit: suggested.limit, skip: suggested.skip }));
+      dispatch(fetchSuggestedUsers({ limit: suggested.limit, skip: suggested.skip }))
+        .then(() => {
+          // Check block status for newly loaded users
+          const newUsers = suggested.items.slice(-suggested.limit);
+          newUsers.forEach(user => {
+            if (user._id && user._id !== currentUserId) {
+              checkBlockStatus(user._id);
+            }
+          });
+        });
     }
   };
 
@@ -42,10 +65,18 @@ const SuggestedUsers = ({ limit = 3, cardTitle = 'Suggested Users', className = 
       </CardHeader>
       <CardContent className='p-0'>
         <div className='flex flex-col gap-3'>
-          {suggested.items.length === 0 && !suggested.loading && (
+          {suggested.items.length === 0 && !suggested.loading && !blockLoading && (
             <div className='text-center text-muted-foreground'>No suggestions found.</div>
           )}
-          {suggested.items.map((u) => {
+          {suggested.items
+            .filter((u) => {
+              // Don't show blocked users or users who blocked you
+              if (!u._id) return false;
+              // If block status is still loading, don't show the user yet
+              if (blockLoading) return false;
+              return !isBlocked(u._id) && !isBlockedBy(u._id);
+            })
+            .map((u) => {
             const isSelf = u._id === currentUserId;
             const isFollowing = followingIds && Array.isArray(followingIds) && followingIds.includes(u._id as string);
             return (
@@ -62,25 +93,42 @@ const SuggestedUsers = ({ limit = 3, cardTitle = 'Suggested Users', className = 
                   </Link>
                 </div>
                 {!isSelf && (
-                  <Button
-                    size='sm'
-                    variant={isFollowing ? 'outline' : 'default'}
-                    onClick={async () => { await dispatch(isFollowing ? unfollowUser(u._id || '') : followUser(u._id || '')); dispatch(fetchProfile()); dispatch(resetSuggested()); dispatch(fetchSuggestedUsers({ limit: suggested.limit, skip: 0 })); }}
-                    disabled={suggested.loading}
-                    className='cursor-pointer'
-                  >
-                    {isFollowing ? 'Unfollow' : 'Follow'}
-                  </Button>
+                  <div className='flex gap-1'>
+                    <Button
+                      size='sm'
+                      variant={isFollowing ? 'outline' : 'default'}
+                      onClick={async () => { await dispatch(isFollowing ? unfollowUser(u._id || '') : followUser(u._id || '')); dispatch(fetchProfile()); dispatch(resetSuggested()); dispatch(fetchSuggestedUsers({ limit: suggested.limit, skip: 0 })); }}
+                      disabled={suggested.loading}
+                      className='cursor-pointer'
+                    >
+                      {isFollowing ? 'Unfollow' : 'Follow'}
+                    </Button>
+                    <BlockButton
+                      targetUserId={u._id || ''}
+                      targetUsername={u.username}
+                      variant="outline"
+                      size="sm"
+                      showIcon={true}
+                      showText={false}
+                      className="cursor-pointer"
+                      onBlockStatusChange={() => {
+                        // Refresh suggestions after blocking/unblocking
+                        dispatch(fetchProfile());
+                        dispatch(resetSuggested());
+                        dispatch(fetchSuggestedUsers({ limit: suggested.limit, skip: 0 }));
+                      }}
+                    />
+                  </div>
                 )}
               </div>
             );
           })}
-          {suggested.loading && (
+          {(suggested.loading || blockLoading) && (
             <div className='text-center h-full flex items-center justify-center'>
               <Loader2 className='w-4 h-4 animate-spin' />
             </div>
           )}
-          {suggested.hasMore && !suggested.loading && (
+          {suggested.hasMore && !suggested.loading && !blockLoading && (
             <Button onClick={handleLoadMoreSuggestions} className='w-full mt-2'>Load More</Button>
           )}
         </div>

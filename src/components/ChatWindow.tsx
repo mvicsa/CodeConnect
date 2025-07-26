@@ -12,6 +12,14 @@ import { useSelector, useDispatch, shallowEqual } from 'react-redux';
 import { RootState } from '@/store/store';
 import { SocketContext } from '@/store/Provider';
 import { setError } from '@/store/slices/chatSlice';
+import { BlockButton } from '@/components/block';
+import { useBlock } from '@/hooks/useBlock';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import Img from "next/image";
 
 interface ChatWindowProps {
@@ -57,13 +65,28 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const socket = useContext(SocketContext);
   const t = useTranslations("chat");
   const dispatch = useDispatch();
+  const { checkBlockStatus, isBlocked, isBlockedBy } = useBlock();
+  const checkBlockStatusRef = useRef(checkBlockStatus);
 
-  // Load initial messages
+  // Update ref when checkBlockStatus changes
+  useEffect(() => {
+    checkBlockStatusRef.current = checkBlockStatus;
+  }, [checkBlockStatus]);
+
+  // Load initial messages and check block status
   useEffect(() => {
     if (activeRoom?._id && socket) {
       socket.emit('chat:get_messages', { roomId: activeRoom._id, limit: 50 });
+      
+      // Check block status for other members in private chats
+      if (activeRoom.type === ChatRoomType.PRIVATE) {
+        const otherMember = activeRoom.members.find((m: User) => m._id !== myUserId);
+        if (otherMember) {
+          checkBlockStatusRef.current(otherMember._id);
+        }
+      }
     }
-  }, [activeRoom?._id, socket]);
+  }, [activeRoom?._id, socket, myUserId]);
 
   // Update oldest message ID when messages change
   useEffect(() => {
@@ -316,6 +339,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     const senderName = `${msg.sender.firstName} ${msg.sender.lastName}`;
     // Real-time seen logic: show double check if any user other than sender has seen the message
     const isSeenByOther = msg.seenBy.some(uid => uid !== myUserId);
+    
+    // Check if sender is blocked
+    const senderIsBlocked = isBlocked(msg.sender._id);
+    const senderIsBlockedBy = isBlockedBy(msg.sender._id);
+    
+    // Don't show messages from blocked users
+    if (senderIsBlocked || senderIsBlockedBy) {
+      return null;
+    }
     
     // Handle deleted messages
     if (msg.deleted || (msg.deletedFor && msg.deletedFor.includes(myUserId as string))) {
@@ -581,6 +613,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               : (() => {
                   const otherMember = activeRoom?.members?.find((m: User) => m._id !== myUserId);
                   const status = otherMember ? userStatuses[otherMember._id] || 'offline' : 'offline';
+                  const otherMemberIsBlocked = otherMember ? isBlocked(otherMember._id) : false;
+                  const otherMemberIsBlockedBy = otherMember ? isBlockedBy(otherMember._id) : false;
+                  
+                  // Don't show status for blocked users
+                  if (otherMemberIsBlocked || otherMemberIsBlockedBy) {
+                    return null;
+                  }
+                  
                   return (
                     <span
                       className={
@@ -596,9 +636,37 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 })()}
           </p>
         </div>
-        <ChatButton variant="ghost" size="icon">
-          <MoreVertical className="h-5 w-5" />
-        </ChatButton>
+        {activeRoom?.type === ChatRoomType.PRIVATE && (() => {
+          const otherMember = activeRoom?.members?.find((m: User) => m._id !== myUserId);
+          return otherMember ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <ChatButton variant="ghost" size="icon">
+                  <MoreVertical className="h-5 w-5" />
+                </ChatButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <div className="flex items-center gap-2">
+                    <BlockButton
+                      targetUserId={otherMember._id}
+                      targetUsername={otherMember.username}
+                      variant="ghost"
+                      size="sm"
+                      showIcon={true}
+                      showText={true}
+                      className="p-0 h-auto font-normal justify-start w-full"
+                    />
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <ChatButton variant="ghost" size="icon">
+              <MoreVertical className="h-5 w-5" />
+            </ChatButton>
+          );
+        })()}
       </div>
 
       {/* Messages */}
@@ -703,18 +771,48 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       )}
 
       {/* Message Input */}
-      <div className="p-4 border-t">
-        <div className="flex items-center space-x-2">
-          {/* File Upload Button */}
-          <div className="relative">
-            <ChatButton
-              variant="ghost"
-              size="icon"
-              className="cursor-pointer hover:bg-muted"
-              onClick={() => setIsFileMenuOpen(!isFileMenuOpen)}
-            >
-              <Paperclip className="h-5 w-5" />
-            </ChatButton>
+      {(() => {
+        // Check if current user is blocked in this chat
+        const isChatBlocked = activeRoom?.type === ChatRoomType.PRIVATE && (() => {
+          const otherMember = activeRoom?.members?.find((m: User) => m._id !== myUserId);
+          if (otherMember) {
+            const otherMemberIsBlocked = isBlocked(otherMember._id);
+            const otherMemberIsBlockedBy = isBlockedBy(otherMember._id);
+            return otherMemberIsBlocked || otherMemberIsBlockedBy;
+          }
+          return false;
+        })();
+
+        if (isChatBlocked) {
+          const otherMember = activeRoom?.members?.find((m: User) => m._id !== myUserId);
+          const otherMemberIsBlocked = otherMember ? isBlocked(otherMember._id) : false;
+          const otherMemberIsBlockedBy = otherMember ? isBlockedBy(otherMember._id) : false;
+          const message = otherMemberIsBlocked 
+            ? `You have blocked ${otherMember?.firstName || 'this user'}. Messages are disabled.`
+            : `${otherMember?.firstName || 'This user'} has blocked you. Messages are disabled.`;
+
+          return (
+            <div className="p-4 border-t bg-muted/50">
+              <div className="text-center text-muted-foreground">
+                <p className="text-sm">{message}</p>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="p-4 border-t">
+            <div className="flex items-center space-x-2">
+              {/* File Upload Button */}
+              <div className="relative">
+                <ChatButton
+                  variant="ghost"
+                  size="icon"
+                  className="cursor-pointer hover:bg-muted"
+                  onClick={() => setIsFileMenuOpen(!isFileMenuOpen)}
+                >
+                  <Paperclip className="h-5 w-5" />
+                </ChatButton>
             
             {/* File Upload Menu */}
             {isFileMenuOpen && (
@@ -797,6 +895,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           </ChatButton>
         </div>
       </div>
+        );
+      })()}
     </div>
   );
 };

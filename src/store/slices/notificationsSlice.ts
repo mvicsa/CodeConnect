@@ -22,15 +22,23 @@ const notificationsSlice = createSlice({
     setNotifications(state, action: PayloadAction<Notification[]>) {
       // Remove duplicates by _id
       const seen = new Set();
-      state.notifications = action.payload.filter(n => {
+      const newNotifications = action.payload.filter(n => {
         if (seen.has(n._id)) return false;
         seen.add(n._id);
         return true;
       });
-      state.unreadCount = state.notifications.filter(n => !n.isRead).length;
+      
+      // Only update if the notifications are actually different
+      const currentIds = new Set(state.notifications.map(n => n._id));
+      const newIds = new Set(newNotifications.map(n => n._id));
+      
+      if (currentIds.size !== newIds.size || 
+          ![...currentIds].every(id => newIds.has(id))) {
+        state.notifications = newNotifications;
+        state.unreadCount = state.notifications.filter(n => !n.isRead).length;
+      }
     },
     addNotification(state, action: PayloadAction<Notification>) {
-      console.log('[REDUX][ADD]', action.payload);
       const newId = action.payload._id;
       
       if (!state.notifications.some(n => n._id === newId)) {
@@ -287,16 +295,25 @@ const notificationsSlice = createSlice({
       postId?: string;
       commentId?: string;
       fromUserId?: string;
+      toUserId?: string; // إضافة toUserId لحذف الإشعارات المرسلة إلى مستخدم محدد
       parentCommentId?: string;
       reactionType?: string; // إضافة نوع التفاعل
       affectedTypes?: string[]; // 🔥 جديد لحذف أنواع متعددة
     }>) => {
-      const { type, postId, commentId, fromUserId, reactionType } = action.payload;
+      const { type, postId, commentId, fromUserId, toUserId, reactionType } = action.payload;
       
+      const originalLength = state.notifications.length;
       state.notifications = state.notifications.filter(notification => {
         let shouldRemove = false;
         
         const notifFromUserId = String(notification.fromUserId?._id || notification.fromUserId);
+        const notifToUserId = String(notification.toUserId?._id || notification.toUserId);
+        
+        // حذف الإشعارات بناءً على fromUserId أو toUserId
+        
+        if (toUserId && notifToUserId === toUserId) {
+          shouldRemove = true;
+        }
         
         // 🔥 محاولة العثور على postId في عدة أماكن ممكنة
         const notifPostId = String(
@@ -315,15 +332,12 @@ const notificationsSlice = createSlice({
         if (type && type.endsWith('_REACTION')) {
           // للتفاعلات على المنشورات
           if (type === 'POST_REACTION' && String(notification.type) === 'POST_REACTION') {
-            if (postId && notifPostId === postId) {
-              // Debug logging
-              console.log('[DEBUG][POST_REACTION] notifFromUserId:', notifFromUserId, 'fromUserId:', fromUserId, 'notification:', notification);
-              // More robust comparison
-              const matchUser = !fromUserId || notifFromUserId?.toString() == fromUserId?.toString();
-              const matchReaction = !reactionType || notifReactionType === String(reactionType);
-              if (matchUser && matchReaction) {
-                shouldRemove = true;
-              }
+            if (
+              postId && notifPostId === postId &&
+              (!fromUserId || notifFromUserId === fromUserId) &&
+              (!reactionType || notifReactionType === reactionType)
+            ) {
+              shouldRemove = true;
             }
           }
           
@@ -533,10 +547,10 @@ const notificationsSlice = createSlice({
         return !shouldRemove;
       });
       
-      state.unreadCount = state.notifications.filter(n => !n.isRead).length;
-      
-      // 🔥 Force state immutability to trigger re-renders
-      state.notifications = [...state.notifications];
+      // Only update unreadCount if notifications were actually removed
+      if (state.notifications.length !== originalLength) {
+        state.unreadCount = state.notifications.filter(n => !n.isRead).length;
+      }
       
     },
 
