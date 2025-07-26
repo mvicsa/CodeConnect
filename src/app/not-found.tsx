@@ -1,195 +1,251 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { ArrowLeft, Home, Search, Coffee, Monitor, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
-const Animated404: React.FC = () => {
+const NotFoundPage: React.FC = () => {
     const [isVisible, setIsVisible] = useState(false);
+    const [mounted, setMounted] = useState(false);
+    const router = useRouter();
 
     useEffect(() => {
-        setIsVisible(true);
+        setMounted(true);
+        const timer = setTimeout(() => setIsVisible(true), 100);
+        return () => clearTimeout(timer);
     }, []);
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-purple-50 flex items-center justify-center p-4 overflow-hidden relative">
+    const handleGoBack = () => {
+        router.back();
+    };
 
-            {/* Background floating spheres */}
+    const handleGoHome = () => {
+        router.push('/');
+    };
+
+    if (!mounted) return null;
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4 overflow-hidden relative">
+            {/* Background decorative elements */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                {/* Large floating sphere - top right */}
-                <div
-                    className="absolute w-32 h-20 bg-gradient-to-br from-pink-200/40 to-purple-200/30 rounded-full blur-sm animate-pulse"
+                {/* Floating orbs */}
+                <div className="absolute w-32 h-32 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-full blur-xl animate-pulse"
                     style={{
-                        top: '15%',
-                        right: '10%',
-                        borderRadius: '60% 40% 30% 70% / 60% 30% 70% 40%',
-                        animationDuration: '4s'
+                        top: '10%',
+                        right: '15%',
+                        animationDuration: '6s'
                     }}
                 />
-
-                {/* Medium floating sphere - top right */}
-                <div
-                    className="absolute w-8 h-8 bg-gradient-to-br from-orange-300/50 to-pink-300/40 rounded-full animate-bounce"
+                <div className="absolute w-24 h-24 bg-gradient-to-br from-secondary/10 to-primary/10 rounded-full blur-lg animate-pulse"
                     style={{
-                        top: '20%',
-                        right: '5%',
-                        animationDuration: '3s',
+                        top: '60%',
+                        left: '10%',
+                        animationDuration: '8s',
+                        animationDelay: '2s'
+                    }}
+                />
+                <div className="absolute w-16 h-16 bg-gradient-to-br from-accent/20 to-primary/10 rounded-full blur-md animate-bounce"
+                    style={{
+                        top: '30%',
+                        left: '20%',
+                        animationDuration: '4s',
                         animationDelay: '1s'
                     }}
                 />
-
-                {/* Small floating sphere - below coffee */}
-                <div
-                    className="absolute w-6 h-6 bg-gradient-to-br from-purple-300/60 to-pink-300/40 rounded-full animate-bounce"
-                    style={{
-                        top: '45%',
-                        right: '15%',
-                        animationDuration: '2.5s',
-                        animationDelay: '0.5s'
-                    }}
-                />
             </div>
 
-            <div className={`relative z-10 flex items-center justify-center gap-16 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
+            <div className="relative z-10 w-full max-w-4xl mx-auto">
+                <div className={`transform transition-all duration-1000 ease-out ${
+                    isVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
                 }`}>
+                    
+                    {/* Main 404 Card */}
+                    <Card className="relative overflow-hidden border-0 shadow-2xl bg-background/80 backdrop-blur-sm">
+                        <CardHeader className="text-center pb-8">
+                            <CardDescription className="text-xl text-muted-foreground max-w-md mx-auto">
+                                Oops! The page you're looking for seems to have wandered off into the digital void.
+                            </CardDescription>
+                        </CardHeader>
 
-                {/* 3D Computer */}
-                <div className={`relative transform transition-all duration-700 ${isVisible ? 'scale-100 rotate-0' : 'scale-75 rotate-y-12'
-                    }`}>
+                        <CardContent className="space-y-8">
+                            {/* Animated Computer Scene */}
+                            <div className="flex items-center justify-center gap-16 mb-8">
+                                {/* 3D Computer */}
+                                <div className={`relative transform transition-all duration-700 ${isVisible ? 'scale-100 rotate-0' : 'scale-75 rotate-y-12'}`}>
+                                    {/* Computer Base/Keyboard */}
+                                    <div className="relative">
+                                        <div className="w-80 h-6 bg-gradient-to-r from-muted to-muted/80 rounded-xl shadow-lg transform perspective-1000 rotate-x-45 border border-border/50"></div>
 
-                    {/* Computer Base/Keyboard */}
-                    <div className="relative">
-                        <div className="w-80 h-6 bg-gradient-to-r from-gray-200 to-purple-200 rounded-xl shadow-lg transform perspective-1000 rotate-x-45 border border-gray-300/50"></div>
+                                        {/* Keyboard Keys */}
+                                        <div className="absolute top-1 left-4 right-4 flex flex-wrap gap-1">
+                                            {[...Array(24)].map((_, i) => (
+                                                <div
+                                                    key={i}
+                                                    className="w-3 h-2 bg-background/80 rounded-sm shadow-sm border border-border/30"
+                                                    style={{ animationDelay: `${i * 0.1}s` }}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
 
-                        {/* Keyboard Keys */}
-                        <div className="absolute top-1 left-4 right-4 flex flex-wrap gap-1">
-                            {[...Array(24)].map((_, i) => (
-                                <div
-                                    key={i}
-                                    className="w-3 h-2 bg-white/80 rounded-sm shadow-sm border border-gray-300/30"
-                                    style={{ animationDelay: `${i * 0.1}s` }}
-                                />
-                            ))}
-                        </div>
-                    </div>
+                                    {/* Computer Screen */}
+                                    <div className="relative -mt-2 ml-8">
+                                        {/* Screen Bezel */}
+                                        <div className="w-64 h-48 bg-gradient-to-br from-primary/20 via-secondary/20 to-primary/30 rounded-2xl p-4 shadow-2xl transform -rotate-2 hover:rotate-0 transition-transform duration-500 border border-border">
+                                            {/* Screen Content */}
+                                            <div className="w-full h-full bg-gradient-to-br from-destructive/30 to-destructive/40 rounded-xl relative overflow-hidden shadow-inner">
+                                                {/* 404 Dialog Box */}
+                                                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                                                    <div className="bg-gradient-to-br from-background/90 to-background/80 rounded-lg p-6 shadow-xl min-w-32 border border-border">
+                                                        {/* Close Button */}
+                                                        <div className="flex justify-end mb-2">
+                                                            <div className="w-4 h-4 bg-gradient-to-br from-destructive to-destructive/80 rounded-full flex items-center justify-center shadow-sm">
+                                                                <span className="text-destructive-foreground text-xs font-bold">×</span>
+                                                            </div>
+                                                        </div>
 
-                    {/* Computer Screen */}
-                    <div className="relative -mt-2 ml-8">
-                        {/* Screen Bezel */}
-                        <div className="w-64 h-48 bg-gradient-to-br from-pink-200 via-purple-200 to-pink-300 rounded-2xl p-4 shadow-2xl transform -rotate-2 hover:rotate-0 transition-transform duration-500 border border-gray-300">
+                                                        {/* 404 Text */}
+                                                        <div className="text-center">
+                                                            <div
+                                                                className={`text-6xl font-bold text-primary transform transition-all duration-1000 ${isVisible ? 'scale-100' : 'scale-150'}`}
+                                                                style={{
+                                                                    textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
+                                                                    animation: 'pulse 2s infinite'
+                                                                }}
+                                                            >
+                                                                404
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
 
-                            {/* Screen Content */}
-                            <div className="w-full h-full bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl relative overflow-hidden shadow-inner">
-
-                                {/* 404 Dialog Box */}
-                                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                                    <div className="bg-gradient-to-br from-pink-50 to-orange-50 rounded-lg p-6 shadow-xl min-w-32 border border-gray-200">
-
-                                        {/* Close Button */}
-                                        <div className="flex justify-end mb-2">
-                                            <div className="w-4 h-4 bg-gradient-to-br from-red-400 to-red-500 rounded-full flex items-center justify-center shadow-sm">
-                                                <span className="text-white text-xs font-bold">×</span>
+                                                {/* Screen Reflection Effect */}
+                                                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/20 rounded-xl"></div>
                                             </div>
                                         </div>
 
-                                        {/* 404 Text */}
-                                        <div className="text-center">
-                                            <div
-                                                className={`text-6xl font-bold text-gray-800 transform transition-all duration-1000 ${isVisible ? 'scale-100' : 'scale-150'
-                                                    }`}
-                                                style={{
-                                                    fontFamily: 'var(--font-family, system-ui)',
-                                                    textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
-                                                    animation: 'pulse 2s infinite'
-                                                }}
-                                            >
-                                                404
-                                            </div>
-                                        </div>
+                                        {/* CD/DVD Tray */}
+                                        <div className="absolute -bottom-2 left-2 w-16 h-3 bg-gradient-to-r from-orange-300 to-orange-400 rounded-r-lg shadow-md border-r border-t border-orange-400/50"></div>
                                     </div>
                                 </div>
 
-                                {/* Screen Reflection Effect */}
-                                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/20 rounded-xl"></div>
+                                {/* Coffee Mug */}
+                                <div className={`relative transform transition-all duration-1000 delay-500 ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'}`}>
+                                    {/* Mug Body */}
+                                    <div className="w-16 h-20 bg-gradient-to-br from-orange-400 to-orange-500 rounded-b-2xl rounded-t-lg shadow-xl relative border border-orange-600/30">
+                                        {/* Mug Handle */}
+                                        <div className="absolute -right-3 top-4 w-6 h-8 border-4 border-orange-400 rounded-r-full"></div>
+
+                                        {/* Coffee Surface */}
+                                        <div className="absolute top-2 left-2 right-2 h-3 bg-gradient-to-r from-amber-800 to-amber-900 rounded-lg shadow-inner border border-amber-700/20"></div>
+
+                                        {/* Floating sphere on coffee */}
+                                        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-gradient-to-br from-pink-300 to-orange-300 rounded-full animate-bounce shadow-lg border border-pink-400/30"
+                                            style={{ animationDuration: '2s', animationDelay: '1s' }}></div>
+                                    </div>
+
+                                    {/* Steam Animation */}
+                                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
+                                        {[...Array(4)].map((_, i) => (
+                                            <div
+                                                key={i}
+                                                className="absolute w-1 h-6 bg-muted-foreground/60 rounded-full opacity-60 animate-pulse"
+                                                style={{
+                                                    left: `${i * 3}px`,
+                                                    animationDelay: `${i * 0.4}s`,
+                                                    animationDuration: '3s',
+                                                    transform: `rotate(${Math.random() * 10 - 5}deg)`
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
 
-                        {/* CD/DVD Tray */}
-                        <div className="absolute -bottom-2 left-2 w-16 h-3 bg-gradient-to-r from-orange-300 to-orange-400 rounded-r-lg shadow-md border-r border-t border-orange-400/50"></div>
-                    </div>
-                </div>
+                            <Separator />
 
-                {/* Coffee Mug */}
-                <div className={`relative transform transition-all duration-1000 delay-500 ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'
-                    }`}>
+                            {/* Action Buttons */}
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                                <Button 
+                                    onClick={handleGoBack}
+                                    variant="outline" 
+                                    size="lg"
+                                    className="w-full sm:w-auto"
+                                >
+                                    <ArrowLeft className="w-4 h-4 mr-2" />
+                                    Go Back
+                                </Button>
+                                <Button 
+                                    onClick={handleGoHome}
+                                    size="lg"
+                                    className="w-full sm:w-auto"
+                                >
+                                    <Home className="w-4 h-4 mr-2" />
+                                    Go Home
+                                </Button>
+                            </div>
 
-                    {/* Mug Body */}
-                    <div className="w-16 h-20 bg-gradient-to-br from-orange-400 to-orange-500 rounded-b-2xl rounded-t-lg shadow-xl relative border border-orange-600/30">
+                            {/* Additional Help */}
+                            <div className="text-center space-y-4">
+                                <p className="text-sm text-muted-foreground">
+                                    Need help finding something? Try these options:
+                                </p>
+                                <div className="flex flex-wrap justify-center gap-2">
+                                    <Link href="/search">
+                                        <Button variant="ghost" size="sm">
+                                            <Search className="w-4 h-4 mr-2" />
+                                            Search
+                                        </Button>
+                                    </Link>
+                                    <Link href="/">
+                                        <Button variant="ghost" size="sm">
+                                            <Monitor className="w-4 h-4 mr-2" />
+                                            Browse
+                                        </Button>
+                                    </Link>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                        {/* Mug Handle */}
-                        <div className="absolute -right-3 top-4 w-6 h-8 border-4 border-orange-400 rounded-r-full"></div>
-
-                        {/* Coffee Surface */}
-                        <div className="absolute top-2 left-2 right-2 h-3 bg-gradient-to-r from-amber-800 to-amber-900 rounded-lg shadow-inner border border-amber-700/20"></div>
-
-                        {/* Floating sphere on coffee */}
-                        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-gradient-to-br from-pink-300 to-orange-300 rounded-full animate-bounce shadow-lg border border-pink-400/30"
-                            style={{ animationDuration: '2s', animationDelay: '1s' }}></div>
-                    </div>
-
-                    {/* Steam Animation */}
-                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
-                        {[...Array(4)].map((_, i) => (
-                            <div
-                                key={i}
-                                className="absolute w-1 h-6 bg-gray-400/60 rounded-full opacity-60 animate-pulse"
-                                style={{
-                                    left: `${i * 3}px`,
-                                    animationDelay: `${i * 0.4}s`,
-                                    animationDuration: '3s',
-                                    transform: `rotate(${Math.random() * 10 - 5}deg)`
-                                }}
-                            />
-                        ))}
-                    </div>
+                    {/* Fun fact card */}
+                    <Card className="mt-6 border-0 shadow-lg bg-background/60 backdrop-blur-sm">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-center gap-3 text-muted-foreground">
+                                <Coffee className="w-5 h-5" />
+                                <p className="text-sm text-center">
+                                    Did you know? The first 404 error was discovered in 1990, 
+                                    around the same time the World Wide Web was born!
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
 
-            {/* Additional floating elements */}
+            {/* Floating particles */}
             <div className="absolute inset-0 pointer-events-none">
-                {[...Array(8)].map((_, i) => (
+                {[...Array(6)].map((_, i) => (
                     <div
                         key={i}
-                        className="absolute w-2 h-2 bg-purple-300/30 rounded-full animate-ping"
+                        className="absolute w-1 h-1 bg-primary/30 rounded-full animate-ping"
                         style={{
-                            left: `${15 + Math.random() * 70}%`,
-                            top: `${20 + Math.random() * 60}%`,
-                            animationDelay: `${Math.random() * 4}s`,
-                            animationDuration: `${3 + Math.random() * 2}s`,
+                            left: `${20 + Math.random() * 60}%`,
+                            top: `${15 + Math.random() * 70}%`,
+                            animationDelay: `${Math.random() * 3}s`,
+                            animationDuration: `${2 + Math.random() * 2}s`,
                         }}
                     />
                 ))}
             </div>
-
-            {/* Status message */}
-            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 opacity-75">
-                <div className="bg-white/80 backdrop-blur-sm text-gray-700 px-4 py-2 rounded-lg border border-gray-300/50 shadow-lg">
-                    <p className="text-sm" style={{ fontFamily: 'var(--font-family, system-ui)' }}>
-                        Page not found • Error 404
-                    </p>
-                </div>
-            </div>
-
-            <style jsx>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-10px) rotate(2deg); }
-        }
-        
-        .animate-float {
-          animation: float 6s ease-in-out infinite;
-        }
-      `}</style>
         </div>
     );
 };
 
-export default Animated404;
+export default NotFoundPage;

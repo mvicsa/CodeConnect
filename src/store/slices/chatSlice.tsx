@@ -47,8 +47,8 @@ const chatSlice = createSlice({
     setActiveRoom(state, action: PayloadAction<string | null>) {
       state.activeRoomId = action.payload;
     },
-    setMessages(state, action: PayloadAction<{ roomId: string; messages: Message[] }>) {
-      const { roomId, messages } = action.payload;
+    setMessages(state, action: PayloadAction<{ roomId: string; messages: Message[]; currentUserId?: string }>) {
+      const { roomId, messages, currentUserId } = action.payload;
       state.messages[roomId] = messages.map(msg => {
         let chatRoomId: string;
         if (typeof msg.chatRoom === 'string') {
@@ -68,15 +68,13 @@ const chatSlice = createSlice({
       
       // Update room's last message and unread count
       const room = state.rooms.find(r => r._id === roomId);
-      if (room) {
+      if (room && currentUserId) {
         room.lastMessage = messages[messages.length - 1];
-        // Use the logged-in user for unreadCount
-        const currentUserId = (typeof window !== 'undefined' && window.localStorage.getItem('userId')) || 'current-user';
         room.unreadCount = state.messages[roomId].filter(m => !m.seenBy.includes(currentUserId)).length;
       }
     },
-    addMessage(state, action: PayloadAction<{ roomId: string; message: Message }>) {
-      const { roomId, message } = action.payload;
+    addMessage(state, action: PayloadAction<{ roomId: string; message: Message; currentUserId?: string }>) {
+      const { roomId, message, currentUserId } = action.payload;
       if (!state.messages[roomId]) {
         state.messages[roomId] = [];
       }
@@ -99,9 +97,8 @@ const chatSlice = createSlice({
       
       // Update room's last message and unread count
       const room = state.rooms.find(r => r._id === roomId);
-      if (room) {
+      if (room && currentUserId) {
         room.lastMessage = normalizedMessage;
-        const currentUserId = (typeof window !== 'undefined' && window.localStorage.getItem('userId')) || 'current-user';
         room.unreadCount = state.messages[roomId].filter(m => !m.seenBy.includes(currentUserId)).length;
       }
     },
@@ -124,8 +121,8 @@ const chatSlice = createSlice({
         }
       });
     },
-    setSeen(state, action: PayloadAction<{ roomId: string; seen: string[]; userId?: string }>) {
-      const { roomId, seen, userId } = action.payload;
+    setSeen(state, action: PayloadAction<{ roomId: string; seen: string[]; userId?: string; currentUserId?: string }>) {
+      const { roomId, seen, userId, currentUserId } = action.payload;
       const messages = state.messages[roomId];
       if (messages) {
         messages.forEach(msg => {
@@ -137,10 +134,10 @@ const chatSlice = createSlice({
           }
         });
         // Update room's unread count for the current user
-        const currentUserId = userId || (typeof window !== 'undefined' && window.localStorage.getItem('userId')) || 'current-user';
+        const actualUserId = currentUserId || userId;
         const room = state.rooms.find(r => r._id === roomId);
-        if (room) {
-          room.unreadCount = messages.filter(m => !m.seenBy.includes(currentUserId)).length;
+        if (room && actualUserId) {
+          room.unreadCount = messages.filter(m => !m.seenBy.includes(actualUserId)).length;
         }
       }
     },

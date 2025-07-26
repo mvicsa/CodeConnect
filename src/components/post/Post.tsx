@@ -19,7 +19,7 @@ import { deletePost } from '@/store/slices/postsSlice'
 import { removeNotificationsByCriteria } from '@/store/slices/notificationsSlice'
 import { useBlock } from '@/hooks/useBlock'
 import { BlockButton } from '@/components/block'
-import { Skeleton } from '../ui/skeleton'
+// import { Skeleton } from '../ui/skeleton'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +30,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../ui/alert-dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog'
 import { toast } from 'sonner';
 import AdminBadge from '../AdminBadge'
 import { SocketContext } from '@/store/Provider';
@@ -62,6 +68,7 @@ const Post = memo(function Post({
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showImageDialog, setShowImageDialog] = useState(false);
   
   // Get block status directly from Redux to avoid re-renders
   const blockStatuses = useSelector((state: RootState) => state.block.blockStatuses, (prev, next) => {
@@ -233,7 +240,7 @@ const Post = memo(function Post({
   const isAuthorBlockedBy = authorBlockStatus?.isBlockedBy || false;
   
   // Check if block status is still loading (not yet checked)
-  const isBlockStatusLoading = authorId && !authorBlockStatus;
+  // const isBlockStatusLoading = authorId && !authorBlockStatus;
   
   // Show skeleton while block status is loading
   // if (isBlockStatusLoading) {
@@ -359,22 +366,6 @@ const Post = memo(function Post({
                           <FlagIcon className='size-4' />
                           { t('report') }
                         </DropdownMenuItem>
-                        {user?._id !== createdBy?._id && (
-                          <DropdownMenuItem asChild className='cursor-pointer'>
-                            <div className='flex items-center gap-2'>
-                              <UserX className='size-4' />
-                              <BlockButton
-                                targetUserId={createdBy?._id || ''}
-                                targetUsername={createdBy?.username}
-                                variant="ghost"
-                                size="sm"
-                                showIcon={false}
-                                showText={true}
-                                className="p-0 h-auto font-normal justify-start"
-                              />
-                            </div>
-                          </DropdownMenuItem>
-                        )}
                       </DropdownMenuContent>
                   </DropdownMenu>
                 )}
@@ -389,7 +380,20 @@ const Post = memo(function Post({
               render={renderTextWithMentions}
             />
                 
-            { image && <Image src={image} alt={text || ''} width={500} height={500} className='w-full max-h-96 rounded-lg object-cover' /> }
+            { image && (
+              <div 
+                className="cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => setShowImageDialog(true)}
+              >
+                <Image 
+                  src={image} 
+                  alt={text || ''} 
+                  width={500} 
+                  height={500} 
+                  className='w-full max-h-96 rounded-lg object-cover' 
+                />
+              </div>
+            ) }
             { video && <VideoPlayer source={video} /> }
             { code && <CodeBlock
               code={ code }
@@ -471,6 +475,35 @@ const Post = memo(function Post({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Image Dialog */}
+      {image && (
+        <Dialog open={showImageDialog} onOpenChange={setShowImageDialog}>
+          <DialogContent className="max-w-4xl max-h-[90vh] p-0 mb-0">
+            <DialogHeader className="p-4 pb-0">
+              <DialogTitle className="text-lg font-semibold">
+                {createdBy?.firstName} {createdBy?.lastName}'s Post
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex items-center justify-center p-4 pt-0">
+              <Image 
+                src={image} 
+                alt={text || ''} 
+                width={800} 
+                height={800} 
+                className='max-w-full max-h-[70vh] object-contain rounded-lg' 
+              />
+            </div>
+            {text && (
+              <div className="p-4 pt-0">
+                <p className="text-sm text-muted-foreground">
+                  {text}
+                </p>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   )
 })

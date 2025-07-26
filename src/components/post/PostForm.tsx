@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image'
 import { uploadToImageKit } from '@/lib/imagekitUpload';
+import EmojiMenu from '@/components/ui/emoji-menu';
 
 interface PostFormProps {
   mode: 'create' | 'edit'
@@ -93,6 +94,26 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
     setContent(prev => ({ ...prev, text }))
   }
 
+  const handleEmojiSelect = (emoji: string) => {
+    setContent(prev => ({ ...prev, text: prev.text + emoji }))
+  }
+
+  // Helper function to format file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Helper function to format duration
+  const formatDuration = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
   const handleAddCode = () => {
     setShowCodeEditor(true)
     setShowImageUpload(false)
@@ -146,20 +167,33 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
 
   const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      setImageUploading(true);
-      setImageUploadPercent(0);
-      try {
-        toast.info('Uploading image...');
-        const url = await uploadToImageKit(file, '/posts', (percent) => setImageUploadPercent(percent));
-        setContent(prev => ({ ...prev, image: url }));
-        toast.success('Image uploaded!');
-      } catch (error) {
-        toast.error('Failed to upload image => ' + error);
-      }
-      setImageUploading(false);
-      setShowImageUpload(true);
+    if (!file) return;
+    
+    // Check if file is an image
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file (JPEG, PNG, GIF, etc.)');
+      return;
     }
+    
+    // Check file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.error(`Image file size must be less than 5MB (current: ${formatFileSize(file.size)})`);
+      return;
+    }
+    
+    setImageUploading(true);
+    setImageUploadPercent(0);
+    try {
+      toast.info('Uploading image...');
+      const url = await uploadToImageKit(file, '/posts', (percent) => setImageUploadPercent(percent));
+      setContent(prev => ({ ...prev, image: url }));
+      toast.success('Image uploaded!');
+    } catch (error) {
+      toast.error('Failed to upload image => ' + error);
+    }
+    setImageUploading(false);
+    setShowImageUpload(true);
   };
 
   const handleAddVideo = () => {
@@ -183,20 +217,65 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
 
   const handleVideoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type.startsWith('video/')) {
-      setVideoUploading(true);
-      setVideoUploadPercent(0);
-      try {
-        toast.info('Uploading video...');
-        const url = await uploadToImageKit(file, '/posts', (percent) => setVideoUploadPercent(percent));
-        setContent(prev => ({ ...prev, video: url }));
-        toast.success('Video uploaded!');
-      } catch (error) {
-        toast.error('Failed to upload video => ' + error);
-      }
-      setVideoUploading(false);
-      setShowVideoUpload(true);
+    if (!file) return;
+    
+    // Check if file is a video
+    if (!file.type.startsWith('video/')) {
+      toast.error('Please select a valid video file (MP4, AVI, MOV, etc.)');
+      return;
     }
+    
+    // Check file size (max 50MB for videos)
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (file.size > maxSize) {
+      toast.error(`Video file size must be less than 50MB (current: ${formatFileSize(file.size)})`);
+      return;
+    }
+    
+    // Check video duration (max 1 minute)
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    
+    const checkVideoDuration = (): Promise<boolean> => {
+      return new Promise((resolve) => {
+        video.onloadedmetadata = () => {
+          const durationInSeconds = video.duration;
+          const maxDuration = 60; // 1 minute
+          
+          if (durationInSeconds > maxDuration) {
+            toast.error(`Video duration must be less than 1 minute (current: ${formatDuration(durationInSeconds)})`);
+            resolve(false);
+          } else {
+            resolve(true);
+          }
+        };
+        
+        video.onerror = () => {
+          toast.error('Could not read video duration. Please try another video file.');
+          resolve(false);
+        };
+        
+        video.src = URL.createObjectURL(file);
+      });
+    };
+    
+    const isDurationValid = await checkVideoDuration();
+    if (!isDurationValid) {
+      return;
+    }
+    
+    setVideoUploading(true);
+    setVideoUploadPercent(0);
+    try {
+      toast.info('Uploading video...');
+      const url = await uploadToImageKit(file, '/posts', (percent) => setVideoUploadPercent(percent));
+      setContent(prev => ({ ...prev, video: url }));
+      toast.success('Video uploaded!');
+    } catch (error) {
+      toast.error('Failed to upload video => ' + error);
+    }
+    setVideoUploading(false);
+    setShowVideoUpload(true);
   };
 
   const handleAddTag = () => {
@@ -342,9 +421,16 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
             value={content.text}
             onChange={(e) => handleTextChange(e.target.value)}
             placeholder="What's on your mind?"
-            className="resize-none min-h-[100px]"
+            className="resize-none min-h-[100px] max-h-[200px] pr-10"
             autoComplete='off'
           />
+          <div className="absolute bottom-2 right-2">
+            <EmojiMenu
+              onEmojiSelect={handleEmojiSelect}
+              position="top"
+              align="end"
+            />
+          </div>
         </div>
 
         {/* Content Type Buttons */}
@@ -397,10 +483,13 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
         {showImageUpload && (
           <div className="border rounded-lg p-4 bg-accent">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="font-medium flex items-center gap-2">
-                <ImageIcon className="size-4" />
-                Image
-              </h4>
+              <div className="flex items-center gap-2">
+                <h4 className="font-medium flex items-center gap-2">
+                  <ImageIcon className="size-4" />
+                  Image
+                </h4>
+                <span className="text-xs text-muted-foreground">(Max 5MB)</span>
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
@@ -434,6 +523,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
               <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
                 <ImageIcon className="size-8 mx-auto mb-2 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">Click to select an image</p>
+                <p className="text-xs text-muted-foreground mt-1">Maximum file size: 5MB</p>
                 <Button
                   variant="outline"
                   size="sm"
@@ -458,10 +548,13 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
         {(showVideoUpload || content.video) && (
           <div className="border rounded-lg p-4 bg-accent">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="font-medium flex items-center gap-2">
-                <Video className="size-4" />
-                Video
-              </h4>
+              <div className="flex items-center gap-2">
+                <h4 className="font-medium flex items-center gap-2">
+                  <Video className="size-4" />
+                  Video
+                </h4>
+                <span className="text-xs text-muted-foreground">(Max 50MB)</span>
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
@@ -491,6 +584,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
               <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
                 <Video className="size-8 mx-auto mb-2 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">Click to select a video</p>
+                <p className="text-xs text-muted-foreground mt-1">Maximum: 50MB</p>
                 <Button
                   variant="outline"
                   size="sm"

@@ -5,6 +5,7 @@ import { Textarea } from '../ui/textarea'
 import { Button } from '../ui/button'
 import { Code, Send } from 'lucide-react'
 import CodeEditor from '../code/CodeEditor'
+import EmojiMenu from '@/components/ui/emoji-menu';
 
 interface CommentEditorProps {
   initialValue?: { text: string, code: string, codeLang: string }
@@ -82,6 +83,10 @@ export default function CommentEditor({
     }))
   }
 
+  const handleEmojiSelect = (emoji: string) => {
+    setContent(prev => ({ ...prev, text: prev.text + emoji }))
+  }
+
   return (
     <div className="border-0 shadow-none">
         {/* Text Editor */}
@@ -94,6 +99,11 @@ export default function CommentEditor({
             autoComplete='off'
           />
           <div className="absolute bottom-3 end-3 flex gap-2">
+            <EmojiMenu
+              onEmojiSelect={handleEmojiSelect}
+              position="top"
+              align="end"
+            />
             {showCodeToggle && !showCodeEditor && (
               <Button
                 size="sm"

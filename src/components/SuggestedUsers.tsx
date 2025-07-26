@@ -103,21 +103,6 @@ const SuggestedUsers = ({ limit = 3, cardTitle = 'Suggested Users', className = 
                     >
                       {isFollowing ? 'Unfollow' : 'Follow'}
                     </Button>
-                    <BlockButton
-                      targetUserId={u._id || ''}
-                      targetUsername={u.username}
-                      variant="outline"
-                      size="sm"
-                      showIcon={true}
-                      showText={false}
-                      className="cursor-pointer"
-                      onBlockStatusChange={() => {
-                        // Refresh suggestions after blocking/unblocking
-                        dispatch(fetchProfile());
-                        dispatch(resetSuggested());
-                        dispatch(fetchSuggestedUsers({ limit: suggested.limit, skip: 0 }));
-                      }}
-                    />
                   </div>
                 )}
               </div>

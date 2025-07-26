@@ -66,7 +66,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         const messageIds = unseenMessages.map(msg => msg._id);
         socket.emit('chat:seen', { roomId: chatId, messageIds });
         // Optimistically update Redux so badge disappears instantly
-        dispatch(setSeen({ roomId: chatId, seen: messageIds, userId: myUserId as string }));
+        dispatch(setSeen({ roomId: chatId, seen: messageIds, userId: myUserId as string, currentUserId: myUserId as string }));
       }
     }
   };
@@ -244,33 +244,6 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
             </div>
             </div>
           </div>
-          
-          {/* Block Button Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-accent rounded"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreVertical className="h-4 w-4 text-muted-foreground" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <div className="flex items-center gap-2">
-                  <BlockButton
-                    targetUserId={otherMember._id}
-                    targetUsername={otherMember.username}
-                    variant="ghost"
-                    size="sm"
-                    showIcon={true}
-                    showText={true}
-                    className="p-0 h-auto font-normal justify-start w-full"
-                  />
-                </div>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       );
     }
