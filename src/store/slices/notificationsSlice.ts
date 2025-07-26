@@ -30,6 +30,7 @@ const notificationsSlice = createSlice({
       state.unreadCount = state.notifications.filter(n => !n.isRead).length;
     },
     addNotification(state, action: PayloadAction<Notification>) {
+      console.log('[REDUX][ADD]', action.payload);
       const newId = action.payload._id;
       
       if (!state.notifications.some(n => n._id === newId)) {
@@ -147,6 +148,11 @@ const notificationsSlice = createSlice({
             (action.payload.commentId && String(n.data?._id) === String(action.payload.commentId))
           );
 
+        const matchPostCreated =
+          n.type === NotificationType.POST_CREATED &&
+          notifFromUserId === String(action.payload.fromUserId) &&
+          notifPostId === String(action.payload.postId || '');
+
         const matchFollow =
           n.type === NotificationType.FOLLOWED_USER &&
           (
@@ -156,7 +162,7 @@ const notificationsSlice = createSlice({
 
         const shouldDelete = matchReaction || matchComment || matchRepliesOfDeletedComment || 
                           matchAllNotificationsForDeletedComment || matchEnhancedCommentCleanup || 
-                          matchMention || matchFollow;
+                          matchMention || matchPostCreated || matchFollow;
         
         if (shouldDelete && n.type === NotificationType.USER_MENTIONED) {
         }

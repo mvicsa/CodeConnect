@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
-import axios from 'axios'
+import axios, { isAxiosError } from 'axios'
 import { PostType } from '@/types/post'
 import { addPostReaction } from './reactionsSlice'
 
@@ -59,13 +59,24 @@ export const fetchPostById = createAsyncThunk<PostType, string>(
 )
 
 // Create post (requires Bearer token)
-export const createPost = createAsyncThunk<PostType, { postData: Omit<PostType, '_id' | 'createdBy' | 'createdAt' | 'updatedAt'>; token: string }>(
+export const createPost = createAsyncThunk<
+  PostType,
+  { postData: Omit<PostType, '_id' | 'createdBy' | 'createdAt' | 'updatedAt'>; token: string },
+  { rejectValue: { message: string } } // 👈 هنا نحدد شكل الخطأ
+>(
   'posts/createPost',
-  async ({ postData, token }) => {
-    const response = await axios.post(API_URL, postData, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    return response.data
+  async ({ postData, token }, { rejectWithValue }) => {
+    try {
+      const response = await axios.post(API_URL, postData, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      return response.data
+    } catch (err) {
+      if (isAxiosError(err)) {
+        return rejectWithValue({ message: err.response?.data?.message || 'Unknown error occurred' })
+      }
+      return rejectWithValue({ message: 'Unknown error occurred' })
+    }
   }
 )
 
