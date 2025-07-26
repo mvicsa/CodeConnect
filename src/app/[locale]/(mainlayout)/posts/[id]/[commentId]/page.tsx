@@ -19,7 +19,7 @@ export default async function PostWithCommentPage({ params }: { params: Promise<
   // We pass the same ID as both highlightedCommentId and highlightedReplyId
   // The component will determine which one it is
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto px-5">
       <SinglePostWithHighlightedComment 
         postId={id} 
         highlightedCommentId={commentId}

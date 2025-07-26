@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
-import { RootState, AppDispatch } from '../../store/store'
+import { useSelector } from 'react-redux'
+import { RootState } from '../../store/store'
 import Post from './Post'
 import { PostType } from '../../types/post'
 import { Button } from '../ui/button'
@@ -48,7 +48,6 @@ const PostsList = React.memo(function PostsList({
 }: PostsListProps) {
   const [localPosts, setLocalPosts] = useState<PostType[]>([])
   const [initialLoading, setInitialLoading] = useState(true)
-  const dispatch = useDispatch<AppDispatch>()
   const { checkBlockStatus } = useBlock()
   const checkBlockStatusRef = useRef(checkBlockStatus)
 

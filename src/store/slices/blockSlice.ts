@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { blockService } from '@/services/blockAPI';
-import { Block, BlockStatus, BlockStats, BlockUser } from '@/types/block';
-import { removeNotificationsByCriteria } from './notificationsSlice';
+import { BlockStatus, BlockStats, BlockUser } from '@/types/block';
 
 // Async thunks
 export const blockUser = createAsyncThunk(

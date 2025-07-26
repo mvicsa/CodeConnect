@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import axios, { isAxiosError } from 'axios'
 import { PostType } from '@/types/post'
 import { addPostReaction } from './reactionsSlice'
+import { getAuthToken } from '@/lib/cookies'
 
 // Use environment variable for API URL
 const API_URL = `${process.env.NEXT_PUBLIC_API_URL}/posts`
@@ -54,8 +55,8 @@ export const fetchPostById = createAsyncThunk<PostType, string>(
   'posts/fetchPostById',
   async (id, { rejectWithValue }) => {
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const headers: any = {};
+      const token = getAuthToken();
+      const headers: Record<string, string> = {};
       
       if (token) {
         headers.Authorization = `Bearer ${token}`;

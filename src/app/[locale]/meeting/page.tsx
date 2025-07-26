@@ -33,16 +33,16 @@ import {
   Calendar,
   Clock,
   RefreshCw,
-  ArrowLeft,
-  X,
+  ArrowLeft
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
 import Container from "@/components/Container";
-import { useDebounce } from "use-debounce"; // New import
+// import { useDebounce } from "use-debounce"; // New import
 import { User } from "@/types/user";
-import { MultiSelect, Option } from "@/components/ui/multi-select";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { getAuthToken } from "@/lib/cookies";
 // Types
 interface Room {
   _id: string;
@@ -89,10 +89,10 @@ export default function MeetingPage() {
   const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
   //added
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [editSearchQuery, setEditSearchQuery] = useState("");
-  const [debouncedSearchQuery] = useDebounce(searchQuery, 300); // Debounce create dialog search
-  const [debouncedEditSearchQuery] = useDebounce(editSearchQuery, 300); // Debounce edit dialog search
+  // const [searchQuery, setSearchQuery] = useState("");
+  // const [editSearchQuery, setEditSearchQuery] = useState("");
+  // const [debouncedSearchQuery] = useDebounce(searchQuery, 300); // Debounce create dialog search
+  // const [debouncedEditSearchQuery] = useDebounce(editSearchQuery, 300); // Debounce edit dialog search
 
   const t = useTranslations("meeting");
 
@@ -123,7 +123,7 @@ export default function MeetingPage() {
     };
 
     if (typeof window !== "undefined") {
-      const jwt = localStorage.getItem("token");
+      const jwt = getAuthToken();
       if (jwt) {
         headers["Authorization"] = `Bearer ${jwt}`;
       } else {
@@ -167,7 +167,7 @@ export default function MeetingPage() {
           maxParticipants: 10,
            invitedUsers: [] 
         });
-        setSearchQuery("");
+        // setSearchQuery(""); 
 
         toast.success(t("roomCreated"));
       } else {
@@ -199,29 +199,29 @@ export default function MeetingPage() {
   };
 
   // Filter users for multi-select options
-  const filteredUsers: Option[] = availableUsers
-    .filter(user =>
-      user._id && user.username && user.email &&
-      (user.username.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-       user.email.toLowerCase().includes(debouncedSearchQuery.toLowerCase())) &&
-      !newRoomData.invitedUsers.includes(user._id)
-    )
-    .map(user => ({
-      value: user._id!,
-      label: `${user.username} (${user.email})`
-    }));
+  // const filteredUsers: Option[] = availableUsers
+  //   .filter(user =>
+  //     user._id && user.username && user.email &&
+  //     (user.username.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+  //      user.email.toLowerCase().includes(debouncedSearchQuery.toLowerCase())) &&
+  //     !newRoomData.invitedUsers.includes(user._id)
+  //   )
+  //   .map(user => ({
+  //     value: user._id!,
+  //     label: `${user.username} (${user.email})`
+  //   }));
 
-  const filteredEditUsers: Option[] = availableUsers
-    .filter(user =>
-      user._id && user.username && user.email &&
-      (user.username.toLowerCase().includes(debouncedEditSearchQuery.toLowerCase()) ||
-       user.email.toLowerCase().includes(debouncedEditSearchQuery.toLowerCase())) &&
-      !(editingRoom?.invitedUsers?.map(u => u._id) || []).includes(user._id)
-    )
-    .map(user => ({
-      value: user._id!,
-      label: `${user.username} (${user.email})`
-    }));
+  // const filteredEditUsers: Option[] = availableUsers
+  //   .filter(user =>
+  //     user._id && user.username && user.email &&
+  //     (user.username.toLowerCase().includes(debouncedEditSearchQuery.toLowerCase()) ||
+  //      user.email.toLowerCase().includes(debouncedEditSearchQuery.toLowerCase())) &&
+  //     !(editingRoom?.invitedUsers?.map(u => u._id) || []).includes(user._id)
+  //   )
+  //   .map(user => ({
+  //     value: user._id!,
+  //     label: `${user.username} (${user.email})`
+  //   }));
 
 
   // Get user info from JWT
@@ -252,7 +252,7 @@ export default function MeetingPage() {
     };
 
     if (typeof window !== "undefined") {
-      const jwt = localStorage.getItem("token");
+      const jwt = getAuthToken();
       if (jwt) {
         try {
           jwtDecode(jwt);
@@ -360,7 +360,7 @@ export default function MeetingPage() {
         );
         setShowEditDialog(false);
         setEditingRoom(null);
-           setEditSearchQuery('');
+        // setEditSearchQuery('');
         toast.success("Room updated successfully!");
       } else {
         toast.error("Failed to update room");
@@ -852,7 +852,7 @@ export default function MeetingPage() {
             <div className="flex justify-end space-x-2">
               <Button variant="outline" onClick={() => {
                 setShowCreateDialog(false);
-                setSearchQuery('');
+                // setSearchQuery('');
                 setNewRoomData(prev => ({ ...prev, invitedUsers: [] }));
               }}>
                 {t('cancel')}
@@ -1034,7 +1034,7 @@ export default function MeetingPage() {
               <Button variant="outline" onClick={() => {
                 setShowEditDialog(false);
                 setEditingRoom(null);
-                setEditSearchQuery('');
+                // setEditSearchQuery('');
               }}>
                 Cancel
               </Button>

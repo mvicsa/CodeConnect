@@ -47,9 +47,9 @@ export const BlockButton: React.FC<BlockButtonProps> = ({
   const blockStatuses = useSelector((state: RootState) => state.block.blockStatuses);
   
   // Get block status for this specific user
-  const blockStatus = blockStatuses[targetUserId];
-  const isBlocked = blockStatus?.isBlocked || false;
-  const isBlockedBy = blockStatus?.isBlockedBy || false;
+  // const blockStatus = blockStatuses[targetUserId];
+  // const isBlocked = blockStatus?.isBlocked || false;
+  // const isBlockedBy = blockStatus?.isBlockedBy || false;
   
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirmReason, setConfirmReason] = useState('');
@@ -140,7 +140,7 @@ export const BlockButton: React.FC<BlockButtonProps> = ({
     ) {
       dispatch(checkBlockStatus(targetUserId));
     }
-  }, [targetUserId, currentUser?._id, dispatch]);
+  }, [targetUserId, currentUser?._id, dispatch, blockStatuses]);
 
   // Don't show block button if targetUserId is invalid, if current user is blocked by target, or if trying to block yourself
   if (!targetUserId || targetUserId.trim() === '' || currentUser?._id === targetUserId) {
@@ -190,7 +190,7 @@ export const BlockButton: React.FC<BlockButtonProps> = ({
           <AlertDialogTitle>Block User</AlertDialogTitle>
           <AlertDialogDescription>
             Are you sure you want to block {targetUsername || 'this user'}? 
-            You won't see their posts or receive messages from them.
+            You won&apos;t see their posts or receive messages from them.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="space-y-4">

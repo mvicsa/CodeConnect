@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios, { AxiosError } from 'axios';
+import { getAuthToken } from '@/lib/cookies';
 import { PostType } from '@/types/post';
 import { User } from '@/types/user';
 
@@ -24,11 +25,9 @@ const initialState: SearchState = {
 };
 
 function getAuthHeaders() {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
-    if (token) {
-      return { Authorization: `Bearer ${token}` };
-    }
+  const token = getAuthToken();
+  if (token) {
+    return { Authorization: `Bearer ${token}` };
   }
   return {};
 }

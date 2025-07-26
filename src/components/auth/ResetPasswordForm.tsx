@@ -9,6 +9,7 @@ import Link from "next/link"
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import axios from '@/lib/axios';
+import { isAxiosError } from "axios"
 
 // Validation functions
 const validatePassword = (value: string): string | null => {
@@ -107,9 +108,13 @@ export function ResetPasswordForm({
       setTimeout(() => {
         router.push('/login');
       }, 3000);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Reset password error:', err);
-      setError(err.response?.data?.message || 'Failed to reset password. Please try again.');
+      if (isAxiosError(err)) {
+        setError(err.response?.data?.message || 'Failed to reset password. Please try again.');
+      } else {
+        setError('Failed to reset password. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

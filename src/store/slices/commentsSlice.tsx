@@ -1,6 +1,7 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import axios from 'axios'
-import { Comment, Reply } from '@/types/comments'
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import axios from 'axios';
+import { Comment, Reply } from '@/types/comments';
+import { getAuthToken } from '@/lib/cookies';
 
 // Backend URL configuration
 const API_URL = `${process.env.NEXT_PUBLIC_API_URL}/comments`
@@ -67,7 +68,7 @@ export const addCommentAsync = createAsyncThunk<Comment, {
   'comments/addCommentAsync',
   async (commentData) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       if (!token) throw new Error('No authorization token found');
 
       const response = await axios.post<Comment>(
@@ -106,7 +107,7 @@ export const addReplyAsync = createAsyncThunk<Reply, {
   'comments/addReplyAsync',
   async (replyData) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       if (!token) throw new Error('No authorization token found');
 
       const response = await axios.post<Reply>(
@@ -137,7 +138,7 @@ export const editCommentOrReplyAsync = createAsyncThunk<Comment, { id: string; d
   'comments/editCommentOrReplyAsync',
   async ({ id, data }) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await axios.put<Comment>(
         `${API_URL}/${id}`,
         {
@@ -166,7 +167,7 @@ export const deleteCommentOrReplyAsync = createAsyncThunk<
   string
 >('comments/deleteCommentOrReplyAsync', async (idToDelete) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     
     // Delete the comment/reply from backend
     await axios.delete(`${API_URL}/${idToDelete}`, {
@@ -189,7 +190,7 @@ export const updateCommentReactionsAsync = createAsyncThunk<
   'comments/updateCommentReactionsAsync',
   async ({ commentId, reaction }) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await axios.post<Comment>(
         `${API_URL}/${commentId}/reactions`,
         { reaction },
@@ -215,7 +216,7 @@ export const updateReplyReactionsAsync = createAsyncThunk<
   'comments/updateReplyReactionsAsync',
   async ({ parentCommentId, replyId, reaction }) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       // Use the same endpoint as comment reactions but pass the replyId
       const response = await axios.post<Comment>(
         `${API_URL}/${replyId}/reactions`,

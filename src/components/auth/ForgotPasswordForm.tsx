@@ -8,6 +8,7 @@ import { AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { useState } from 'react';
 import axios from '@/lib/axios';
+import { isAxiosError } from "axios"
 
 // Validation function
 const validateEmail = (value: string): string | null => {
@@ -55,8 +56,12 @@ export function ForgotPasswordForm({
     try {
       const response = await axios.post('/auth/forgot-password', { email });
       setMessage(response.data.message);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to send reset email. Please try again.');
+    } catch (err) {
+      if (isAxiosError(err)) {
+        setError(err.response?.data?.message || 'Failed to send reset email. Please try again.');
+      } else {
+        setError('Failed to send reset email. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

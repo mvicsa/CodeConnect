@@ -9,7 +9,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
-import { BlockButton } from '@/components/block';
 import Link from 'next/link';
 import { useBlock } from '@/hooks/useBlock';
 

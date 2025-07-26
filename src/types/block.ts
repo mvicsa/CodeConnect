@@ -1,3 +1,5 @@
+import { User } from "./user";
+
 export interface Block {
   _id: string;
   blockerId: string;
@@ -26,8 +28,8 @@ export interface BlockUser {
   username?: string;
   avatar?: string;
   block?: Block;
-  blockedId?: any; // قد يكون كائن مستخدم
-  blockerId?: any; // قد يكون كائن مستخدم
+  blockedId?: User;
+  blockerId?: User;
   reason?: string;
   createdAt?: string;
 }

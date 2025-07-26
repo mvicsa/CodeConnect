@@ -18,6 +18,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store/store';
 import { setRooms, setActiveRoom } from '@/store/slices/chatSlice';
 import { User } from '@/types/user';
+import { getAuthToken } from '@/lib/cookies';
 
 interface ProfileHeaderProps {
   user: User;
@@ -125,7 +126,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         const roomResponse = response as { roomId?: string; error?: string };
         if (roomResponse && roomResponse.roomId) {
           // Fetch latest rooms from backend to get full data
-          const token = localStorage.getItem('token');
+          const token = getAuthToken();
           const res = await fetch('/api/chat/rooms', {
             headers: { Authorization: `Bearer ${token}` }
           });

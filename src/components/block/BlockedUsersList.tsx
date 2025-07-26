@@ -12,6 +12,7 @@ import { Loader2, UserX, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatTime } from '@/lib/utils';
 import { fetchBlockStats } from '@/store/slices/blockSlice';
+import { User } from '@/types/user';
 
 export const BlockedUsersList: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -37,7 +38,7 @@ export const BlockedUsersList: React.FC = () => {
   };
 
   // Helper function to get display name
-  const getDisplayName = (user: any) => {
+  const getDisplayName = (user: User) => {
     if (user && user.firstName && user.lastName) {
       return `${user.firstName} ${user.lastName}`;
     }
@@ -51,7 +52,7 @@ export const BlockedUsersList: React.FC = () => {
   };
 
   // Helper function to get avatar fallback
-  const getAvatarFallback = (user: any) => {
+  const getAvatarFallback = (user: User) => {
     if (user && user.firstName) {
       return user.firstName.charAt(0).toUpperCase();
     }
@@ -65,12 +66,12 @@ export const BlockedUsersList: React.FC = () => {
   };
 
   // Helper function to safely get username
-  const getUsername = (user: any) => {
+  const getUsername = (user: User) => {
     return (user && user.username) || 'unknown';
   };
 
   // Helper function to safely get avatar
-  const getAvatar = (user: any) => {
+  const getAvatar = (user: User) => { 
     return (user && user.avatar) || '';
   };
 
@@ -79,7 +80,7 @@ export const BlockedUsersList: React.FC = () => {
     if (!dateString) return 'Unknown date';
     try {
       return formatTime(dateString);
-    } catch (error) {
+    } catch {
       return 'Unknown date';
     }
   };
@@ -110,7 +111,7 @@ export const BlockedUsersList: React.FC = () => {
           <div className="text-center py-8">
             <UserX className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">No blocked users</h3>
-            <p className="text-muted-foreground">You haven't blocked any users yet.</p>
+            <p className="text-muted-foreground">You haven&apos;t blocked any users yet.</p>
           </div>
         </CardContent>
       </Card>
@@ -157,7 +158,7 @@ export const BlockedUsersList: React.FC = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleUnblock(actualUser._id, getDisplayName(actualUser))}
+                  onClick={() => handleUnblock(actualUser._id || '', getDisplayName(actualUser))}
                   disabled={actionLoading}
                 >
                   {actionLoading && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
