@@ -2,7 +2,7 @@ import React, { memo, useState, useMemo, useEffect, useContext } from 'react';
 import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card'
 import Link from 'next/link'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
-import { BotIcon, EllipsisVerticalIcon, FlagIcon, MessageCircleMore, PencilIcon, SendIcon, TrashIcon } from 'lucide-react'
+import { BotIcon, EllipsisVerticalIcon, FlagIcon, MessageCircleMore, PencilIcon, SendIcon, TrashIcon, UserX } from 'lucide-react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import ReactionMenu from '../ReactionsMenu'
@@ -17,6 +17,9 @@ import { useDispatch, useSelector } from 'react-redux'
 import { AppDispatch, RootState } from '@/store/store'
 import { deletePost } from '@/store/slices/postsSlice'
 import { removeNotificationsByCriteria } from '@/store/slices/notificationsSlice'
+import { useBlock } from '@/hooks/useBlock'
+import { BlockButton } from '@/components/block'
+import { Skeleton } from '../ui/skeleton'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,10 +54,19 @@ const Post = memo(function Post({
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth)
   const socket = useContext(SocketContext);
+  const { isBlocked, isBlockedBy } = useBlock();
   const [showComments, setShowComments] = useState(initialShowComments || !!highlightedCommentId);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Get block status directly from Redux to avoid re-renders
+  const blockStatuses = useSelector((state: RootState) => state.block.blockStatuses, (prev, next) => {
+    // Only re-render if the specific author's block status changed
+    const authorId = createdBy?._id?.toString();
+    if (!authorId) return prev === next;
+    return prev[authorId] === next[authorId];
+  });
 
   // Always use freshest reactions from Redux
   const postReactionsState = useSelector((state: RootState) => state.reactions.postReactions[_id]);
@@ -232,6 +244,61 @@ const Post = memo(function Post({
   const handleCancelDelete = () => {
     setShowDeleteDialog(false);
   };
+
+  // Block filtering logic
+  const authorId = createdBy?._id?.toString();
+  
+  // Get block status directly from Redux state
+  const authorBlockStatus = authorId ? blockStatuses[authorId] : null;
+  const isAuthorBlocked = authorBlockStatus?.isBlocked || false;
+  const isAuthorBlockedBy = authorBlockStatus?.isBlockedBy || false;
+  
+  // Check if block status is still loading (not yet checked)
+  const isBlockStatusLoading = authorId && !authorBlockStatus;
+  
+  // Show skeleton while block status is loading
+  if (isBlockStatusLoading) {
+    return (
+      <Card className='w-full gap-4 shadow-none dark:border-transparent'>
+        <CardContent className='p-4'>
+          <div className="flex items-center gap-3 mb-4">
+            <Skeleton className="h-10 w-10 rounded-full" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          </div>
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  // Don't show posts from blocked users
+  if (authorId && isAuthorBlocked) {
+    return (
+      <Card className='w-full gap-4 shadow-none dark:border-transparent'>
+        <CardContent className='p-4 text-center text-muted-foreground'>
+          <p>This content is hidden because you blocked this user</p>
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  // Don't show posts to users who blocked you
+  if (authorId && isAuthorBlockedBy) {
+    return (
+      <Card className='w-full gap-4 shadow-none dark:border-transparent'>
+        <CardContent className='p-4 text-center text-muted-foreground'>
+          <p>This content is hidden because this user blocked you</p>
+        </CardContent>
+      </Card>
+    );
+  }
   
   // Show PostForm component when editing
   if (isEditing) {
@@ -252,13 +319,15 @@ const Post = memo(function Post({
               <CardTitle className='flex items-center gap-2'>
                 <Link href={`/profile/${createdBy?.username}`} className='relative'>
                   <UserAvatar src={createdBy?.avatar} firstName={createdBy?.firstName} />
-                  <span
-                    className={
-                      `absolute bottom-0.5 end-0.5 w-3 h-3 rounded-full border-2 border-card ` +
-                      (status === 'online' ? 'bg-primary' : 'bg-gray-400')
-                    }
-                    title={status.charAt(0).toUpperCase() + status.slice(1)}
-                  />
+                  {!isBlocked(createdBy?._id || '') && !isBlockedBy(createdBy?._id || '') && (
+                    <span
+                      className={
+                        `absolute bottom-0.5 end-0.5 w-3 h-3 rounded-full border-2 border-card ` +
+                        (status === 'online' ? 'bg-primary' : 'bg-gray-400')
+                      }
+                      title={status.charAt(0).toUpperCase() + status.slice(1)}
+                    />
+                  )}
                 </Link>
                 <div>
                   <div className='align-middle'>
@@ -305,6 +374,22 @@ const Post = memo(function Post({
                           <FlagIcon className='size-4' />
                           { t('report') }
                         </DropdownMenuItem>
+                        {user?._id !== createdBy?._id && (
+                          <DropdownMenuItem asChild className='cursor-pointer'>
+                            <div className='flex items-center gap-2'>
+                              <UserX className='size-4' />
+                              <BlockButton
+                                targetUserId={createdBy?._id || ''}
+                                targetUsername={createdBy?.username}
+                                variant="ghost"
+                                size="sm"
+                                showIcon={false}
+                                showText={true}
+                                className="p-0 h-auto font-normal justify-start"
+                              />
+                            </div>
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                   </DropdownMenu>
                 )}

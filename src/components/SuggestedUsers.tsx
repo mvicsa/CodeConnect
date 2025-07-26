@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
+import { BlockButton } from '@/components/block';
 import Link from 'next/link';
 
 interface SuggestedUsersProps {
@@ -62,15 +63,31 @@ const SuggestedUsers = ({ limit = 3, cardTitle = 'Suggested Users', className = 
                   </Link>
                 </div>
                 {!isSelf && (
-                  <Button
-                    size='sm'
-                    variant={isFollowing ? 'outline' : 'default'}
-                    onClick={async () => { await dispatch(isFollowing ? unfollowUser(u._id || '') : followUser(u._id || '')); dispatch(fetchProfile()); dispatch(resetSuggested()); dispatch(fetchSuggestedUsers({ limit: suggested.limit, skip: 0 })); }}
-                    disabled={suggested.loading}
-                    className='cursor-pointer'
-                  >
-                    {isFollowing ? 'Unfollow' : 'Follow'}
-                  </Button>
+                  <div className='flex gap-1'>
+                    <Button
+                      size='sm'
+                      variant={isFollowing ? 'outline' : 'default'}
+                      onClick={async () => { await dispatch(isFollowing ? unfollowUser(u._id || '') : followUser(u._id || '')); dispatch(fetchProfile()); dispatch(resetSuggested()); dispatch(fetchSuggestedUsers({ limit: suggested.limit, skip: 0 })); }}
+                      disabled={suggested.loading}
+                      className='cursor-pointer'
+                    >
+                      {isFollowing ? 'Unfollow' : 'Follow'}
+                    </Button>
+                    <BlockButton
+                      targetUserId={u._id || ''}
+                      targetUsername={u.username}
+                      variant="outline"
+                      size="sm"
+                      showIcon={true}
+                      showText={false}
+                      className="cursor-pointer"
+                      onBlockStatusChange={() => {
+                        dispatch(fetchProfile());
+                        dispatch(resetSuggested());
+                        dispatch(fetchSuggestedUsers({ limit: suggested.limit, skip: 0 }));
+                      }}
+                    />
+                  </div>
                 )}
               </div>
             );

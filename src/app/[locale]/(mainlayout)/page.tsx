@@ -3,11 +3,13 @@ import CreatePostWrapper from "@/components/post/CreatePostWrapper";
 import PostsListContainer from "@/components/post/PostsListContainer";
 import Container from "@/components/Container";
 import SuggestedUsers from "@/components/SuggestedUsers";
+import BlockStatusChecker from "@/components/BlockStatusChecker";
 
 export default function Home() {
 
   return (
     <Container>
+      <BlockStatusChecker />
       <div className="grid grid-cols-12 gap-4">
         {/* Left Sidebar (visible on desktop, hidden on mobile) */}
         <div className="md:col-span-4 xl:col-span-3 hidden md:block">

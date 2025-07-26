@@ -13,6 +13,7 @@ import userReducer from './slices/userSlice'
 import tagsReducer from './slices/tagsSlice';
 import searchReducer from './slices/searchSlice'
 import notificationsReducer from './slices/notificationsSlice';
+import blockReducer from './slices/blockSlice';
 import type { Reactions, UserReaction } from './slices/reactionsSlice';
 import type { UserReaction as PostUserReaction } from '@/types/post';
 
@@ -72,7 +73,8 @@ export const store = configureStore({
     user: userReducer,
     tags: tagsReducer,
     search: searchReducer,
-    notifications: notificationsReducer
+    notifications: notificationsReducer,
+    block: blockReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

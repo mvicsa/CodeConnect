@@ -10,6 +10,7 @@ import CommentEditor from './CommentEditor'
 import { MessageCircle, ChevronDown } from 'lucide-react'
 import { Button } from '../ui/button'
 import CommentAI from './CommentAI'
+import { useBlock } from '@/hooks/useBlock'
 
 interface CommentSectionProps {
   postId: string;
@@ -42,6 +43,7 @@ const CommentSection = memo(function CommentSection({
   const [parentCommentId, setParentCommentId] = useState<string | null>(null)
 
   const user = useSelector((state: RootState) => state.auth.user)
+  const { checkBlockStatus } = useBlock()
 
   // Filter comments for this specific post
   const postComments = useMemo(() => {
@@ -81,6 +83,22 @@ const CommentSection = memo(function CommentSection({
       }
     }
   }, [highlightedReplyId, postComments, dispatch]);
+
+  // Check block status for all comment authors when comments change
+  useEffect(() => {
+    if (postComments.length > 0) {
+      // Get unique author IDs from comments
+      const authorIds = [...new Set(postComments.map(comment => comment.createdBy._id).filter(Boolean))]
+      
+      // Check block status for each author immediately
+      authorIds.forEach(authorId => {
+        if (authorId) {
+          // Check immediately without debouncing for better UX
+          checkBlockStatus(authorId)
+        }
+      })
+    }
+  }, [postComments])
 
   // Reorder comments to put highlighted comment or parent of highlighted reply first
   const orderedComments = useMemo(() => {
