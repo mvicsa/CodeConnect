@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { SocialAuthDivider } from "@/components/auth/SocialAuthDivider"
 import { useDispatch, useSelector } from 'react-redux';
@@ -11,6 +13,41 @@ import { useState, useEffect } from 'react';
 import { login, githubLogin } from '@/store/slices/authSlice';
 import { AppDispatch, RootState } from '@/store/store';
 import { useRouter } from 'next/navigation';
+
+// Validation functions
+const validateEmail = (value: string): string | null => {
+  if (!value.trim()) {
+    return 'Email is required';
+  }
+  
+  if (value.toLowerCase().startsWith('mailto:')) {
+    return 'Please enter a valid email address';
+  }
+  
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(value)) {
+    return 'Please enter a valid email address';
+  }
+  
+  return null;
+};
+
+const validatePassword = (value: string): string | null => {
+  if (!value.trim()) {
+    return 'Password is required';
+  }
+  
+  if (value.trim().length === 0) {
+    return 'Password cannot be only spaces';
+  }
+  
+  return null;
+};
+
+interface LoginValidationErrors {
+  email?: string;
+  password?: string;
+}
 
 export function LoginForm({
   className,
@@ -21,6 +58,7 @@ export function LoginForm({
   const { loading, error, user } = useSelector((state: RootState) => state.auth);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [validationErrors, setValidationErrors] = useState<LoginValidationErrors>({});
 
   // Redirect if already logged in
   useEffect(() => {
@@ -29,13 +67,40 @@ export function LoginForm({
     }
   }, [user, router]);
 
+  const validateForm = (): boolean => {
+    const errors: LoginValidationErrors = {};
+    
+    const emailError = validateEmail(email);
+    if (emailError) errors.email = emailError;
+    
+    const passwordError = validatePassword(password);
+    if (passwordError) errors.password = passwordError;
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationErrors({});
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     await dispatch(login({ email, password }));
   };
 
   const handleGitHubLogin = () => {
     dispatch(githubLogin());
+  };
+
+  const handleInputChange = (field: keyof LoginValidationErrors, value: string, setter: (value: string) => void) => {
+    setter(value);
+    // Clear validation error when user starts typing
+    if (validationErrors[field]) {
+      setValidationErrors(prev => ({ ...prev, [field]: undefined }));
+    }
   };
 
   return (
@@ -47,11 +112,25 @@ export function LoginForm({
         </p>
       </div>
       <div className="grid gap-6">
-        <div className="grid gap-3">
+        <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" placeholder="m@example.com" required value={email} onChange={e => setEmail(e.target.value)} />
+          <Input 
+            id="email" 
+            type="email" 
+            placeholder="m@example.com" 
+            required 
+            value={email} 
+            onChange={e => handleInputChange('email', e.target.value, setEmail)}
+            className={validationErrors.email ? 'border-red-500 focus:border-red-500' : ''}
+          />
+          {validationErrors.email && (
+            <div className="flex items-start gap-2 p-2 text-xs text-red-500 border border-red-500 rounded-md">
+              <AlertTriangle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+              <span>{validationErrors.email}</span>
+            </div>
+          )}
         </div>
-        <div className="grid gap-3">
+        <div className="space-y-2">
           <div className="flex items-center">
             <Label htmlFor="password">Password</Label>
             <Link
@@ -61,9 +140,27 @@ export function LoginForm({
               Forgot your password?
             </Link>
           </div>
-          <Input id="password" type="password" required value={password} onChange={e => setPassword(e.target.value)} />
+          <Input 
+            id="password" 
+            type="password" 
+            required 
+            value={password} 
+            onChange={e => handleInputChange('password', e.target.value, setPassword)}
+            className={validationErrors.password ? 'border-red-500 focus:border-red-500' : ''}
+          />
+          {validationErrors.password && (
+            <div className="flex items-start gap-2 p-2 text-xs text-red-500 border border-red-500 rounded-md">
+              <AlertTriangle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+              <span>{validationErrors.password}</span>
+            </div>
+          )}
         </div>
-        {error && <div className="text-red-500 text-sm">{error}</div>}
+        {error && (
+          <div className="flex items-start gap-2 p-3 text-sm text-red-500 border border-red-500 rounded-md">
+            <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? 'Logging in...' : 'Login'}
         </Button>
