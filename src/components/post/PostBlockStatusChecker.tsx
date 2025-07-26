@@ -4,12 +4,15 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/store/store';
 import { useBlock } from '@/hooks/useBlock';
+import { PostType } from '@/types/post';
 
-const BlockStatusChecker = () => {
+interface PostBlockStatusCheckerProps {
+  post: PostType;
+}
+
+const PostBlockStatusChecker = ({ post }: PostBlockStatusCheckerProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const { checkBlockStatus } = useBlock();
-  const posts = useSelector((state: RootState) => state.posts.posts);
-  const comments = useSelector((state: RootState) => state.comments.comments);
   const { user } = useSelector((state: RootState) => state.auth);
   
   // Use stable selectors to prevent unnecessary re-renders
@@ -23,39 +26,34 @@ const BlockStatusChecker = () => {
     checkBlockStatusRef.current = checkBlockStatus;
   }, [checkBlockStatus]);
 
-  const debouncedCheckUsers = useCallback(() => {
-    if (!user?._id) return;
+  const checkPostUsers = useCallback(() => {
+    if (!user?._id || !post) return;
 
-    // Get all unique user IDs from posts and comments
-    const postAuthorIds = posts.map(post => post.createdBy._id).filter(Boolean);
-    const commentAuthorIds = comments.map(comment => comment.createdBy._id).filter(Boolean);
+    // Get all unique user IDs from this specific post
+    const userIds = new Set<string>();
     
-    // Get user IDs from post reactions
-    const postReactionUserIds = posts.flatMap(post => 
-      (post.userReactions || []).map(reaction => reaction.userId._id).filter((id): id is string => Boolean(id))
-    );
+    // Add post author
+    if (post.createdBy?._id) {
+      userIds.add(post.createdBy._id);
+    }
     
-    // Get user IDs from comment reactions
-    const commentReactionUserIds = comments.flatMap(comment => 
-      (comment.userReactions || []).map(reaction => reaction.userId._id).filter((id): id is string => Boolean(id))
-    );
-    
-    // Combine and remove duplicates
-    const allUserIds = [...new Set([
-      ...postAuthorIds, 
-      ...commentAuthorIds, 
-      ...postReactionUserIds,
-      ...commentReactionUserIds
-    ])];
+    // Add users who reacted to the post
+    if (post.userReactions) {
+      post.userReactions.forEach((reaction: any) => {
+        if (reaction.userId._id) {
+          userIds.add(reaction.userId._id);
+        }
+      });
+    }
     
     // Remove current user from the list
-    const otherUserIds = allUserIds.filter(id => id !== user._id);
+    const otherUserIds = Array.from(userIds).filter(id => id !== user._id);
     
     // Only check users that haven't been checked before and are not in blockStatuses
     const usersToCheck = otherUserIds.filter(userId => 
       !checkedUsersRef.current.has(userId) && 
       !blockStatuses[userId]
-    ).slice(0, 10);
+    );
     
     if (usersToCheck.length > 0) {
       usersToCheck.forEach(userId => {
@@ -65,7 +63,7 @@ const BlockStatusChecker = () => {
         }
       });
     }
-  }, [user?._id, posts, comments, blockStatuses])
+  }, [user?._id, post, blockStatuses]);
 
   useEffect(() => {
     // Clear any existing timeout
@@ -74,19 +72,18 @@ const BlockStatusChecker = () => {
     }
 
     // Set a new timeout to debounce the check
-    timeoutRef.current = setTimeout(debouncedCheckUsers, 500);
+    timeoutRef.current = setTimeout(checkPostUsers, 100);
 
     // Cleanup function
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      checkedUsersRef.current.clear();
     };
-  }, [user?._id, posts, comments]);
+  }, [post._id, user?._id]);
 
   // This component doesn't render anything
   return null;
 };
 
-export default BlockStatusChecker; 
+export default PostBlockStatusChecker; 

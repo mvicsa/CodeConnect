@@ -14,6 +14,7 @@ import { RootState } from "@/store/store";
 import { useNotifications } from '@/hooks/useNotifications';
 import { removeNotificationsByCriteria } from '@/store/slices/notificationsSlice';
 import { SocketContext } from '@/store/Provider';
+import { useBlock } from '@/hooks/useBlock';
 
 // Map your existing reaction images to the database structure
 const reactionImageMap = {
@@ -68,6 +69,7 @@ export default function ReactionsMenu({
   const { handleDeleteReactionNotification } = useNotifications();
   const dispatch = useDispatch();
   const socket = useContext(SocketContext);
+  const { isBlocked, loading: blockLoading } = useBlock();
 
   // Get current user's reaction
   const currentUserReaction = userReactions.find(
@@ -76,19 +78,30 @@ export default function ReactionsMenu({
   const currentUserReactionType = currentUserReaction?.reaction || null;
   const selectedReaction = currentUserReactionType ? reactionImageMap[currentUserReactionType as keyof typeof reactionImageMap] : null;
 
-  // Calculate total reactions
-  const totalReactions = Object.values(reactions).reduce((sum, count) => sum + count, 0);
   // Only use reaction types that exist in the reactions object
   const reactionTypeList = Object.keys(reactions).filter(rt => rt in reactionImageMap) as (keyof typeof reactionImageMap)[];
-  // Group users by reaction type
+  
+  // Group users by reaction type - filter out blocked users
   const usersByReaction: Record<keyof typeof reactionImageMap, typeof userReactions> = {
     like: [], love: [], wow: [], funny: [], dislike: [], happy: []
   };
-  reactionTypeList.forEach((rt) => {
-    usersByReaction[rt] = userReactions.filter(u => u.reaction === rt);
+  
+  // Filter out blocked users from reactions
+  const filteredUserReactions = userReactions.filter(u => {
+    if (!u.userId._id) return false;
+    // If block status is still loading, don't show the reaction yet
+    if (blockLoading) return false;
+    return !isBlocked(u.userId._id);
   });
-  // All users (for All tab)
-  const allUsers = userReactions;
+  
+  reactionTypeList.forEach((rt) => {
+    usersByReaction[rt] = filteredUserReactions.filter(u => u.reaction === rt);
+  });
+  
+  // All users (for All tab) - filter out blocked users
+  const allUsers = filteredUserReactions;
+  // Calculate total reactions (after filtering blocked users)
+  const totalReactions = allUsers.length;
 
   const handleSelectReaction = async (reactionName: string) => {
     if (!currentUserId || isReactionLoading) return;
@@ -228,6 +241,15 @@ export default function ReactionsMenu({
 
   // Remove the loading check for initialLoading and reactionTypes
 
+  if (blockLoading) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="w-5 h-5 rounded-full bg-muted animate-pulse" />
+        <div className="w-16 h-4 rounded bg-muted animate-pulse" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-2">
       {/* Reaction Button */}
@@ -294,11 +316,11 @@ export default function ReactionsMenu({
             <Tabs defaultValue={allUsers.length > 0 ? "all" : reactionTypeList.find(rt => reactions[rt] > 0) || "all"} className="w-full">
               <TabsList className="mb-2">
                 {allUsers.length > 0 && <TabsTrigger value="all">All ({allUsers.length})</TabsTrigger>}
-                {reactionTypeList.filter(rt => reactions[rt] > 0).map((rt) => (
+                {reactionTypeList.filter(rt => usersByReaction[rt].length > 0).map((rt) => (
                   <TabsTrigger key={rt} value={rt}>
                     <span className="flex items-center gap-1">
                       <Image src={reactionImageMap[rt]} alt={rt} width={18} height={18} />
-                      {reactions[rt]}
+                      {usersByReaction[rt].length}
                     </span>
                   </TabsTrigger>
                 ))}
@@ -327,7 +349,7 @@ export default function ReactionsMenu({
 
               {/* Individual Reaction Type Tabs */}
               <div className="max-h-[300px] overflow-y-auto -mt-2">
-                {reactionTypeList.filter(rt => reactions[rt] > 0).map((reactionType) => (
+                {reactionTypeList.filter(rt => usersByReaction[rt].length > 0).map((reactionType) => (
                   <TabsContent key={reactionType} value={reactionType}>
                     <div className="flex flex-col gap-2">
                       {usersByReaction[reactionType].map((u, idx) => (

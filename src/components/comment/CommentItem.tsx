@@ -44,7 +44,7 @@ import {
 import { removeNotificationsByCriteria } from '@/store/slices/notificationsSlice'
 import { useBlock } from '@/hooks/useBlock'
 import { BlockButton } from '@/components/block'
-import { useState, useMemo, useEffect, useContext } from 'react'
+import { useState, useMemo, useEffect, useContext, useRef } from 'react'
 import { Comment, CommentUser, Reply, User } from '@/types/comments'
 import Link from 'next/link'
 import AdminBadge from '../AdminBadge'
@@ -134,7 +134,13 @@ export default function CommentItem({
   const isReply = !!comment.parentCommentId
   const rootCommentId = rootId || String(commentId)
   const { user } = useSelector((state: RootState) => state.auth)
-  const { isBlocked, isBlockedBy } = useBlock();
+  const { checkBlockStatus, isBlocked, isBlockedBy } = useBlock();
+  const checkBlockStatusRef = useRef(checkBlockStatus);
+
+  // Update ref when checkBlockStatus changes
+  useEffect(() => {
+    checkBlockStatusRef.current = checkBlockStatus;
+  }, [checkBlockStatus]);
   
   // Get block status directly from Redux to avoid re-renders
   const blockStatuses = useSelector((state: RootState) => state.block.blockStatuses, (prev, next) => {
@@ -158,20 +164,25 @@ export default function CommentItem({
     }
   }, [highlightedReplyId, comment]);
 
-  // Get visible replies based on pagination
+  // Get visible replies based on pagination and filter blocked users
   const visibleRepliesList = useMemo(() => {
     if (!isCommentWithReplies(comment) || !comment.replies || comment.replies.length === 0) {
       return [];
     }
 
-    // Always show replies in reverse chronological order (newest first)
+    // Always show replies in reverse chronological order (newest first) and filter blocked users
     const sortedReplies = [...comment.replies];
-    return sortedReplies.slice(0, Math.max(visibleReplies, 0)).filter(Boolean) as Reply[];
-  }, [comment, visibleReplies]);
+    return sortedReplies
+      .slice(0, Math.max(visibleReplies, 0))
+      .filter(Boolean)
+      .filter((reply) => !isBlocked(reply.createdBy._id)) as Reply[];
+  }, [comment, visibleReplies, isBlocked]);
 
-  // Check if there are more replies to load
-  const hasMoreReplies = isCommentWithReplies(comment) && 
-    comment.replies.length > visibleRepliesList.length;
+  // Check if there are more replies to load (after filtering blocked users)
+  const filteredReplies = isCommentWithReplies(comment) && comment.replies 
+    ? comment.replies.filter((reply) => reply && !isBlocked(reply.createdBy._id))
+    : [];
+  const hasMoreReplies = isCommentWithReplies(comment) && filteredReplies.length > visibleRepliesList.length;
 
   const handleReplyClick = () => {
     // If this is a reply, trigger the reply form on the parent comment
@@ -192,7 +203,15 @@ export default function CommentItem({
       if (has_id(comment)) {
         dispatch(fetchReplies(comment._id))
           .unwrap()
-          .then(() => {
+          .then((replies) => {
+            // Check block status for reply authors
+            const replyAuthorIds = replies.map(reply => reply.createdBy._id).filter(Boolean);
+            replyAuthorIds.forEach(authorId => {
+              if (authorId) {
+                checkBlockStatusRef.current(authorId);
+              }
+            });
+            
             setShowReplies(true);
             setVisibleReplies(2);
           });
@@ -645,7 +664,7 @@ export default function CommentItem({
             />
             { user && (
               <button onClick={handleReplyClick} className="flex items-center hover:text-foreground transition-all duration-300 gap-1 cursor-pointer">
-                <ReplyIcon className="size-4" /> {isCommentWithReplies(comment) && comment.replies.length > 0 ? comment.replies.length : ''}
+                <ReplyIcon className="size-4" /> {isCommentWithReplies(comment) && filteredReplies.length > 0 ? filteredReplies.length : ''}
               </button>
             )}
             <Link href={`/posts/${comment.postId}/${commentId}`} className='hover:underline'>
@@ -711,8 +730,8 @@ export default function CommentItem({
               >
                 <ChevronDown className="size-3 mr-1" />
                 {!showReplies 
-                  ? `View ${comment.replies.length - visibleRepliesList.length} ${comment.replies.length - visibleRepliesList.length === 1 ? 'reply' : 'replies'}`
-                  : `Load More Replies (${comment.replies.length - visibleRepliesList.length} more)`
+                  ? `View ${filteredReplies.length - visibleRepliesList.length} ${filteredReplies.length - visibleRepliesList.length === 1 ? 'reply' : 'replies'}`
+                  : `Load More Replies (${filteredReplies.length - visibleRepliesList.length} more)`
                 }
               </Button>
             </div>

@@ -22,7 +22,6 @@ export const fetchComments = createAsyncThunk<Comment[], string>(
   'comments/fetchComments',
   async (postId) => {
     try {
-
       // Get all comments for the post
       const response = await axios.get<Comment[]>(`${API_URL}/post/${postId}`);
 
@@ -277,7 +276,22 @@ const commentsSlice = createSlice({
         const existingComments = state.comments.filter(
           comment => comment.postId !== action.meta.arg
         );
-        state.comments = [...existingComments, ...action.payload];
+        // Only update if the comments are actually different
+        const newComments = action.payload;
+        const currentPostComments = state.comments.filter(
+          comment => comment.postId === action.meta.arg
+        );
+        
+        // Check if the comments are actually different
+        const hasChanged = newComments.length !== currentPostComments.length ||
+          newComments.some((newComment, index) => 
+            !currentPostComments[index] || 
+            currentPostComments[index]._id !== newComment._id
+          );
+        
+        if (hasChanged) {
+          state.comments = [...existingComments, ...newComments];
+        }
       })
       .addCase(fetchComments.rejected, (state, action) => {
         state.loading = false;
@@ -290,7 +304,19 @@ const commentsSlice = createSlice({
         // Find the parent comment and update its replies
         const parentComment = state.comments.find(c => c._id === parentCommentId);
         if (parentComment) {
-          parentComment.replies = action.payload;
+          // Only update if the replies are actually different
+          const newReplies = action.payload;
+          const currentReplies = parentComment.replies || [];
+          
+          const hasChanged = newReplies.length !== currentReplies.length ||
+            newReplies.some((newReply, index) => 
+              !currentReplies[index] || 
+              currentReplies[index]?._id !== newReply._id
+            );
+          
+          if (hasChanged) {
+            parentComment.replies = newReplies;
+          }
         }
       })
       

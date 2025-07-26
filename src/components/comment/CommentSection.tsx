@@ -43,18 +43,21 @@ const CommentSection = memo(function CommentSection({
   const [parentCommentId, setParentCommentId] = useState<string | null>(null)
 
   const user = useSelector((state: RootState) => state.auth.user)
-  const { checkBlockStatus } = useBlock()
+  const { checkBlockStatus, isBlocked, loading: blockLoading } = useBlock()
   const checkBlockStatusRef = useRef(checkBlockStatus)
+  const checkedAuthorsRef = useRef<Set<string>>(new Set())
 
   // Update ref when checkBlockStatus changes
   useEffect(() => {
     checkBlockStatusRef.current = checkBlockStatus
   }, [checkBlockStatus])
 
-  // Filter comments for this specific post
+  // Filter comments for this specific post and exclude blocked users
   const postComments = useMemo(() => {
-    return comments.filter(comment => comment.postId === postId);
-  }, [comments, postId]);
+    return comments
+      .filter(comment => comment.postId === postId)
+      .filter(comment => !isBlocked(comment.createdBy._id));
+  }, [comments, postId, isBlocked]);
 
   // Find parent comment ID if we have a highlighted reply
   useEffect(() => {
@@ -88,21 +91,38 @@ const CommentSection = memo(function CommentSection({
         });
       }
     }
-  }, [highlightedReplyId, postComments, dispatch]);
+  }, [highlightedReplyId, postComments]); // Remove dispatch from dependencies
 
-  // Check block status for all comment authors when comments change
+  // Check block status for all comment authors and reply authors when comments change
   useEffect(() => {
     if (postComments.length > 0) {
       // Get unique author IDs from comments
-      const authorIds = [...new Set(postComments.map(comment => comment.createdBy._id).filter(Boolean))]
+      const commentAuthorIds = [...new Set(postComments.map(comment => comment.createdBy._id).filter(Boolean))]
       
-      // Check block status for each author immediately
-      authorIds.forEach(authorId => {
-        if (authorId) {
-          // Check immediately without debouncing for better UX
-          checkBlockStatusRef.current(authorId)
-        }
-      })
+      // Get unique author IDs from replies
+      const replyAuthorIds = postComments.flatMap(comment => 
+        (comment.replies || []).map(reply => reply?.createdBy._id).filter(Boolean)
+      )
+      
+      // Combine and remove duplicates
+      const allAuthorIds = [...new Set([...commentAuthorIds, ...replyAuthorIds])]
+      
+      // Only check authors we haven't checked before
+      const uncheckedAuthors = allAuthorIds.filter(authorId => authorId && !checkedAuthorsRef.current.has(authorId))
+      
+      if (uncheckedAuthors.length > 0) {
+        // Check block status for each unchecked author
+        uncheckedAuthors.forEach(authorId => {
+          if (authorId) {
+            checkBlockStatusRef.current(authorId)
+          }
+        })
+        
+        // Update the set of checked authors
+        uncheckedAuthors.forEach(authorId => {
+          checkedAuthorsRef.current.add(authorId)
+        })
+      }
     }
   }, [postComments]);
 
@@ -174,7 +194,7 @@ const CommentSection = memo(function CommentSection({
           console.error('Failed to fetch AI suggestions:', error);
         });
     }
-  }, [dispatch, postId, hasAiSuggestions]);
+  }, [postId, hasAiSuggestions]); // Remove dispatch from dependencies
 
   const handleAddComment = async (content: { text: string, code: string, codeLang: string }) => {
     try {
@@ -197,6 +217,20 @@ const CommentSection = memo(function CommentSection({
 
   const handleLoadMore = () => {
     setVisibleComments(prev => prev + 3) // Load 3 more comments
+  }
+
+  if (blockLoading) {
+    return (
+      <div className={`space-y-4 ${className}`}>
+        <div className="animate-pulse">
+          <div className="h-20 bg-muted rounded-lg mb-4"></div>
+          <div className="space-y-4">
+            <div className="h-16 bg-muted rounded-lg"></div>
+            <div className="h-16 bg-muted rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (loading && postComments.length === 0) {

@@ -177,8 +177,8 @@ export default function SinglePostWithHighlightedComment({
     return (
       <Alert>
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>{t('notFound')}</AlertTitle>
-        <AlertDescription>{t('postNotFound')}</AlertDescription>
+        <AlertTitle>Post not found</AlertTitle>
+        <AlertDescription>The post you are looking for does not exist.</AlertDescription>
       </Alert>
     );
   }

@@ -31,6 +31,13 @@ export const useBlock = () => {
   
   // Use a more stable selector for blockStatuses
   const blockStatuses = useSelector((state: RootState) => state.block.blockStatuses);
+  
+  const blockStatusesRef = useRef(blockStatuses);
+  
+  // Update ref when blockStatuses changes
+  useEffect(() => {
+    blockStatusesRef.current = blockStatuses;
+  }, [blockStatuses]);
 
   const blockUserHandler = useCallback(async (blockedId: string, reason?: string) => {
     try {
@@ -56,7 +63,7 @@ export const useBlock = () => {
 
   const checkBlockStatusHandler = useCallback(async (userId: string) => {
     // Don't check if we already have the status
-    if (blockStatuses[userId]) {
+    if (blockStatusesRef.current[userId]) {
       return true;
     }
     
@@ -67,7 +74,7 @@ export const useBlock = () => {
       console.error('Failed to check block status:', error);
       return false;
     }
-  }, [blockStatuses]);
+  }, []); // No dependencies needed since we use refs
 
   const loadBlockedUsers = useCallback(async () => {
     try {
@@ -90,20 +97,20 @@ export const useBlock = () => {
   }, []);
 
   const getBlockStatus = useCallback((userId: string) => {
-    return blockStatuses[userId] || { isBlocked: false, isBlockedBy: false };
-  }, [blockStatuses]);
+    return blockStatusesRef.current[userId] || { isBlocked: false, isBlockedBy: false };
+  }, []);
 
   const isBlocked = useCallback((userId: string) => {
     if (!userId) return false;
-    const status = blockStatuses[userId];
+    const status = blockStatusesRef.current[userId];
     return status?.isBlocked || false;
-  }, [blockStatuses]);
+  }, []);
 
   const isBlockedBy = useCallback((userId: string) => {
     if (!userId) return false;
-    const status = blockStatuses[userId];
+    const status = blockStatusesRef.current[userId];
     return status?.isBlockedBy || false;
-  }, [blockStatuses]);
+  }, []);
 
   const clearErrorHandler = useCallback(() => {
     dispatchRef.current(clearError());
