@@ -453,6 +453,7 @@ const NotificationPage = () => {
                                                                         const target = e.target as HTMLImageElement;
                                                                         target.src = '/user.png';
                                                                     }}
+                                                                    priority
                                                                 />
                                                                 <div className="absolute -bottom-1 -right-1 p-1 rounded-full bg-muted flex items-center">
                                                                 { reactionImage ? reactionImage : <IconComponent className="h-3 w-3" /> }
