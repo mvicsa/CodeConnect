@@ -239,17 +239,6 @@ export default function ReactionsMenu({
     }
   };
 
-  // Remove the loading check for initialLoading and reactionTypes
-
-  if (blockLoading) {
-    return (
-      <div className="flex items-center gap-2">
-        <div className="w-5 h-5 rounded-full bg-muted animate-pulse" />
-        <div className="w-16 h-4 rounded bg-muted animate-pulse" />
-      </div>
-    );
-  }
-
   return (
     <div className="flex items-center gap-2">
       {/* Reaction Button */}

@@ -21,23 +21,25 @@ const LanguageSwitcher = () => {
   ];
 
   return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon">
-          <Globe className="w-5 h-5" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {languages.map((lang) => (
-          <DropdownMenuItem asChild key={lang.code}>
-            <Link href={`/${lang.code}`} className="flex items-center justify-between w-full">
-              <span>{lang.name}</span>
-              {locale === lang.code && <Check className="w-4 h-4 " />}
-            </Link>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="hidden">
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="icon">
+            <Globe className="w-5 h-5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {languages.map((lang) => (
+            <DropdownMenuItem asChild key={lang.code}>
+              <Link href={`/${lang.code}`} className="flex items-center justify-between w-full">
+                <span>{lang.name}</span>
+                {locale === lang.code && <Check className="w-4 h-4 " />}
+              </Link>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 };
 

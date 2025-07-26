@@ -78,8 +78,10 @@ export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
   async (profileData: unknown, { getState, rejectWithValue }) => {
     try {
+      console.log('profileData', profileData);
       const state = getState() as { auth: AuthState };
-      const token = state.auth.token;
+      const token = state.auth.token || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+      if (!token) throw new Error('No token');
       const response = await axios.patch(
         `${API_URL}/users/me`,
         profileData,

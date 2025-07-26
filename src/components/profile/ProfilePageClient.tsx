@@ -12,6 +12,7 @@ import { followUser, unfollowUser, fetchFollowers, fetchFollowing, fetchSuggeste
 import { useEffect, useCallback, useState } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { fetchProfile, updateProfile, updateFollowing } from '@/store/slices/authSlice';
+import { toast } from 'sonner';
 import ProfileHeader from './ProfileHeader';
 import UserListDialog from './UserListDialog';
 import { Input } from '@/components/ui/input';
@@ -237,7 +238,14 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setEditForm(prev => ({ ...prev, [name]: value }));
+    
+    // Prevent spaces in firstName and lastName fields
+    if (name === 'firstName' || name === 'lastName') {
+      const valueWithoutSpaces = value.replace(/\s/g, '');
+      setEditForm(prev => ({ ...prev, [name]: valueWithoutSpaces }));
+    } else {
+      setEditForm(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const [skillInput, setSkillInput] = useState('');
@@ -394,6 +402,13 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
     setEditLoading(true);
     setEditError(null);
 
+    // Check if there's text in the skill input that hasn't been added yet
+    if (skillInput.trim()) {
+      setEditError("Please press Enter to add the skill you typed, or clear the input field");
+      setEditLoading(false);
+      return;
+    }
+
     // Validate social links URLs
     const invalidLinks = editForm.socialLinks.filter(
       link => link.platform && link.url && !isValidUrl(link.url)
@@ -421,20 +436,69 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
       });
   
     // Prepare data for API
+    const birthdateValue = editForm.birthdate ? 
+      new Date(editForm.birthdate.getTime() - editForm.birthdate.getTimezoneOffset() * 60000)
+        .toISOString().split('T')[0] : null;
+    console.log('Birthdate debug:', {
+      original: editForm.birthdate,
+      formatted: birthdateValue,
+      isoString: editForm.birthdate?.toISOString(),
+      timezoneOffset: editForm.birthdate?.getTimezoneOffset()
+    });
+    
     const payload = {
       ...editForm,
       socialLinks: filteredSocialLinks,
-      birthdate: editForm.birthdate ? editForm.birthdate.toISOString().split('T')[0] : null,
+      birthdate: birthdateValue,
     };
     
-    // Close dialog immediately
-    setEditDialogOpen(false);
-
+    console.log('Submitting profile update with payload:', payload);
+    
+    // Add a timeout to ensure dialog closes even if there are issues
+    const timeoutId = setTimeout(() => {
+      console.log('Force closing dialog due to timeout');
+      setEditDialogOpen(false);
+      setEditLoading(false);
+    }, 10000); // 10 second timeout
+    
     try {
-      await refetchUser(); // <-- use this instead of fetchProfile
+      // Actually dispatch the updateProfile action
+      const result = await dispatch(updateProfile(payload)).unwrap();
+      console.log('Profile update successful:', result);
+      
+      // Clear the timeout since we succeeded
+      clearTimeout(timeoutId);
+      
+      // Show success toast
+      toast.success('Profile updated successfully!', {
+        duration: 3000,
+        description: 'Your profile has been saved.'
+      });
+      
+      // Close dialog after successful update
+      setEditDialogOpen(false);
+      console.log('Dialog closed successfully');
+      
+      // Then refetch user data to get the updated profile (don't block dialog closing)
+      try {
+        await refetchUser();
+      } catch (refetchError) {
+        console.warn('Error refetching user data:', refetchError);
+        // Don't show this error to user since the update was successful
+      }
     } catch (error) {
       console.error('Profile update error:', error);
-      setEditError((error as Error)?.message || 'Failed to update profile');
+      clearTimeout(timeoutId);
+      const errorMessage = (error as Error)?.message || 'Failed to update profile';
+      setEditError(errorMessage);
+      
+      // Show error toast
+      toast.error('Failed to update profile', {
+        duration: 5000,
+        description: errorMessage
+      });
+      
+      // Don't close dialog on error - let user see the error message
     } finally {
       setEditLoading(false);
     }
@@ -678,6 +742,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
 
   // Add a debug log when the form is opened
   const handleOpenEditDialog = () => {
+    console.log('Opening edit dialog');
     setEditDialogOpen(true);
   };
 
@@ -712,9 +777,15 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
             />
             {/* Edit Profile Dialog */}
             <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                <DialogTitle>Edit Profile</DialogTitle>
-                <form onSubmit={handleEditSubmit} className="space-y-6">
+              <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+                {/* Fixed Header */}
+                <div className="flex-shrink-0 border-b pb-4">
+                  <DialogTitle>Edit Profile</DialogTitle>
+                </div>
+                
+                {/* Scrollable Form Content */}
+                <div className="flex-1 overflow-y-auto py-3 px-6 -mx-6">
+                  <form onSubmit={handleEditSubmit} className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">First Name</Label>
@@ -800,7 +871,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
                             )}
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {editForm.birthdate ? format(editForm.birthdate, "PPP") : <span>Pick a date</span>}
+                            {editForm.birthdate && !isNaN(editForm.birthdate.getTime()) ? format(editForm.birthdate, "PPP") : <span>Pick a date</span>}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
@@ -808,6 +879,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
                             mode="single"
                             captionLayout="dropdown"
                             selected={editForm.birthdate || undefined}
+                            month={editForm.birthdate || undefined}
                             onSelect={(date) => setEditForm(prev => ({ 
                               ...prev, 
                               birthdate: date || null 
@@ -829,7 +901,6 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
                         <SelectContent>
                           <SelectItem value="male">Male</SelectItem>
                           <SelectItem value="female">Female</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -963,15 +1034,20 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
                   </div>
 
                   {editError && <div className="text-red-500 text-sm">{editError}</div>}
+                </form>
+                </div>
+                
+                {/* Fixed Footer */}
+                <div className="flex-shrink-0 border-t pt-4">
                   <div className="flex justify-end gap-2">
                     <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)} disabled={editLoading}>
                       Cancel
                     </Button>
-                    <Button type="submit" variant="default" disabled={editLoading}>
+                    <Button type="submit" variant="default" disabled={editLoading} onClick={handleEditSubmit}>
                       {editLoading ? 'Saving...' : 'Save'}
                     </Button>
                   </div>
-                </form>
+                </div>
               </DialogContent>
             </Dialog>
             {/* Followers Dialog */}

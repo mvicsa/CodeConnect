@@ -5,15 +5,22 @@ import { ChatInput } from "@/components/ui/chat-input";
 import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
 import {Message, TypingIndicator, MessageType, ChatRoomType, User } from "@/types/chat";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Send, Smile, Paperclip, Check, CheckCheck, MoreVertical, X, File, Camera, Users, ImageIcon } from "lucide-react";
+import { ArrowLeft, Send, Smile, Paperclip, Check, CheckCheck, MoreVertical, X, File, Camera, Users, ImageIcon, UserX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import MessageActions from "./MessageActions";
 import { useSelector, useDispatch, shallowEqual } from 'react-redux';
-import { RootState } from '@/store/store';
+import { RootState, AppDispatch } from '@/store/store';
 import { SocketContext } from '@/store/Provider';
-import { setError } from '@/store/slices/chatSlice';
+import { setError, setSeen } from '@/store/slices/chatSlice';
 import { BlockButton } from '@/components/block';
 import { useBlock } from '@/hooks/useBlock';
+import { blockUser, unblockUser, checkBlockStatus } from '@/store/slices/blockSlice';
+import EmojiMenu from '@/components/ui/emoji-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Loader2, UserCheck } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +55,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const prevActiveRoomId = useRef<string | null>(null);
   const prevMessagesLength = useRef<number>(0);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [isUserActive, setIsUserActive] = useState(true);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+  const [blockReason, setBlockReason] = useState('');
+  const [isBlocking, setIsBlocking] = useState(false);
+
+  // Handle emoji selection
+  const handleEmojiSelect = (emoji: string) => {
+    setMessage(prev => prev + emoji);
+  };
 
   // Access chat state
   const myUserId = useSelector((state: RootState) => state.auth.user?._id) || 'current-user';
@@ -64,9 +81,53 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Get socket from context
   const socket = useContext(SocketContext);
   const t = useTranslations("chat");
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const { checkBlockStatus, isBlocked, isBlockedBy } = useBlock();
   const checkBlockStatusRef = useRef(checkBlockStatus);
+
+  // Block functionality
+  const handleBlockUser = async () => {
+    if (!activeRoom) return;
+    
+    const otherMember = activeRoom.members.find((m: User) => m._id !== myUserId);
+    if (!otherMember) return;
+
+    setIsBlocking(true);
+    try {
+      await dispatch(blockUser({ 
+        blockedId: otherMember._id, 
+        reason: blockReason 
+      })).unwrap();
+      
+      toast.success(`Successfully blocked ${otherMember.firstName}`);
+      setBlockDialogOpen(false);
+      setBlockReason('');
+      setDropdownOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to block user');
+    } finally {
+      setIsBlocking(false);
+    }
+  };
+
+  const handleUnblockUser = async () => {
+    if (!activeRoom) return;
+    
+    const otherMember = activeRoom.members.find((m: User) => m._id !== myUserId);
+    if (!otherMember) return;
+
+    setIsBlocking(true);
+    try {
+      await dispatch(unblockUser(otherMember._id)).unwrap();
+      
+      toast.success(`Successfully unblocked ${otherMember.firstName}`);
+      setDropdownOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to unblock user');
+    } finally {
+      setIsBlocking(false);
+    }
+  };
 
   // Update ref when checkBlockStatus changes
   useEffect(() => {
@@ -96,6 +157,78 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   }, [messages]);
 
+  // Track user activity (mouse movement, clicks, keyboard input)
+  useEffect(() => {
+    let activityTimeout: NodeJS.Timeout;
+
+    const handleUserActivity = () => {
+      setIsUserActive(true);
+      
+      // Clear previous timeout
+      if (activityTimeout) {
+        clearTimeout(activityTimeout);
+      }
+      
+      // Set user as inactive after 5 minutes of no activity
+      activityTimeout = setTimeout(() => {
+        setIsUserActive(false);
+      }, 5 * 60 * 1000); // 5 minutes
+    };
+
+    const handleVisibilityChange = () => {
+      setIsUserActive(!document.hidden);
+    };
+
+    // Listen for user activity
+    document.addEventListener('mousemove', handleUserActivity);
+    document.addEventListener('click', handleUserActivity);
+    document.addEventListener('keydown', handleUserActivity);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('mousemove', handleUserActivity);
+      document.removeEventListener('click', handleUserActivity);
+      document.removeEventListener('keydown', handleUserActivity);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (activityTimeout) {
+        clearTimeout(activityTimeout);
+      }
+    };
+  }, []);
+
+  // Auto-mark messages as seen when user is actively viewing the chat
+  useEffect(() => {
+    if (!activeRoomId || !socket || !myUserId || !isUserActive) return;
+
+    // Add a small delay to make it more realistic (user needs time to see messages)
+    const timeoutId = setTimeout(() => {
+      // Get unseen messages for the current user
+      const unseenMessages = messages.filter(msg => 
+        !msg.seenBy.includes(myUserId) && msg.sender._id !== myUserId
+      );
+
+      if (unseenMessages.length > 0) {
+        const messageIds = unseenMessages.map(msg => msg._id);
+        
+        // Emit seen event to server
+        socket.emit('chat:seen', { 
+          roomId: activeRoomId, 
+          messageIds 
+        });
+        
+        // Optimistically update Redux state
+        dispatch(setSeen({ 
+          roomId: activeRoomId, 
+          seen: messageIds, 
+          userId: myUserId,
+          currentUserId: myUserId 
+        }));
+      }
+    }, 1000); // 1 second delay
+
+    return () => clearTimeout(timeoutId);
+  }, [activeRoomId, messages, socket, myUserId, dispatch, isUserActive]);
+
   // Track scroll position to update shouldAutoScroll
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const element = event.currentTarget;
@@ -116,6 +249,31 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     // Update scroll to bottom button visibility
     const isAtBottom = element.scrollHeight - (element.scrollTop + element.clientHeight) < 100;
     setShowScrollToBottom(!isAtBottom);
+
+    // Mark messages as seen when user scrolls to bottom
+    if (isAtBottom && socket && activeRoomId && myUserId) {
+      const unseenMessages = messages.filter(msg => 
+        !msg.seenBy.includes(myUserId) && msg.sender._id !== myUserId
+      );
+
+      if (unseenMessages.length > 0) {
+        const messageIds = unseenMessages.map(msg => msg._id);
+        
+        // Emit seen event to server
+        socket.emit('chat:seen', { 
+          roomId: activeRoomId, 
+          messageIds 
+        });
+        
+        // Optimistically update Redux state
+        dispatch(setSeen({ 
+          roomId: activeRoomId, 
+          seen: messageIds, 
+          userId: myUserId,
+          currentUserId: myUserId 
+        }));
+      }
+    }
   };
 
   // Scroll to bottom when:
@@ -638,33 +796,107 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         </div>
         {activeRoom?.type === ChatRoomType.PRIVATE && (() => {
           const otherMember = activeRoom?.members?.find((m: User) => m._id !== myUserId);
-          return otherMember ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <ChatButton variant="ghost" size="icon">
-                  <MoreVertical className="h-5 w-5" />
-                </ChatButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <div className="flex items-center gap-2">
-                    <BlockButton
-                      targetUserId={otherMember._id}
-                      targetUsername={otherMember.username}
-                      variant="ghost"
-                      size="sm"
-                      showIcon={true}
-                      showText={true}
-                      className="p-0 h-auto font-normal justify-start w-full"
-                    />
+          if (!otherMember) {
+            return (
+              <ChatButton variant="ghost" size="icon">
+                <MoreVertical className="h-5 w-5" />
+              </ChatButton>
+            );
+          }
+
+          const isOtherMemberBlocked = isBlocked(otherMember._id);
+          const isOtherMemberBlockedBy = isBlockedBy(otherMember._id);
+
+          return (
+            <>
+              <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                <DropdownMenuTrigger asChild>
+                  <ChatButton variant="ghost" size="icon">
+                    <MoreVertical className="h-5 w-5" />
+                  </ChatButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {isOtherMemberBlocked ? (
+                    <DropdownMenuItem 
+                      className="flex items-center gap-2 cursor-pointer"
+                      onClick={handleUnblockUser}
+                      disabled={isBlocking}
+                    >
+                      {isBlocking ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <UserCheck className="h-4 w-4" />
+                      )}
+                      Unblock User
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem 
+                      className="flex items-center gap-2 cursor-pointer"
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        setBlockDialogOpen(true);
+                      }}
+                    >
+                      <UserX className="h-4 w-4" />
+                      Block User
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              {/* Block Dialog */}
+              <AlertDialog open={blockDialogOpen} onOpenChange={setBlockDialogOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Block User</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to block {otherMember.firstName} {otherMember.lastName}? 
+                      You won't see their posts or receive messages from them.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="block-reason" className="text-sm font-medium mb-2">
+                        Reason (optional)
+                      </Label>
+                      <Textarea
+                        id="block-reason"
+                        value={blockReason}
+                        onChange={(e) => setBlockReason(e.target.value)}
+                        placeholder="Why are you blocking this user?"
+                        className="resize-none"
+                        rows={3}
+                      />
+                    </div>
                   </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <ChatButton variant="ghost" size="icon">
-              <MoreVertical className="h-5 w-5" />
-            </ChatButton>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel 
+                      onClick={() => {
+                        setBlockDialogOpen(false);
+                        setBlockReason('');
+                      }}
+                      disabled={isBlocking}
+                    >
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleBlockUser} 
+                      disabled={isBlocking}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      {isBlocking ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Blocking...
+                        </>
+                      ) : (
+                        'Block User'
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
           );
         })()}
       </div>
@@ -878,13 +1110,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             className="flex-1"
           />
           
-          <ChatButton
-            variant="ghost"
-            size="icon"
-            className="cursor-pointer hover:bg-muted"
-          >
-            <Smile className="h-5 w-5" />
-          </ChatButton>
+          <EmojiMenu
+            onEmojiSelect={handleEmojiSelect}
+            position="top"
+            align="end"
+          />
 
           <ChatButton
             onClick={handleSendMessage}

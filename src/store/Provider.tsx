@@ -567,7 +567,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         return aTime - bTime;
       });
       
-      dispatch(setMessages({ roomId, messages: mergedMessages }));
+      dispatch(setMessages({ roomId, messages: mergedMessages, currentUserId: user?._id }));
       dispatch(setHasMore({ roomId, hasMore }));
     });
 
@@ -577,11 +577,11 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
 
     newSocket.on('chat:message_sent', (msg: Message) => {
       // Add the message to the local state
-      dispatch(addMessage({ roomId: msg.chatRoom, message: msg }));
+      dispatch(addMessage({ roomId: msg.chatRoom, message: msg, currentUserId: user?._id }));
     });
 
     newSocket.on('chat:new_message', (msg: Message) => {
-      dispatch(addMessage({ roomId: msg.chatRoom, message: msg }));
+      dispatch(addMessage({ roomId: msg.chatRoom, message: msg, currentUserId: user?._id }));
     });
 
     newSocket.on('chat:typing', ({ roomId, userId, isTyping }: { roomId: string; userId: string; isTyping: boolean }) => {
@@ -592,7 +592,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
     });
 
     newSocket.on('chat:seen', ({ roomId, messageIds, userId }: { roomId: string; messageIds: string[]; userId: string }) => {
-      dispatch(setSeen({ roomId, seen: messageIds, userId }));
+      dispatch(setSeen({ roomId, seen: messageIds, userId, currentUserId: user?._id }));
     });
 
     newSocket.on('chat:delete_message', ({ roomId, messageId, forAll, userId }: { roomId: string; messageId: string; forAll: boolean; userId: string }) => {

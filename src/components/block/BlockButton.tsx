@@ -22,6 +22,10 @@ interface BlockButtonProps {
   showIcon?: boolean;
   showText?: boolean;
   onBlockStatusChange?: () => void;
+  externalDialogControl?: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+  };
 }
 
 export const BlockButton: React.FC<BlockButtonProps> = ({
@@ -33,6 +37,7 @@ export const BlockButton: React.FC<BlockButtonProps> = ({
   showIcon = true,
   showText = true,
   onBlockStatusChange,
+  externalDialogControl,
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { actionLoading } = useSelector((state: RootState) => state.block);
@@ -119,6 +124,9 @@ export const BlockButton: React.FC<BlockButtonProps> = ({
   const handleCancel = () => {
     setShowConfirm(false);
     setConfirmReason('');
+    if (externalDialogControl) {
+      externalDialogControl.onOpenChange(false);
+    }
   };
 
   // Check block status on mount - MUST be before any early returns
@@ -161,7 +169,10 @@ export const BlockButton: React.FC<BlockButtonProps> = ({
 
   // Default to Block button
   return (
-    <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+    <AlertDialog 
+      open={externalDialogControl ? externalDialogControl.open : showConfirm} 
+      onOpenChange={externalDialogControl ? externalDialogControl.onOpenChange : setShowConfirm}
+    >
       <AlertDialogTrigger asChild>
         <Button
           variant={variant}
