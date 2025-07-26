@@ -2,10 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Home, Search, Coffee, Monitor, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Home, Search, Coffee, Monitor } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -69,7 +68,7 @@ const NotFoundPage: React.FC = () => {
                     <Card className="relative overflow-hidden border-0 shadow-2xl bg-background/80 backdrop-blur-sm">
                         <CardHeader className="text-center pb-8">
                             <CardDescription className="text-xl text-muted-foreground max-w-md mx-auto">
-                                Oops! The page you're looking for seems to have wandered off into the digital void.
+                                Oops! The page you&apos;re looking for seems to have wandered off into the digital void.
                             </CardDescription>
                         </CardHeader>
 

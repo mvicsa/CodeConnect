@@ -1,17 +1,16 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '@/store/store';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 import { useBlock } from '@/hooks/useBlock';
-import { PostType } from '@/types/post';
+import { PostType, UserReaction } from '@/types/post';
 
 interface PostBlockStatusCheckerProps {
   post: PostType;
 }
 
 const PostBlockStatusChecker = ({ post }: PostBlockStatusCheckerProps) => {
-  const dispatch = useDispatch<AppDispatch>();
   const { checkBlockStatus } = useBlock();
   const { user } = useSelector((state: RootState) => state.auth);
   
@@ -39,7 +38,7 @@ const PostBlockStatusChecker = ({ post }: PostBlockStatusCheckerProps) => {
     
     // Add users who reacted to the post
     if (post.userReactions) {
-      post.userReactions.forEach((reaction: any) => {
+      post.userReactions.forEach((reaction: UserReaction) => {
         if (reaction.userId._id) {
           userIds.add(reaction.userId._id);
         }
@@ -80,7 +79,7 @@ const PostBlockStatusChecker = ({ post }: PostBlockStatusCheckerProps) => {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [post._id, user?._id]);
+  }, [post._id, user?._id, checkPostUsers]);
 
   // This component doesn't render anything
   return null;

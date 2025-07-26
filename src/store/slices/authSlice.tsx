@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios, { AxiosError } from 'axios';
+import { getAuthToken, setAuthToken, removeAuthToken } from '@/lib/cookies';
 
 interface User {
   _id: string;
@@ -20,7 +21,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const initialState: AuthState = {
   user: null,
-  token: typeof window !== 'undefined' ? localStorage.getItem('token') : null,
+  token: typeof window !== 'undefined' ? getAuthToken() : null,
   loading: false,
   error: null,
   initialized: false,
@@ -59,9 +60,9 @@ export const fetchProfile = createAsyncThunk(
   'auth/fetchProfile',
   async (_, { getState, rejectWithValue }) => {
     try {
-      // Get token from state or localStorage
+      // Get token from state or cookies
       const state = getState() as { auth: AuthState };
-      const token = state.auth.token || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+      const token = state.auth.token || getAuthToken();
       if (!token) throw new Error('No token');
       const response = await axios.get(`${API_URL}/auth/profile`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -80,7 +81,7 @@ export const updateProfile = createAsyncThunk(
     try {
       console.log('profileData', profileData);
       const state = getState() as { auth: AuthState };
-      const token = state.auth.token || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+      const token = state.auth.token || getAuthToken();
       if (!token) throw new Error('No token');
       const response = await axios.patch(
         `${API_URL}/users/me`,
@@ -127,20 +128,14 @@ const authSlice = createSlice({
     logout: (state) => {
       state.user = null;
       state.token = null;
-      if (typeof window !== 'undefined') localStorage.removeItem('token');
-      if (typeof window !== 'undefined') {
-        document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-      }
+      removeAuthToken();
     },
     setUser: (state, action: PayloadAction<User>) => {
       state.user = action.payload;
     },
     setToken: (state, action: PayloadAction<string>) => {
       state.token = action.payload;
-      if (typeof window !== 'undefined') localStorage.setItem('token', action.payload);
-      if (state.token) {
-        document.cookie = `token=${state.token}; path=/;`;
-      }
+      setAuthToken(action.payload);
     },
     setInitialized: (state, action: PayloadAction<boolean>) => {
       state.initialized = action.payload;
@@ -165,10 +160,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user;
         state.token = action.payload.token;
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('token', action.payload.token);
-          document.cookie = `token=${action.payload.token}; path=/;`;
-        }
+        setAuthToken(action.payload.token);
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -182,10 +174,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user;
         state.token = action.payload.token;
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('token', action.payload.token);
-          document.cookie = `token=${action.payload.token}; path=/;`;
-        }
+        setAuthToken(action.payload.token);
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
@@ -206,7 +195,7 @@ const authSlice = createSlice({
         state.user = null;
         state.token = null;
         state.initialized = true;
-        if (typeof window !== 'undefined') localStorage.removeItem('token');
+        removeAuthToken();
       })
       .addCase(githubLogin.pending, (state) => {
         state.loading = true;
@@ -220,10 +209,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user;
         state.token = action.payload.token;
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('token', action.payload.token);
-          document.cookie = `token=${action.payload.token}; path=/;`;
-        }
+        setAuthToken(action.payload.token);
       })
       .addCase(handleGitHubCallback.rejected, (state, action) => {
         state.loading = false;

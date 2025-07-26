@@ -5,20 +5,13 @@ import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
 import { ChatPreview, ChatRoomType, Message } from "@/types/chat";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Search, Users, Image as ImageIcon, File as FileIcon, MoreVertical } from "lucide-react";
+import { ArrowLeft, Search, Users, Image as ImageIcon, File as FileIcon } from "lucide-react";
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store/store';
-import { SocketContext } from '@/store/Provider';
+import { SocketContext } from '@/store/Provider'; 
 import { setSeen } from '@/store/slices/chatSlice';
-import { BlockButton } from '@/components/block';
 import { useBlock } from '@/hooks/useBlock';
 import Link from "next/link";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface ChatSidebarProps {
   onChatSelect: (chatId: string) => void;

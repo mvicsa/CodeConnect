@@ -1,4 +1,3 @@
-import axios, { AxiosError } from 'axios';
 import { 
   Block, 
   BlockStatus, 
@@ -6,14 +5,14 @@ import {
   BlockUser, 
   CreateBlockRequest, 
   UpdateBlockRequest,
-  BlockResponse 
 } from '@/types/block';
+import { getAuthToken } from '@/lib/cookies';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 class BlockService {
   private getAuthHeaders() {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     
     return {
       'Content-Type': 'application/json',

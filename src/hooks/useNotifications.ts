@@ -10,6 +10,7 @@ import {
   markAllAsRead,
   clearNotifications,
 } from '@/store/slices/notificationsSlice';
+import { getAuthToken } from '@/lib/cookies';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -21,7 +22,7 @@ export const useNotifications = () => {
   
   // Get auth token for API calls
   const getAuthHeaders = useCallback(() => {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     return {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',

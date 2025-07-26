@@ -91,7 +91,7 @@ const CommentSection = memo(function CommentSection({
         });
       }
     }
-  }, [highlightedReplyId, postComments]); // Remove dispatch from dependencies
+  }, [highlightedReplyId, postComments, dispatch]); // Remove dispatch from dependencies
 
   // Check block status for all comment authors and reply authors when comments change
   useEffect(() => {
@@ -194,7 +194,7 @@ const CommentSection = memo(function CommentSection({
           console.error('Failed to fetch AI suggestions:', error);
         });
     }
-  }, [postId, hasAiSuggestions]); // Remove dispatch from dependencies
+  }, [postId, hasAiSuggestions, dispatch]); // Remove dispatch from dependencies
 
   const handleAddComment = async (content: { text: string, code: string, codeLang: string }) => {
     try {

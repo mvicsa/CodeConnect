@@ -1,236 +1,229 @@
-# CodeConnect
+# CodeConnect ⚡
 
-![CodeConnect Logo](public/logo-dark.svg)
+A modern, collaborative platform for developers to share code, learn together, and build amazing projects. CodeConnect combines social networking with powerful coding tools to create the ultimate developer community experience.
 
-A modern social platform for developers to connect, share code, and collaborate. Built with Next.js, TypeScript, Redux, and Tailwind CSS.
+![CodeConnect Banner](https://img.shields.io/badge/CodeConnect-Collaborative%20Coding%20Platform-blue?style=for-the-badge&logo=code)
 
-## 🚀 Features
+## ✨ Features
 
-### Social Platform
-- **Posts Feed**: Share updates, code snippets, images, and videos
-- **Comments & Replies**: Engage with other developers through comments
-- **Reactions**: Express yourself with a variety of reaction emojis
-- **User Profiles**: Showcase your work and connect with others
+### 🚀 Core Features
+- **Social Coding Platform** - Share code snippets, projects, and learn from other developers
+- **Real-time Chat** - Connect with fellow developers through instant messaging
+- **Video Meetings** - Host and join coding sessions with LiveKit integration
+- **Code Playground** - Interactive code editor with Sandpack for live coding
+- **Multi-language Support** - Full internationalization (English & Arabic) with RTL support
+- **Dark/Light Themes** - Beautiful UI with theme switching capabilities
 
-### Code Sharing
-- **Syntax Highlighting**: Beautiful code highlighting with Shiki
-- **Multiple Languages**: Support for all major programming languages
-- **Code Editor**: Built-in code editor for creating and editing code snippets
-- **Copy Code**: Easily copy code to clipboard
+### 💻 Development Tools
+- **Interactive Code Editor** - Write, test, and share code in real-time
+- **Syntax Highlighting** - Support for multiple programming languages
+- **Code Sharing** - Save and share your coding sparks with the community
+- **Rating System** - Rate and discover quality code snippets
+- **File Management** - Create and manage multiple files in your projects
 
-### Media Sharing
-- **Image Upload**: Share images in your posts
-- **Video Support**: Embed and play videos
-- **Responsive Media**: Optimized for all device sizes
+### 👥 Social Features
+- **User Profiles** - Customizable profiles with avatar support
+- **Follow System** - Follow other developers and stay updated
+- **Reactions** - React to posts with emojis (like, love, funny, etc.)
+- **Comments & Replies** - Engage in meaningful discussions
+- **Search & Discovery** - Find posts, users, and tags easily
+- **Blocking System** - Manage your community experience
 
-### Chat System
-- **Real-Time Chat**: Connect with other developers instantly
-- **Private Messaging**: One-on-one conversations
-- **Chat Interface**: Modern, intuitive chat experience
+### 📱 Modern UI/UX
+- **Responsive Design** - Works perfectly on desktop, tablet, and mobile
+- **Infinite Scroll** - Smooth browsing experience
+- **Real-time Notifications** - Stay updated with instant notifications
+- **Accessibility** - Built with accessibility in mind
+- **Modern Components** - Beautiful UI components using Radix UI
 
-### User Experience
-- **Dark/Light Theme**: Seamless theme switching with system preference detection
-- **Internationalization**: Full Arabic and English language support with next-intl
-- **Responsive Design**: Works perfectly on desktop, tablet, and mobile
-- **RTL Support**: Full right-to-left language support
-- **Accessibility**: Designed with accessibility in mind
+## 🛠️ Technology Stack
 
-### Authentication
-- **Social Login**: Sign in with GitHub
-- **Email Authentication**: Traditional email and password authentication
-- **Password Recovery**: Secure password reset functionality
+### Frontend
+- **Next.js 15** - React framework with App Router
+- **React 19** - Latest React with concurrent features
+- **TypeScript** - Type-safe development
+- **Tailwind CSS 4** - Utility-first CSS framework
+- **Redux Toolkit** - State management
+- **Next-intl** - Internationalization
 
-## 🛠️ Tech Stack
+### UI Components
+- **Radix UI** - Accessible component primitives
+- **Lucide React** - Beautiful icons
+- **Framer Motion** - Smooth animations
+- **Sonner** - Toast notifications
 
-- **Framework**: [Next.js 15](https://nextjs.org/) with App Router
-- **Language**: [TypeScript](https://www.typescriptlang.org/)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/) with [shadcn/ui](https://ui.shadcn.com/) components
-- **State Management**: [Redux Toolkit](https://redux-toolkit.js.org/) with [React Redux](https://react-redux.js.org/)
-- **Authentication**: [NextAuth.js](https://next-auth.js.org/)
-- **Internationalization**: [next-intl](https://next-intl-docs.vercel.app/)
-- **Code Highlighting**: [Shiki](https://shiki.matsu.io/)
-- **Icons**: [Lucide React](https://lucide.dev/guide/packages/lucide-react)
-- **UI Components**: [Radix UI](https://www.radix-ui.com/)
-- **Notifications**: [Sonner](https://sonner.emilkowal.ski/)
-- **Media Player**: [Plyr React](https://github.com/chintan9/plyr-react)
+### Code Editing & Collaboration
+- **Sandpack** - Interactive code playground
+- **Shiki** - Syntax highlighting
+- **LiveKit** - Real-time video meetings
+- **Socket.io** - Real-time chat functionality
 
-## 📁 Project Structure
+### Authentication & Storage
+- **Clerk** - Authentication and user management
+- **ImageKit** - Image upload and management
+- **JWT** - Token-based authentication
 
-```
-CodeConnect/
-├── api/                        # Mock API data
-├── public/                     # Static assets
-│   ├── logo-dark.svg           # Dark mode logo
-│   ├── logo-light.svg          # Light mode logo
-│   ├── reactions/              # Reaction emoji images
-│   └── themes/                 # Code editor themes
-├── src/
-│   ├── app/                    # Next.js App Router
-│   │   └── [locale]/           # Internationalization routes
-│   │       ├── (auth)/         # Authentication pages
-│   │       ├── (mainlayout)/   # Main application pages
-│   │       ├── auth/           # Auth callback routes
-│   │       └── chat/           # Chat interface
-│   ├── components/             # React components
-│   │   ├── auth/               # Authentication components
-│   │   ├── code/               # Code editor components
-│   │   ├── comment/            # Comment system components
-│   │   ├── layout/             # Layout components
-│   │   ├── post/               # Post components
-│   │   └── ui/                 # UI components
-│   ├── config/                 # Configuration files
-│   ├── constants/              # Constants and enums
-│   ├── hooks/                  # Custom React hooks
-│   ├── i18n/                   # Internationalization setup
-│   ├── lib/                    # Utility functions
-│   ├── messages/               # Translation files
-│   ├── store/                  # Redux store
-│   │   └── slices/             # Redux slices
-│   ├── styles/                 # Global styles
-│   └── types/                  # TypeScript types
-```
+### Development Tools
+- **ESLint** - Code linting
+- **PostCSS** - CSS processing
+- **Vite** - Fast development server
 
-## 🔑 Key Components
+## 🚀 Getting Started
 
-### Post System
-- **Post.tsx**: Displays individual posts with reactions, comments, and media
-- **PostForm.tsx**: Create and edit posts with support for code, images, and videos
-- **PostsList.tsx**: Renders the feed of posts with infinite scrolling
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
+- Git
 
-### Code Components
-- **CodeBlock.tsx**: Displays code with syntax highlighting and copy functionality
-- **CodeEditor.tsx**: Interactive code editor with language selection
+### Installation
 
-### Comment System
-- **CommentSection.tsx**: Displays and manages comments on posts
-- **CommentItem.tsx**: Individual comment with replies and actions
-- **ReplyForm.tsx**: Interface for replying to comments
-
-### Authentication
-- **LoginForm.tsx**: Email/password login form
-- **RegisterForm.tsx**: New user registration
-- **ForgotPasswordForm.tsx**: Password recovery
-
-### Layout
-- **MainNavBar.tsx**: Main navigation with user menu and search
-- **AppSidebar.tsx**: Application sidebar with navigation links
-- **RtlProvider.tsx**: Handles right-to-left layout switching
-
-## 🔧 Getting Started
-
-1. **Clone the Repository**
+1. **Clone the repository**
    ```bash
    git clone https://github.com/yourusername/codeconnect.git
    cd codeconnect
    ```
 
-2. **Install Dependencies**
+2. **Install dependencies**
    ```bash
    npm install
+   # or
+   yarn install
    ```
 
-3. **Run Development Server**
+3. **Environment Setup**
+   Create a `.env.local` file in the root directory:
+   ```env
+   # Authentication
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+   CLERK_SECRET_KEY=your_clerk_secret_key
+   
+   # API Configuration
+   NEXT_PUBLIC_API_URL=http://localhost:5000
+   
+   # LiveKit (Video Meetings)
+   NEXT_PUBLIC_LIVEKIT_URL=your_livekit_url
+   LIVEKIT_API_KEY=your_livekit_api_key
+   LIVEKIT_API_SECRET=your_livekit_api_secret
+   
+   # ImageKit (Image Upload)
+   NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT=your_imagekit_url
+   NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY=your_imagekit_public_key
+   IMAGEKIT_PRIVATE_KEY=your_imagekit_private_key
+   
+   # Socket.io (Real-time Chat)
+   NEXT_PUBLIC_SOCKET_URL=your_socket_url
+   ```
+
+4. **Run the development server**
    ```bash
    npm run dev
+   # or
+   yarn dev
    ```
 
-4. **Open Browser**
-   Navigate to `http://localhost:3000`
+5. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
 
-## 🌐 Internationalization
-
-The app supports both English and Arabic languages with automatic locale detection:
-
-- **English**: `/en`
-- **Arabic**: `/ar`
-
-Language switching is available through the language switcher component in the navigation bar.
-
-## 🎨 Theming
-
-The application supports both dark and light themes with automatic system preference detection. Theme switching is available through the theme toggle component.
-
-## 📱 Responsive Design
-
-The interface is fully responsive:
-- **Desktop**: Full-featured experience with sidebar
-- **Tablet**: Adapted layout with collapsible sidebar
-- **Mobile**: Mobile-optimized interface with bottom navigation
-
-## 🔒 Authentication
-
-### Local Authentication
-- Email/password registration and login
-- Password recovery via email
-
-### Social Authentication
-- GitHub OAuth integration
-- More providers can be added through NextAuth.js
-
-## 💾 Data Management
-
-The application uses Redux for state management:
-- **authSlice**: User authentication state
-- **postsSlice**: Posts data and operations
-- **commentsSlice**: Comments and replies
-- **reactionsSlice**: Post reactions
-- **programmingLanguagesSlice**: Available programming languages
-
-## 🧩 UI Components
-
-Built with shadcn/ui and Radix UI primitives:
-- **Button**: Various button styles and variants
-- **Dialog**: Modal dialogs and popups
-- **Dropdown**: Dropdown menus
-- **Tabs**: Tabbed interfaces
-- **Card**: Content containers
-- **Avatar**: User avatars
-- **Form Controls**: Inputs, textareas, selects, etc.
-
-## 📋 Environment Variables
-
-Create a `.env.local` file with the following variables:
+## 📁 Project Structure
 
 ```
-# API URLs
-NEXT_PUBLIC_API_URL=your_api_url
+CodeConnect/
+├── src/
+│   ├── app/                    # Next.js App Router
+│   │   ├── [locale]/          # Internationalization routes
+│   │   │   ├── (auth)/        # Authentication pages
+│   │   │   ├── (mainlayout)/  # Main application layout
+│   │   │   │   ├── (timeline)/ # Social feed
+│   │   │   │   ├── playground/ # Code playground
+│   │   │   │   ├── chat/      # Real-time chat
+│   │   │   │   ├── meeting/   # Video meetings
+│   │   │   │   └── profile/   # User profiles
+│   │   │   └── api/           # API routes
+│   ├── components/            # Reusable components
+│   │   ├── ui/               # Base UI components
+│   │   ├── post/             # Post-related components
+│   │   ├── chat/             # Chat components
+│   │   └── layout/           # Layout components
+│   ├── store/                # Redux store and slices
+│   ├── hooks/                # Custom React hooks
+│   ├── lib/                  # Utility functions
+│   ├── types/                # TypeScript type definitions
+│   └── messages/             # Internationalization files
+├── public/                   # Static assets
+└── package.json             # Dependencies and scripts
 ```
 
-## 🚀 Deployment
+## 🌟 Key Features in Detail
 
-### Build for Production
-```bash
-npm run build
-```
+### Code Playground
+- Interactive code editor powered by Sandpack
+- Support for multiple file types (JS, TS, CSS)
+- Real-time preview
+- Save and share code snippets
+- Rating system for community feedback
 
-### Start Production Server
-```bash
-npm start
-```
+### Real-time Chat
+- Instant messaging between users
+- Socket.io integration for real-time communication
+- Message history and notifications
+- User status indicators
 
-## 🧪 Future Enhancements
+### Video Meetings
+- LiveKit-powered video conferencing
+- Create and join meeting rooms
+- Screen sharing capabilities
+- Room management and permissions
 
-- **Real-time Notifications**: Push notifications for interactions
-- **Advanced Code Collaboration**: Real-time collaborative code editing
-- **User Groups**: Create and join developer groups
-- **Video Calls**: Integrated video calling for pair programming
-- **AI Code Assistant**: AI-powered code suggestions and reviews
-- **Analytics Dashboard**: Insights on post engagement and profile visits
-- **Custom Themes**: User-defined theme customization
+### Social Feed
+- Infinite scroll timeline
+- Post reactions and comments
+- User following system
+- Search and filtering capabilities
 
-## 📄 License
+## 🎨 Customization
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+### Themes
+The application supports both light and dark themes with automatic system detection. Users can manually switch between themes using the theme toggle.
 
-## 👥 Contributors
+### Internationalization
+Currently supports:
+- English (en)
+- Arabic (ar) with RTL support
 
-- [Your Name](https://github.com/mvicsa) - Lead Developer
-- [Team Member 1](https://github.com/teammember1) - Frontend Developer
-- [Team Member 2](https://github.com/teammember2) - UI/UX Designer
+To add more languages, create new message files in `src/messages/` and update the locale configuration.
 
-## 🙏 Acknowledgements
+## 🤝 Contributing
 
-- [Next.js Team](https://nextjs.org/) for the amazing framework
-- [Vercel](https://vercel.com/) for hosting and deployment
-- [shadcn/ui](https://ui.shadcn.com/) for the beautiful UI components
-- All open-source contributors whose libraries made this project possible
+We welcome contributions! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Guidelines
+- Follow TypeScript best practices
+- Use ESLint for code linting
+- Write meaningful commit messages
+- Test your changes thoroughly
+- Update documentation when needed
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Next.js](https://nextjs.org/) - The React framework
+- [Sandpack](https://sandpack.codesandbox.io/) - Code playground
+- [LiveKit](https://livekit.io/) - Real-time video
+- [Radix UI](https://www.radix-ui.com/) - UI components
+- [Tailwind CSS](https://tailwindcss.com/) - CSS framework
+
+---
+
+<div align="center">
+  <p>Made with ❤️ by the CodeConnect Team</p>
+  <p>Join our community and start coding together! ⚡</p>
+</div>

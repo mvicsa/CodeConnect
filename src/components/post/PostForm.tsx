@@ -29,6 +29,7 @@ import { useTranslations } from 'next-intl';
 import Image from 'next/image'
 import { uploadToImageKit } from '@/lib/imagekitUpload';
 import EmojiMenu from '@/components/ui/emoji-menu';
+import { getAuthToken } from '@/lib/cookies';
 
 interface PostFormProps {
   mode: 'create' | 'edit'
@@ -225,10 +226,10 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
       return;
     }
     
-    // Check file size (max 50MB for videos)
-    const maxSize = 50 * 1024 * 1024; // 50MB
+    // Check file size (max 20MB for videos)
+    const maxSize = 20 * 1024 * 1024; // 20MB
     if (file.size > maxSize) {
-      toast.error(`Video file size must be less than 50MB (current: ${formatFileSize(file.size)})`);
+      toast.error(`Video file size must be less than 20MB (current: ${formatFileSize(file.size)})`);
       return;
     }
     
@@ -335,7 +336,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
           userReactions: []
         }
 
-        await dispatch(createPost({ postData: newPost, token: localStorage.getItem('token') || '' })).unwrap();
+        await dispatch(createPost({ postData: newPost, token: getAuthToken() || '' })).unwrap();
         toast.success('Post created successfully!');
         
         // Reset form for create mode
@@ -365,7 +366,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
           createdBy: post.createdBy
         }
 
-        await dispatch(updatePost({ id: post._id, data: updatedPost, token: localStorage.getItem('token') || '' })).unwrap();
+        await dispatch(updatePost({ id: post._id, data: updatedPost, token: getAuthToken() || '' })).unwrap();
         toast.success('Post updated successfully!');
       }
       
@@ -553,7 +554,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
                   <Video className="size-4" />
                   Video
                 </h4>
-                <span className="text-xs text-muted-foreground">(Max 50MB)</span>
+                <span className="text-xs text-muted-foreground">Max 20MB (1 minute)</span>
               </div>
               <Button
                 variant="ghost"
@@ -584,7 +585,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
               <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
                 <Video className="size-8 mx-auto mb-2 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">Click to select a video</p>
-                <p className="text-xs text-muted-foreground mt-1">Maximum: 50MB</p>
+                <p className="text-xs text-muted-foreground mt-1">Maximum: 20MB (1 minute)</p>
                 <Button
                   variant="outline"
                   size="sm"

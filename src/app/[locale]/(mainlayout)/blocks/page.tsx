@@ -9,12 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Users, Shield, UserX } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { User } from '@/types/user';
 
 export default function BlocksPage() {
-  const t = useTranslations();
   const dispatch = useDispatch<AppDispatch>();
-  const { blockedUsers, blockedByUsers, stats, loading } = useSelector((state: RootState) => state.block);
+  const { blockedUsers, blockedByUsers } = useSelector((state: RootState) => state.block);
 
   useEffect(() => {
     dispatch(fetchBlockedUsers());
@@ -28,7 +27,7 @@ export default function BlocksPage() {
   }, [blockedByUsers]);
 
   // Helper function to get display name
-  const getDisplayName = (user: any) => {
+  const getDisplayName = (user: User) => {
     console.log('getDisplayName called with:', user);
     if (user && user.firstName && user.lastName) {
       return `${user.firstName} ${user.lastName}`;
@@ -43,7 +42,7 @@ export default function BlocksPage() {
   };
 
   // Helper function to get avatar fallback
-  const getAvatarFallback = (user: any) => {
+  const getAvatarFallback = (user: User) => {
     if (user && user.firstName) {
       return user.firstName.charAt(0).toUpperCase();
     }
@@ -57,12 +56,12 @@ export default function BlocksPage() {
   };
 
   // Helper function to safely get username
-  const getUsername = (user: any) => {
+  const getUsername = (user: User) => {
     return (user && user.username) || 'unknown';
   };
 
   // Helper function to safely get avatar
-  const getAvatar = (user: any) => {
+  const getAvatar = (user: User) => {
     return (user && user.avatar) || '';
   };
 
@@ -122,7 +121,7 @@ export default function BlocksPage() {
         <div>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <UserX className="h-5 w-5" />
-            Users You've Blocked
+            Users You&apos;ve Blocked
           </h2>
           <BlockedUsersList />
         </div>
@@ -139,7 +138,7 @@ export default function BlocksPage() {
                 <div className="text-center py-8">
                   <Shield className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-lg font-medium mb-2">No users have blocked you</h3>
-                  <p className="text-muted-foreground">You're in good standing with the community!</p>
+                  <p className="text-muted-foreground">You&apos;re in good standing with the community!</p>
                 </div>
               </CardContent>
             </Card>

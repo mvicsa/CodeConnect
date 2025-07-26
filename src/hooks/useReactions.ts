@@ -12,6 +12,7 @@ import {
 import { editPost } from '../store/slices/postsSlice'
 import { useCallback, useRef } from 'react'
 import { UserReaction as ReactionUserReaction } from '../store/slices/reactionsSlice'
+import { getAuthToken } from '@/lib/cookies';
 
 export const useReactions = () => {
   const dispatch = useDispatch<AppDispatch>()
@@ -39,7 +40,7 @@ export const useReactions = () => {
       const result = await dispatch(addPostReaction({
         postId,
         reaction,
-        token: localStorage.getItem('token') || ''
+        token: getAuthToken() || ''
       })).unwrap()
       
       

@@ -52,6 +52,7 @@ import { SocketContext } from '@/store/Provider'
 import CommentAI from './CommentAI'
 import { AIEvaluation } from '@/types/ai'
 import { Skeleton } from '../ui/skeleton'
+import { getAuthToken } from '@/lib/cookies';
 
 
 // Define CommentContent type
@@ -118,7 +119,7 @@ export default function CommentItem({
   const commentId = has_id(comment) ? comment._id : '';
   useEffect(() => {
     if (comment.hasAiEvaluation && commentId) {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const token = getAuthToken();
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/comments/${commentId}/ai-evaluation`, {
         headers: {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
@@ -466,7 +467,7 @@ export default function CommentItem({
       setTimeout(async () => {
         try {
           console.log('🔄 Refreshing notifications after comment deletion');
-          const token = localStorage.getItem('token');
+          const token = getAuthToken();
           if (token) {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications/user/${user._id}`, {
               headers: { Authorization: `Bearer ${token}` }

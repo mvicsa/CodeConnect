@@ -2,7 +2,7 @@ import React, { memo, useState, useMemo, useEffect, useContext } from 'react';
 import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card'
 import Link from 'next/link'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
-import { BotIcon, EllipsisVerticalIcon, FlagIcon, MessageCircleMore, PencilIcon, SendIcon, TrashIcon, UserX } from 'lucide-react'
+import { BotIcon, EllipsisVerticalIcon, FlagIcon, MessageCircleMore, PencilIcon, SendIcon, TrashIcon } from 'lucide-react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import ReactionMenu from '../ReactionsMenu'
@@ -18,7 +18,6 @@ import { AppDispatch, RootState } from '@/store/store'
 import { deletePost } from '@/store/slices/postsSlice'
 import { removeNotificationsByCriteria } from '@/store/slices/notificationsSlice'
 import { useBlock } from '@/hooks/useBlock'
-import { BlockButton } from '@/components/block'
 // import { Skeleton } from '../ui/skeleton'
 import {
   AlertDialog,
@@ -41,6 +40,7 @@ import AdminBadge from '../AdminBadge'
 import { SocketContext } from '@/store/Provider';
 import ReadMore from '../ReadMore';
 import { useRouter } from 'next/navigation';
+import { getAuthToken } from '@/lib/cookies';
 
 interface PostProps {
   post: PostType;
@@ -194,21 +194,19 @@ const Post = memo(function Post({
         
       }
       
-      await dispatch(deletePost({ id: _id, token: localStorage.getItem('token') || '' })).unwrap();
+      await dispatch(deletePost({ id: _id, token: getAuthToken() || '' })).unwrap();
       
-      if (user?._id) {
+      const token = getAuthToken();
+      if (token) {
         setTimeout(async () => {
           try {
-            const token = localStorage.getItem('token');
-            if (token) {
-              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications/user/${user._id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-              });
-              if (response.ok) {
-                const data = await response.json();
-                const { setNotifications } = await import('@/store/slices/notificationsSlice');
-                dispatch(setNotifications(data));
-              }
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications/user/${user?._id}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (response.ok) {
+              const data = await response.json();
+              const { setNotifications } = await import('@/store/slices/notificationsSlice');
+              dispatch(setNotifications(data));
             }
           } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Failed to delete post');
@@ -482,7 +480,7 @@ const Post = memo(function Post({
           <DialogContent className="max-w-4xl max-h-[90vh] p-0 mb-0">
             <DialogHeader className="p-4 pb-0">
               <DialogTitle className="text-lg font-semibold">
-                {createdBy?.firstName} {createdBy?.lastName}'s Post
+                {createdBy?.firstName} {createdBy?.lastName}&apos;s Post
               </DialogTitle>
             </DialogHeader>
             <div className="flex items-center justify-center p-4 pt-0">

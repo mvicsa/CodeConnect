@@ -21,7 +21,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   console.log(id, locale);
   
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto px-5">
         <BlockStatusChecker />
         <SinglePostClient postId={id} />
     </div>

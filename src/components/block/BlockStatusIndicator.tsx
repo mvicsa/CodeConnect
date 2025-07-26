@@ -19,7 +19,6 @@ export const BlockStatusIndicator: React.FC<BlockStatusIndicatorProps> = ({
   userId,
   className = '',
   showTooltip = true,
-  size = 'default',
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { user: currentUser } = useSelector((state: RootState) => state.auth);
@@ -35,7 +34,7 @@ export const BlockStatusIndicator: React.FC<BlockStatusIndicatorProps> = ({
     if (userId && currentUser?._id !== userId) {
       dispatch(checkBlockStatus(userId));
     }
-  }, [userId, currentUser?._id]);
+  }, [userId, currentUser?._id, dispatch]);
 
   if (!isBlocked && !isBlockedBy) {
     return null;

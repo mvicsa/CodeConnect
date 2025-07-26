@@ -1,12 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '@/store/store';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 import { useBlock } from '@/hooks/useBlock';
 
 const BlockStatusChecker = () => {
-  const dispatch = useDispatch<AppDispatch>();
   const { checkBlockStatus } = useBlock();
   const posts = useSelector((state: RootState) => state.posts.posts);
   const comments = useSelector((state: RootState) => state.comments.comments);
@@ -76,14 +75,17 @@ const BlockStatusChecker = () => {
     // Set a new timeout to debounce the check
     timeoutRef.current = setTimeout(debouncedCheckUsers, 500);
 
+    // Store the ref value in a variable to avoid the warning
+    const currentCheckedUsers = checkedUsersRef.current;
+
     // Cleanup function
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      checkedUsersRef.current.clear();
+      currentCheckedUsers.clear();
     };
-  }, [user?._id, posts, comments]);
+  }, [checkBlockStatusRef, user?._id, posts, comments, debouncedCheckUsers]);
 
   // This component doesn't render anything
   return null;

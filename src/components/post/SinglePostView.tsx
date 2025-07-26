@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/store/store';
 import { fetchPostById } from '@/store/slices/postsSlice';
-import { PostType } from '@/types/post';
 import Post from './Post';
 import { Skeleton } from '../ui/skeleton';
 import { useTranslations } from 'next-intl';
@@ -21,7 +20,7 @@ export default function SinglePostView({ postId }: SinglePostViewProps) {
   const t = useTranslations();
   const dispatch = useDispatch<AppDispatch>();
   const { posts, loading, error } = useSelector((state: RootState) => state.posts);
-  const { loadBlockedUsers, loading: blockLoading } = useBlock();
+  const { loading: blockLoading } = useBlock();
   
   // Find the post in the Redux store
   const post = posts.find(p => p._id === postId) || null;

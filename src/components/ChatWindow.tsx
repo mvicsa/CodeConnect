@@ -5,16 +5,15 @@ import { ChatInput } from "@/components/ui/chat-input";
 import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
 import {Message, TypingIndicator, MessageType, ChatRoomType, User } from "@/types/chat";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Send, Smile, Paperclip, Check, CheckCheck, MoreVertical, X, File, Camera, Users, ImageIcon, UserX } from "lucide-react";
+import { ArrowLeft, Send, Paperclip, Check, CheckCheck, MoreVertical, X, File, Camera, Users, ImageIcon, UserX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import MessageActions from "./MessageActions";
 import { useSelector, useDispatch, shallowEqual } from 'react-redux';
 import { RootState, AppDispatch } from '@/store/store';
 import { SocketContext } from '@/store/Provider';
 import { setError, setSeen } from '@/store/slices/chatSlice';
-import { BlockButton } from '@/components/block';
 import { useBlock } from '@/hooks/useBlock';
-import { blockUser, unblockUser, checkBlockStatus } from '@/store/slices/blockSlice';
+import { blockUser, unblockUser } from '@/store/slices/blockSlice';
 import EmojiMenu from '@/components/ui/emoji-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -147,7 +146,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         }
       }
     }
-  }, [activeRoom?._id, socket, myUserId]);
+  }, [activeRoom?._id, socket, myUserId, activeRoom?.members, activeRoom?.type]);
 
   // Update oldest message ID when messages change
   useEffect(() => {
@@ -805,7 +804,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           }
 
           const isOtherMemberBlocked = isBlocked(otherMember._id);
-          const isOtherMemberBlockedBy = isBlockedBy(otherMember._id);
+          // const isOtherMemberBlockedBy = isBlockedBy(otherMember._id);
 
           return (
             <>
@@ -851,7 +850,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     <AlertDialogTitle>Block User</AlertDialogTitle>
                     <AlertDialogDescription>
                       Are you sure you want to block {otherMember.firstName} {otherMember.lastName}? 
-                      You won't see their posts or receive messages from them.
+                      You won&apos;t see their posts or receive messages from them.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <div className="space-y-4">
@@ -1018,7 +1017,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         if (isChatBlocked) {
           const otherMember = activeRoom?.members?.find((m: User) => m._id !== myUserId);
           const otherMemberIsBlocked = otherMember ? isBlocked(otherMember._id) : false;
-          const otherMemberIsBlockedBy = otherMember ? isBlockedBy(otherMember._id) : false;
+          // const otherMemberIsBlockedBy = otherMember ? isBlockedBy(otherMember._id) : false;
           const message = otherMemberIsBlocked 
             ? `You have blocked ${otherMember?.firstName || 'this user'}. Messages are disabled.`
             : `${otherMember?.firstName || 'This user'} has blocked you. Messages are disabled.`;

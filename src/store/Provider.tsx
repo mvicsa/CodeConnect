@@ -20,6 +20,7 @@ import { Reactions } from '@/types/comments'
 // import { SocketType } from '@/types/socket' // No longer needed
 import { ChatRoom, Message } from '@/types/chat'
 import { updateCommentReactions, updatePostReactions, UserReaction } from './slices/reactionsSlice'
+import { getAuthToken } from '@/lib/cookies'
 
 export const SocketContext = createContext<ReturnType<typeof io> | null>(null)
 
@@ -98,7 +99,7 @@ function AuthInitializer() {
     if (filteredNotifications.length !== notifications.length) {
       dispatch(setNotifications(filteredNotifications));
     }
-  }, [blockStatuses, user, dispatch]);
+  }, [notifications, blockStatuses, user, dispatch]);
   
   return null
 }
@@ -301,7 +302,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         // إعادة تحميل الإشعارات للتأكد من التحديث
         if (payload.forceRefresh && user?._id) {
           setTimeout(() => {
-            const token = localStorage.getItem('token');
+            const token = getAuthToken();
             if (token) {
               axios.get(`${process.env.NEXT_PUBLIC_API_URL}/notifications/user/${user._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -349,7 +350,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
           setTimeout(() => {
             // إعادة تحميل الإشعارات من السيرفر
             if (user?._id) {
-              const token = localStorage.getItem('token');
+              const token = getAuthToken();
               if (token) {
                 axios.get(`${process.env.NEXT_PUBLIC_API_URL}/notifications/user/${user._id}`, {
                   headers: { Authorization: `Bearer ${token}` }
@@ -416,7 +417,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         setTimeout(() => {
           // إعادة تحميل الإشعارات من السيرفر
           if (user?._id) {
-            const token = localStorage.getItem('token');
+            const token = getAuthToken();
             if (token) {
               axios.get(`${process.env.NEXT_PUBLIC_API_URL}/notifications/user/${user._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -469,7 +470,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         setTimeout(() => {
           // إعادة تحميل الإشعارات من السيرفر
           if (user?._id) {
-            const token = localStorage.getItem('token');
+            const token = getAuthToken();
             if (token) {
               axios.get(`${process.env.NEXT_PUBLIC_API_URL}/notifications/user/${user._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
