@@ -151,6 +151,9 @@ const blockSlice = createSlice({
             block: action.payload
           };
         }
+        
+        // Remove notifications for the blocked user
+        // This will be handled by the middleware in Provider.tsx
       })
       .addCase(blockUser.rejected, (state, action) => {
         state.actionLoading = false;
@@ -201,9 +204,17 @@ const blockSlice = createSlice({
       })
       .addCase(checkBlockStatus.fulfilled, (state, action) => {
         state.loading = false;
-        // Store the status for the user
+        // Store the status for the user only if it's different
         const userId = action.meta.arg;
-        state.blockStatuses[userId] = action.payload;
+        const currentStatus = state.blockStatuses[userId];
+        const newStatus = action.payload;
+        
+        // Only update if the status is different or doesn't exist
+        if (!currentStatus || 
+            currentStatus.isBlocked !== newStatus.isBlocked || 
+            currentStatus.isBlockedBy !== newStatus.isBlockedBy) {
+          state.blockStatuses[userId] = newStatus;
+        }
       })
       .addCase(checkBlockStatus.rejected, (state, action) => {
         state.loading = false;
@@ -229,7 +240,6 @@ const blockSlice = createSlice({
       })
       .addCase(fetchBlockedByUsers.fulfilled, (state, action) => {
         state.loading = false;
-        console.log('fetchBlockedByUsers fulfilled with data:', action.payload);
         state.blockedByUsers = action.payload;
       })
       .addCase(fetchBlockedByUsers.rejected, (state, action) => {

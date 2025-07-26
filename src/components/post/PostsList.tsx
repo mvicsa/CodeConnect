@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { RootState, AppDispatch } from '../../store/store'
 import Post from './Post'
@@ -50,6 +50,12 @@ const PostsList = React.memo(function PostsList({
   const [initialLoading, setInitialLoading] = useState(true)
   const dispatch = useDispatch<AppDispatch>()
   const { checkBlockStatus } = useBlock()
+  const checkBlockStatusRef = useRef(checkBlockStatus)
+
+  // Update ref when checkBlockStatus changes
+  useEffect(() => {
+    checkBlockStatusRef.current = checkBlockStatus
+  }, [checkBlockStatus])
 
   // Use Redux posts if no props provided
   const reduxPosts = useSelector((state: RootState) => state.posts.posts)
@@ -75,7 +81,7 @@ const PostsList = React.memo(function PostsList({
       authorIds.forEach(authorId => {
         if (authorId) {
           // Check immediately without debouncing for better UX
-          checkBlockStatus(authorId)
+          checkBlockStatusRef.current(authorId)
         }
       })
     }

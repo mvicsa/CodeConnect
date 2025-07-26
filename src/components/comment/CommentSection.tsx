@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, memo, useMemo } from 'react'
+import { useState, useEffect, memo, useMemo, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { AppDispatch, RootState } from '@/store/store'
 import { fetchComments, addCommentAsync, fetchReplies } from '@/store/slices/commentsSlice'
@@ -44,6 +44,12 @@ const CommentSection = memo(function CommentSection({
 
   const user = useSelector((state: RootState) => state.auth.user)
   const { checkBlockStatus } = useBlock()
+  const checkBlockStatusRef = useRef(checkBlockStatus)
+
+  // Update ref when checkBlockStatus changes
+  useEffect(() => {
+    checkBlockStatusRef.current = checkBlockStatus
+  }, [checkBlockStatus])
 
   // Filter comments for this specific post
   const postComments = useMemo(() => {
@@ -94,11 +100,11 @@ const CommentSection = memo(function CommentSection({
       authorIds.forEach(authorId => {
         if (authorId) {
           // Check immediately without debouncing for better UX
-          checkBlockStatus(authorId)
+          checkBlockStatusRef.current(authorId)
         }
       })
     }
-  }, [postComments])
+  }, [postComments]);
 
   // Reorder comments to put highlighted comment or parent of highlighted reply first
   const orderedComments = useMemo(() => {

@@ -66,6 +66,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const t = useTranslations("chat");
   const dispatch = useDispatch();
   const { checkBlockStatus, isBlocked, isBlockedBy } = useBlock();
+  const checkBlockStatusRef = useRef(checkBlockStatus);
+
+  // Update ref when checkBlockStatus changes
+  useEffect(() => {
+    checkBlockStatusRef.current = checkBlockStatus;
+  }, [checkBlockStatus]);
 
   // Load initial messages and check block status
   useEffect(() => {
@@ -76,7 +82,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       if (activeRoom.type === ChatRoomType.PRIVATE) {
         const otherMember = activeRoom.members.find((m: User) => m._id !== myUserId);
         if (otherMember) {
-          checkBlockStatus(otherMember._id);
+          checkBlockStatusRef.current(otherMember._id);
         }
       }
     }
@@ -340,40 +346,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     
     // Don't show messages from blocked users
     if (senderIsBlocked || senderIsBlockedBy) {
-      return (
-        <div
-          key={msg._id}
-          className={cn(
-            "flex items-start space-x-2 group relative",
-            isCurrentUser ? "justify-end" : "justify-start"
-          )}
-        >
-          {!isCurrentUser && activeRoom.type === ChatRoomType.GROUP && (
-            <Avatar className="h-8 w-8">
-              <AvatarImage
-                src={msg.sender.avatar}
-                alt={senderName}
-              />
-              <AvatarFallback className="text-xs">
-                {getInitials(senderName)}
-              </AvatarFallback>
-            </Avatar>
-          )}
-          <div className="flex flex-col max-w-xs lg:max-w-md relative">
-            {activeRoom.type === ChatRoomType.GROUP && !isCurrentUser && (
-              <p className="text-xs text-muted-foreground mb-1 px-1">
-                {senderName}
-              </p>
-            )}
-            <div className={cn(
-              "rounded-lg relative group px-4 py-2",
-              "bg-accent text-muted-foreground italic"
-            )}>
-              <p className="text-sm">Message from blocked user</p>
-            </div>
-          </div>
-        </div>
-      );
+      return null;
     }
     
     // Handle deleted messages

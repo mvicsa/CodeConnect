@@ -232,8 +232,6 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
         socialLinks: mappedSocialLinks
       });
       
-      // Log the mapped social links for debugging
-      console.log('Mapped social links:', mappedSocialLinks);
     }
   }, [user]);
 
@@ -422,16 +420,12 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
         return link;
       });
   
-    console.log('Social links before submission:', filteredSocialLinks);
-
     // Prepare data for API
     const payload = {
       ...editForm,
       socialLinks: filteredSocialLinks,
       birthdate: editForm.birthdate ? editForm.birthdate.toISOString().split('T')[0] : null,
     };
-
-    console.log('Submitting profile update:', payload);
     
     // Close dialog immediately
     setEditDialogOpen(false);
@@ -471,7 +465,6 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
   useEffect(() => {
     const fetchUserData = async () => {
       if (!reduxUser && !authLoading && !hasFetchedProfile.current) {
-        console.log('Fetching profile data...');
         hasFetchedProfile.current = true;
         try {
           await dispatch(fetchProfile());

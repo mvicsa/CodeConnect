@@ -14,17 +14,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 class BlockService {
   private getAuthHeaders() {
     const token = localStorage.getItem('token');
-    console.log('Token being used for block API:', token ? token.substring(0, 50) + '...' : 'No token');
-    
-    // Decode JWT token to see what's in it
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        console.log('JWT payload:', payload);
-      } catch (error) {
-        console.log('Could not decode JWT token');
-      }
-    }
     
     return {
       'Content-Type': 'application/json',
@@ -59,8 +48,6 @@ class BlockService {
   // Block a user
   async blockUser(blockedId: string, reason?: string): Promise<Block> {
     const data: CreateBlockRequest = { blockedId, reason };
-    console.log('Block API request data:', data);
-    console.log('Auth headers:', this.getAuthHeaders());
     return this.request<Block>(`${API_URL}/blocks`, {
       method: 'POST',
       body: JSON.stringify(data)
@@ -69,8 +56,6 @@ class BlockService {
 
   // Unblock a user
   async unblockUser(blockedId: string): Promise<{ success: boolean; message: string }> {
-    console.log('Unblock API request for user ID:', blockedId);
-    console.log('Auth headers:', this.getAuthHeaders());
     return this.request<{ success: boolean; message: string }>(`${API_URL}/blocks/${blockedId}`, {
       method: 'DELETE'
     });
@@ -92,7 +77,6 @@ class BlockService {
   // Get users who blocked you
   async getBlockedByUsers(): Promise<BlockUser[]> {
     const result = await this.request<BlockUser[]>(`${API_URL}/blocks/blocked-by`);
-    console.log('getBlockedByUsers raw API response:', result);
     return result;
   }
 

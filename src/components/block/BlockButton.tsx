@@ -46,25 +46,8 @@ export const BlockButton: React.FC<BlockButtonProps> = ({
   const isBlocked = blockStatus?.isBlocked || false;
   const isBlockedBy = blockStatus?.isBlockedBy || false;
   
-  // Debug logging
-  console.log('BlockButton props:', { targetUserId, targetUsername, currentUser: currentUser?._id });
-  console.log('Full currentUser object:', currentUser);
-
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirmReason, setConfirmReason] = useState('');
-
-  // Check block status on mount - MUST be before any early returns
-  useEffect(() => {
-    if (targetUserId && targetUserId.trim() !== '' && currentUser?._id !== targetUserId) {
-      console.log('Checking block status for user ID:', targetUserId, 'Current user ID:', currentUser?._id);
-      dispatch(checkBlockStatus(targetUserId));
-    }
-  }, [targetUserId, currentUser?._id, dispatch]);
-
-  // Don't show block button if targetUserId is invalid, if current user is blocked by target, or if trying to block yourself
-  if (!targetUserId || targetUserId.trim() === '' || isBlockedBy || currentUser?._id === targetUserId) {
-    return null;
-  }
 
   const handleBlock = async () => {
     if (!showConfirm) {
@@ -90,16 +73,21 @@ export const BlockButton: React.FC<BlockButtonProps> = ({
         onBlockStatusChange();
       }
       
-      // 🔥 حذف جميع إشعارات المستخدم المحظور
+      // Dispatch these sequentially to prevent race conditions
+      await dispatch(fetchBlockedUsers());
+      await dispatch(fetchBlockStats());
+      
+      // Remove notifications after block is confirmed
       dispatch(removeNotificationsByCriteria({
         fromUserId: targetUserId
       }));
       
-      // Refresh block data
-      dispatch(fetchBlockedUsers());
-      dispatch(fetchBlockStats());
+      // Also remove notifications sent to the blocked user
+      dispatch(removeNotificationsByCriteria({
+        toUserId: targetUserId
+      }));
     } catch (error) {
-      toast.error(error as string || 'Failed to block user');
+      toast.error(error instanceof Error ? error.message : 'Failed to block user');
     }
   };
 
@@ -120,11 +108,11 @@ export const BlockButton: React.FC<BlockButtonProps> = ({
         onBlockStatusChange();
       }
       
-      // Refresh block data
-      dispatch(fetchBlockedUsers());
-      dispatch(fetchBlockStats());
+      // Dispatch these sequentially to prevent race conditions
+      await dispatch(fetchBlockedUsers());
+      await dispatch(fetchBlockStats());
     } catch (error) {
-      toast.error(error as string || 'Failed to unblock user');
+      toast.error(error instanceof Error ? error.message : 'Failed to unblock user');
     }
   };
 
@@ -133,7 +121,29 @@ export const BlockButton: React.FC<BlockButtonProps> = ({
     setConfirmReason('');
   };
 
-  if (isBlocked) {
+  // Check block status on mount - MUST be before any early returns
+  useEffect(() => {
+    if (
+      targetUserId && 
+      targetUserId.trim() !== '' && 
+      currentUser?._id !== targetUserId &&
+      // Only check if block status doesn't already exist
+      !blockStatuses[targetUserId]
+    ) {
+      dispatch(checkBlockStatus(targetUserId));
+    }
+  }, [targetUserId, currentUser?._id, dispatch]);
+
+  // Don't show block button if targetUserId is invalid, if current user is blocked by target, or if trying to block yourself
+  if (!targetUserId || targetUserId.trim() === '' || currentUser?._id === targetUserId) {
+    return null;
+  }
+
+  // Determine if the current user has blocked the target user
+  const isCurrentUserBlockedTarget = blockStatuses[targetUserId]?.isBlocked || false;
+  
+  // If the current user has blocked the target, show Unblock button
+  if (isCurrentUserBlockedTarget) {
     return (
       <Button
         variant={variant}
@@ -149,6 +159,7 @@ export const BlockButton: React.FC<BlockButtonProps> = ({
     );
   }
 
+  // Default to Block button
   return (
     <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
       <AlertDialogTrigger asChild>

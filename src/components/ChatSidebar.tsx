@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useRef } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChatInput } from "@/components/ui/chat-input";
 import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
@@ -46,6 +46,12 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
   const dispatch = useDispatch();
   const { checkBlockStatus } = useBlock();
+  const checkBlockStatusRef = useRef(checkBlockStatus);
+
+  // Update ref when checkBlockStatus changes
+  useEffect(() => {
+    checkBlockStatusRef.current = checkBlockStatus;
+  }, [checkBlockStatus]);
 
   const handleChatSelect = (chatId: string) => {
     onChatSelect(chatId);
@@ -89,7 +95,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         if (preview.type === ChatRoomType.PRIVATE) {
           const otherMember = preview.members.find(m => m._id !== myUserId);
           if (otherMember) {
-            checkBlockStatus(otherMember._id);
+            checkBlockStatusRef.current(otherMember._id);
           }
         }
       });

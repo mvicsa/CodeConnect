@@ -16,6 +16,12 @@ const BlockStatusChecker = () => {
   const blockStatuses = useSelector((state: RootState) => state.block.blockStatuses);
   const checkedUsersRef = useRef(new Set<string>());
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const checkBlockStatusRef = useRef(checkBlockStatus);
+
+  // Update ref when checkBlockStatus changes
+  useEffect(() => {
+    checkBlockStatusRef.current = checkBlockStatus;
+  }, [checkBlockStatus]);
 
   const debouncedCheckUsers = useCallback(() => {
     if (!user?._id) return;
@@ -37,15 +43,14 @@ const BlockStatusChecker = () => {
     ).slice(0, 10);
     
     if (usersToCheck.length > 0) {
-      console.log('Checking block status for users:', usersToCheck);
       usersToCheck.forEach(userId => {
         if (userId) {
-          checkBlockStatus(userId);
+          checkBlockStatusRef.current(userId);
           checkedUsersRef.current.add(userId);
         }
       });
     }
-  }, [user?._id, posts, comments]);
+  }, [user?._id, posts, comments, blockStatuses])
 
   useEffect(() => {
     // Clear any existing timeout
@@ -63,7 +68,7 @@ const BlockStatusChecker = () => {
       }
       checkedUsersRef.current.clear();
     };
-  }, [debouncedCheckUsers]);
+  }, [user?._id, posts, comments]);
 
   // This component doesn't render anything
   return null;

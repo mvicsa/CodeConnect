@@ -33,6 +33,8 @@ import {
 import { toast } from 'sonner';
 import AdminBadge from '../AdminBadge'
 import { SocketContext } from '@/store/Provider';
+import ReadMore from '../ReadMore';
+import { useRouter } from 'next/navigation';
 
 interface PostProps {
   post: PostType;
@@ -55,6 +57,7 @@ const Post = memo(function Post({
   const { user } = useSelector((state: RootState) => state.auth)
   const socket = useContext(SocketContext);
   const { isBlocked, isBlockedBy } = useBlock();
+  const router = useRouter();
   const [showComments, setShowComments] = useState(initialShowComments || !!highlightedCommentId);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -120,46 +123,32 @@ const Post = memo(function Post({
   const handleConfirmDelete = async () => {
     setIsDeleting(true);
     try {
-      console.log('🗑️ Deleting post:', _id);
-      
-      // 🔥 IMMEDIATE: Clean up ALL notifications related to this post FIRST
-      console.log('🧹 IMMEDIATE CLEANUP: Removing ALL notifications for post:', _id);
-      
-      // حذف جميع أنواع الإشعارات المرتبطة بالمنشور
       dispatch(removeNotificationsByCriteria({
         type: 'POST',
         postId: _id,
       }));
-      
-      // حذف إشعارات التفاعلات على المنشور
+
       dispatch(removeNotificationsByCriteria({
         type: 'POST_REACTION',
         postId: _id,
       }));
       
-      // حذف إشعارات التعليقات والردود
       dispatch(removeNotificationsByCriteria({
         type: 'COMMENT_ADDED',
         postId: _id,
       }));
       
-      // حذف إشعارات الردود
       dispatch(removeNotificationsByCriteria({
         type: 'COMMENT_REACTION',
         postId: _id,
       }));
       
-      // حذف إشعارات المنشنات
       dispatch(removeNotificationsByCriteria({
         type: 'USER_MENTIONED',
         postId: _id,
       }));
       
-      // 🔥 إرسال socket events لحذف جميع الإشعارات المرتبطة بالمنشور
       if (socket && user?._id) {
-        console.log('🔄 Socket: Sending notification deletion events for post:', _id);
-        
-        // حذف إشعارات المنشور نفسه وكل ما يتعلق به
         socket.emit('notification:delete', {
           type: 'POST',
           postId: _id,
@@ -168,7 +157,6 @@ const Post = memo(function Post({
           forceRefresh: true
         });
         
-        // حذف جميع إشعارات التفاعلات على المنشور
         socket.emit('notification:delete', {
           type: 'POST_REACTION',
           postId: _id,
@@ -176,7 +164,6 @@ const Post = memo(function Post({
           forceRefresh: true
         });
         
-        // حذف جميع إشعارات التعليقات والردود
         socket.emit('notification:delete', {
           type: 'COMMENT_ADDED',
           postId: _id,
@@ -184,7 +171,6 @@ const Post = memo(function Post({
           forceRefresh: true
         });
         
-        // حذف جميع إشعارات تفاعلات التعليقات
         socket.emit('notification:delete', {
           type: 'COMMENT_REACTION',
           postId: _id,
@@ -192,7 +178,6 @@ const Post = memo(function Post({
           forceRefresh: true
         });
         
-        // حذف جميع إشعارات المنشنات في المنشور
         socket.emit('notification:delete', {
           type: 'USER_MENTIONED',
           postId: _id,
@@ -200,19 +185,13 @@ const Post = memo(function Post({
           forceRefresh: true
         });
         
-        console.log('✅ Socket: All notification deletion events sent for post:', _id);
-      } else {
-        console.warn('⚠️ Socket or user not available, cannot send notification deletion events');
       }
       
-      // Then delete the post from API
       await dispatch(deletePost({ id: _id, token: localStorage.getItem('token') || '' })).unwrap();
       
-      // 🔥 إعادة تحميل الإشعارات بعد الحذف للتأكد من التحديث
       if (user?._id) {
         setTimeout(async () => {
           try {
-            console.log('🔄 Refreshing notifications after post deletion');
             const token = localStorage.getItem('token');
             if (token) {
               const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications/user/${user._id}`, {
@@ -222,20 +201,20 @@ const Post = memo(function Post({
                 const data = await response.json();
                 const { setNotifications } = await import('@/store/slices/notificationsSlice');
                 dispatch(setNotifications(data));
-                console.log('✅ Notifications refreshed successfully after post deletion');
               }
             }
           } catch (error) {
-            console.error('❌ Failed to refresh notifications after post deletion:', error);
+            toast.error(error instanceof Error ? error.message : 'Failed to delete post');
           }
         }, 1500);
       }
       
       toast.success('Post deleted successfully!');
       setShowDeleteDialog(false);
+      // Redirect to timeline
+      router.push('/');
     } catch (error) {
-      toast.error('Failed to delete post.');
-      console.error('Failed to delete post:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to delete post');
     } finally {
       setIsDeleting(false);
     }
@@ -280,24 +259,12 @@ const Post = memo(function Post({
   
   // Don't show posts from blocked users
   if (authorId && isAuthorBlocked) {
-    return (
-      <Card className='w-full gap-4 shadow-none dark:border-transparent'>
-        <CardContent className='p-4 text-center text-muted-foreground'>
-          <p>This content is hidden because you blocked this user</p>
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
   
   // Don't show posts to users who blocked you
   if (authorId && isAuthorBlockedBy) {
-    return (
-      <Card className='w-full gap-4 shadow-none dark:border-transparent'>
-        <CardContent className='p-4 text-center text-muted-foreground'>
-          <p>This content is hidden because this user blocked you</p>
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
   
   // Show PostForm component when editing
@@ -310,6 +277,24 @@ const Post = memo(function Post({
         onSuccess={handleSaveEdit}
       />
     );
+  }
+  
+  // Helper to render text with @mentions as profile links
+  function renderTextWithMentions(text: string) {
+    if (!text) return null;
+    // Split by word boundaries, keep punctuation
+    const parts = text.split(/(\s+)/);
+    return parts.map((part, i) => {
+      if (part.startsWith('@') && part.length > 1 && /^@[\w.]+$/.test(part)) {
+        const username = part.slice(1);
+        return (
+          <Link key={i} href={`/profile/${username}`} className="text-primary hover:underline">
+            {part}
+          </Link>
+        );
+      }
+      return part;
+    });
   }
   
   return (
@@ -396,7 +381,14 @@ const Post = memo(function Post({
               </CardAction>
           </CardHeader>
           <CardContent className='flex flex-col gap-4'>
-            { text && <p>{ text }</p> }
+            <ReadMore
+              text={text || ''}
+              maxLength={150}
+              readMoreText="Read More"
+              readLessText="Read Less"
+              render={renderTextWithMentions}
+            />
+                
             { image && <Image src={image} alt={text || ''} width={500} height={500} className='w-full max-h-96 rounded-lg object-cover' /> }
             { video && <VideoPlayer source={video} /> }
             { code && <CodeBlock

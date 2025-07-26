@@ -502,28 +502,12 @@ export default function CommentItem({
   
   // Don't show comments from blocked users
   if (authorId && isAuthorBlocked) {
-    return (
-      <div className="flex gap-3 items-start relative z-2">
-        <div className="flex-1">
-          <div className="bg-accent p-3 rounded-xl relative">
-            <p className="text-muted-foreground text-sm">This comment is hidden because you blocked this user</p>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
   
   // Don't show comments to users who blocked you
   if (authorId && isAuthorBlockedBy) {
-    return (
-      <div className="flex gap-3 items-start relative z-2">
-        <div className="flex-1">
-          <div className="bg-accent p-3 rounded-xl relative">
-            <p className="text-muted-foreground text-sm">This comment is hidden because this user blocked you</p>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (

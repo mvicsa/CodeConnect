@@ -9,7 +9,7 @@ import { BlockButton, BlockStatusIndicator } from '@/components/block';
 import { useBlock } from '@/hooks/useBlock';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import ImageCropper from './ImageCropper';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { SocketContext } from '@/store/Provider';
@@ -65,24 +65,19 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
   const status = user ? userStatuses[user._id?.toString() || ''] || 'offline' : 'offline';
   const { isBlocked, isBlockedBy, checkBlockStatus } = useBlock();
+  const checkBlockStatusRef = useRef(checkBlockStatus);
+
+  // Update ref when checkBlockStatus changes
+  useEffect(() => {
+    checkBlockStatusRef.current = checkBlockStatus;
+  }, [checkBlockStatus]);
   
   // Check block status when profile loads
   useEffect(() => {
     if (user?._id && currentUser?._id && !isOwnProfile) {
-      console.log('Checking block status for user:', user._id, 'Current user:', currentUser._id);
-      checkBlockStatus(user._id);
+      checkBlockStatusRef.current(user._id);
     }
-  }, [user?._id, currentUser?._id, isOwnProfile, checkBlockStatus]);
-  
-  // Debug: Log block status
-  useEffect(() => {
-    if (user?._id && !isOwnProfile) {
-      console.log('Block status for user', user._id, ':', {
-        isBlocked: isBlocked(user._id),
-        isBlockedBy: isBlockedBy(user._id)
-      });
-    }
-  }, [user?._id, isOwnProfile, isBlocked, isBlockedBy]);
+  }, [user?._id, currentUser?._id, isOwnProfile])
   
   // Early return if no user
   if (!user) {
@@ -284,7 +279,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                 )}
                   
                   {/* Add Block Button */}
-                  {user._id && !isBlocked(currentUser?._id || '') && !isBlockedBy(user._id) && (
+                  {user._id && currentUser?._id && user._id !== currentUser._id && (
                     <BlockButton
                       targetUserId={user._id}
                       targetUsername={user.username}

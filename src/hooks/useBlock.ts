@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from 'react-redux';
-import { useCallback } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { AppDispatch, RootState } from '@/store/store';
 import { 
   blockUser, 
@@ -13,6 +13,13 @@ import { toast } from 'sonner';
 
 export const useBlock = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const dispatchRef = useRef(dispatch);
+  
+  // Update ref when dispatch changes
+  useEffect(() => {
+    dispatchRef.current = dispatch;
+  }, [dispatch]);
+  
   const { 
     blockedUsers, 
     blockedByUsers, 
@@ -27,7 +34,7 @@ export const useBlock = () => {
 
   const blockUserHandler = useCallback(async (blockedId: string, reason?: string) => {
     try {
-      await dispatch(blockUser({ blockedId, reason })).unwrap();
+      await dispatchRef.current(blockUser({ blockedId, reason })).unwrap();
       toast.success('User blocked successfully');
       return true;
     } catch (error) {
@@ -38,7 +45,7 @@ export const useBlock = () => {
 
   const unblockUserHandler = useCallback(async (blockedId: string) => {
     try {
-      await dispatch(unblockUser(blockedId)).unwrap();
+      await dispatchRef.current(unblockUser(blockedId)).unwrap();
       toast.success('User unblocked successfully');
       return true;
     } catch (error) {
@@ -48,18 +55,23 @@ export const useBlock = () => {
   }, []);
 
   const checkBlockStatusHandler = useCallback(async (userId: string) => {
+    // Don't check if we already have the status
+    if (blockStatuses[userId]) {
+      return true;
+    }
+    
     try {
-      await dispatch(checkBlockStatus(userId)).unwrap();
+      await dispatchRef.current(checkBlockStatus(userId)).unwrap();
       return true;
     } catch (error) {
       console.error('Failed to check block status:', error);
       return false;
     }
-  }, []);
+  }, [blockStatuses]);
 
   const loadBlockedUsers = useCallback(async () => {
     try {
-      await dispatch(fetchBlockedUsers()).unwrap();
+      await dispatchRef.current(fetchBlockedUsers()).unwrap();
       return true;
     } catch (error) {
       toast.error(error as string || 'Failed to load blocked users');
@@ -69,7 +81,7 @@ export const useBlock = () => {
 
   const loadBlockStats = useCallback(async () => {
     try {
-      await dispatch(fetchBlockStats()).unwrap();
+      await dispatchRef.current(fetchBlockStats()).unwrap();
       return true;
     } catch (error) {
       console.error('Failed to load block stats:', error);
@@ -94,7 +106,7 @@ export const useBlock = () => {
   }, [blockStatuses]);
 
   const clearErrorHandler = useCallback(() => {
-    dispatch(clearError());
+    dispatchRef.current(clearError());
   }, []);
 
   return {

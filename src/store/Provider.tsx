@@ -45,11 +45,31 @@ function AuthInitializer() {
     }
   }, [initialized, token, user, dispatch])
   
+  // 🔥 middleware لحذف إشعارات المستخدمين المحظورين
+  useEffect(() => {
+    if (!user || !blockStatuses) return;
+    
+    // تحقق من المستخدمين المحظورين حديثاً
+    Object.entries(blockStatuses).forEach(([userId, status]) => {
+      if (status.isBlocked && user._id) {
+        // حذف جميع إشعارات المستخدم المحظور
+        dispatch(removeNotificationsByCriteria({
+          fromUserId: userId
+        }));
+        
+        // أيضاً حذف الإشعارات المرسلة إلى المستخدم المحظور
+        dispatch(removeNotificationsByCriteria({
+          toUserId: userId
+        }));
+      }
+    });
+  }, [blockStatuses, user, dispatch]);
+  
   // فلترة الإشعارات للمستخدمين المحظورين
   useEffect(() => {
-    if (!user) return;
+    if (!user || !blockStatuses || !notifications.length) return;
     
-    // فلترة الإشعارات
+    // فلترة الإشعارات للمستخدمين المحظورين
     const filteredNotifications = notifications.filter(notification => {
       const fromUserId = notification.fromUserId?._id || notification.fromUserId;
       const toUserId = notification.toUserId?._id || notification.toUserId;
@@ -78,22 +98,7 @@ function AuthInitializer() {
     if (filteredNotifications.length !== notifications.length) {
       dispatch(setNotifications(filteredNotifications));
     }
-  }, [blockStatuses, notifications, user, dispatch]);
-  
-  // 🔥 middleware لحذف إشعارات المستخدم المحظور عند عمل بلوك
-  useEffect(() => {
-    if (user && blockStatuses) {
-      // تحقق من المستخدمين المحظورين حديثاً
-      Object.entries(blockStatuses).forEach(([userId, status]) => {
-        if (status.isBlocked && user._id) {
-          // حذف جميع إشعارات المستخدم المحظور
-          dispatch(removeNotificationsByCriteria({
-            fromUserId: userId
-          }));
-        }
-      });
-    }
-  }, [blockStatuses, user, dispatch])
+  }, [blockStatuses, user, dispatch]);
   
   return null
 }
@@ -119,6 +124,8 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
   const token = useReduxSelector((state: RootState) => state.auth.token)
   const user = useReduxSelector((state: RootState) => state.auth.user)
   const notificationSocketRef = useRef<ReturnType<typeof io> | null>(null);
+  // Robust fix: Only play sound for notifications after the first one received after connect
+  const firstNotificationReceived = useRef(false);
 
   useEffect(() => {
     if (!token || typeof window === 'undefined') {
@@ -205,20 +212,29 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
       
       // إضافة الإشعار فقط إذا لم يكن محظور
       if (shouldShowNotification) {
-        dispatch(addNotification(notification));
-        
+        console.log('[SOCKET][ALL]', notification);
+      if (notification.type === 'POST_CREATED') {
+        console.log('[SOCKET][POST_CREATED] إشعار بوست جديد:', notification);
+      }
+      dispatch(addNotification(notification));
+        // Only play sound if this is not the first notification after connect
+      if (!firstNotificationReceived.current) {
+        firstNotificationReceived.current = true;
+        return; // Don't play sound for the first notification
+      }
+      
         // Play notification sound if enabled
-        if (typeof window !== 'undefined' && localStorage.getItem('notificationSound') !== 'disabled') {
-          try {
-            const audio = new Audio('/sounds/notification.wav');
-            audio.volume = 0.5;
-            audio.play().catch(error => {
-              console.warn('Failed to play notification sound:', error);
-            });
-          } catch (error) {
-            console.warn('Failed to create notification audio:', error);
-          }
-        }
+        // if (typeof window !== 'undefined' && localStorage.getItem('notificationSound') !== 'disabled') {
+        //   try {
+        //     const audio = new Audio('/sounds/notification.wav');
+        //     audio.volume = 0.5;
+        //     audio.play().catch(error => {
+        //       console.warn('Failed to play notification sound:', error);
+        //     });
+        //   } catch (error) {
+        //     console.warn('Failed to create notification audio:', error);
+        //   }
+        // }
         
         // Vibrate if enabled and supported
         if (typeof window !== 'undefined' && 
@@ -238,7 +254,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
 
     // استقبال موحد لحذف الإشعارات من الباك إند
     notificationSocket.on('notification:delete', (payload: NotificationDeletePayload) => {
-      
+      console.log('Received notification:delete', payload);
       // حذف مباشر بالـ id
       if (payload?.notificationId) {
         dispatch(deleteNotification(payload.notificationId));
@@ -252,6 +268,11 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         dispatch(removePost(payload.postId));
         
         // حذف كل أنواع الإشعارات المرتبطة بالمنشور
+        dispatch(removeNotificationsByCriteria({
+          type: 'POST_CREATED',
+          postId: payload.postId,
+        }));
+        
         dispatch(removeNotificationsByCriteria({
           type: 'POST',
           postId: payload.postId,
