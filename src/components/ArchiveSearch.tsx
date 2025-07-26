@@ -35,7 +35,7 @@ export default function ArchiveSearch() {
   }, [loadArchiveItems]);
 
   // Show skeleton if loading or if no items are loaded yet
-  const showSkeleton = loading || filteredItems.length === 0 && !error;
+  const showSkeleton = loading && !error;
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     search(e.target.value);
