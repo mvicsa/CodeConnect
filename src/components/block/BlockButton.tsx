@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import { fetchBlockedUsers, fetchBlockStats } from '@/store/slices/blockSlice';
+import { removeNotificationsByCriteria } from '@/store/slices/notificationsSlice';
 
 interface BlockButtonProps {
   targetUserId: string;
@@ -88,6 +89,11 @@ export const BlockButton: React.FC<BlockButtonProps> = ({
       if (onBlockStatusChange) {
         onBlockStatusChange();
       }
+      
+      // 🔥 حذف جميع إشعارات المستخدم المحظور
+      dispatch(removeNotificationsByCriteria({
+        fromUserId: targetUserId
+      }));
       
       // Refresh block data
       dispatch(fetchBlockedUsers());

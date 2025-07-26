@@ -35,12 +35,66 @@ function hasId(obj: unknown): obj is { _id: string } {
 function AuthInitializer() {
   const dispatch = useDispatch<AppDispatch>()
   const { initialized, token, user } = useSelector((state: RootState) => state.auth)
+  const blockStatuses = useSelector((state: RootState) => state.block.blockStatuses)
+  const notifications = useSelector((state: RootState) => state.notifications.notifications)
+  
   useEffect(() => {
     // Only fetch profile if we have a token but no user and not initialized
     if (!initialized && token && !user) {
       dispatch(fetchProfile())
     }
   }, [initialized, token, user, dispatch])
+  
+  // فلترة الإشعارات للمستخدمين المحظورين
+  useEffect(() => {
+    if (!user) return;
+    
+    // فلترة الإشعارات
+    const filteredNotifications = notifications.filter(notification => {
+      const fromUserId = notification.fromUserId?._id || notification.fromUserId;
+      const toUserId = notification.toUserId?._id || notification.toUserId;
+      
+      // تحقق من حالة الحظر
+      const fromUserBlockStatus = blockStatuses[String(fromUserId)] || {};
+      const toUserBlockStatus = blockStatuses[String(toUserId)] || {};
+
+      // لا تعرض إشعار إذا:
+      // 1. أنت حظرت المرسل
+      // 2. أو المرسل حظرك
+      // 3. أو أنت حظرت المستلم
+      // 4. أو المستلم حظرك
+      if (
+        fromUserBlockStatus.isBlocked ||  // أنت حظرت المرسل
+        fromUserBlockStatus.isBlockedBy || // المرسل حظرك
+        toUserBlockStatus.isBlocked ||     // أنت حظرت المستلم
+        toUserBlockStatus.isBlockedBy      // المستلم حظرك
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    // إذا تم حذف إشعارات، حدث القائمة
+    if (filteredNotifications.length !== notifications.length) {
+      dispatch(setNotifications(filteredNotifications));
+    }
+  }, [blockStatuses, notifications, user, dispatch]);
+  
+  // 🔥 middleware لحذف إشعارات المستخدم المحظور عند عمل بلوك
+  useEffect(() => {
+    if (user && blockStatuses) {
+      // تحقق من المستخدمين المحظورين حديثاً
+      Object.entries(blockStatuses).forEach(([userId, status]) => {
+        if (status.isBlocked && user._id) {
+          // حذف جميع إشعارات المستخدم المحظور
+          dispatch(removeNotificationsByCriteria({
+            fromUserId: userId
+          }));
+        }
+      });
+    }
+  }, [blockStatuses, user, dispatch])
+  
   return null
 }
 
@@ -121,29 +175,60 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
     });
     
     notificationSocket.on('notification', (notification: Notification) => {
-      dispatch(addNotification(notification));
+      // 🔥 فلترة الإشعارات للمستخدمين المحظورين
+      const currentUser = user;
+      const fromUserId = notification.fromUserId?._id || notification.fromUserId;
+      const toUserId = notification.toUserId?._id || notification.toUserId;
       
-      // Play notification sound if enabled
-      if (typeof window !== 'undefined' && localStorage.getItem('notificationSound') !== 'disabled') {
-        try {
-          const audio = new Audio('/sounds/notification.wav');
-          audio.volume = 0.5;
-          audio.play().catch(error => {
-            console.warn('Failed to play notification sound:', error);
-          });
-        } catch (error) {
-          console.warn('Failed to create notification audio:', error);
+      // تحقق من حالة الحظر
+      let shouldShowNotification = true;
+      
+      if (currentUser && fromUserId && toUserId) {
+        const blockStatuses = store.getState().block.blockStatuses;
+
+        // لا تظهر الإشعار إذا:
+        // 1. أنت حظرت المرسل
+        // 2. أو المرسل حظرك
+        const fromUserBlockStatus = blockStatuses[String(fromUserId)] || {};
+        const toUserBlockStatus = blockStatuses[String(toUserId)] || {};
+
+        if (
+          fromUserBlockStatus.isBlocked ||  // أنت حظرت المرسل
+          fromUserBlockStatus.isBlockedBy || // المرسل حظرك
+          toUserBlockStatus.isBlocked ||     // أنت حظرت المستلم
+          toUserBlockStatus.isBlockedBy      // المستلم حظرك
+        ) {
+          shouldShowNotification = false;
+          console.log('🔒 [NOTIFICATION] Blocked notification', fromUserId, 'to', toUserId);
         }
       }
       
-      // Vibrate if enabled and supported
-      if (typeof window !== 'undefined' && 
-          localStorage.getItem('notificationVibration') !== 'disabled' && 
-          'vibrate' in navigator) {
-        try {
-          navigator.vibrate([200, 100, 200]);
-        } catch (error) {
-          console.warn('Failed to vibrate:', error);
+      // إضافة الإشعار فقط إذا لم يكن محظور
+      if (shouldShowNotification) {
+        dispatch(addNotification(notification));
+        
+        // Play notification sound if enabled
+        if (typeof window !== 'undefined' && localStorage.getItem('notificationSound') !== 'disabled') {
+          try {
+            const audio = new Audio('/sounds/notification.wav');
+            audio.volume = 0.5;
+            audio.play().catch(error => {
+              console.warn('Failed to play notification sound:', error);
+            });
+          } catch (error) {
+            console.warn('Failed to create notification audio:', error);
+          }
+        }
+        
+        // Vibrate if enabled and supported
+        if (typeof window !== 'undefined' && 
+            localStorage.getItem('notificationVibration') !== 'disabled' && 
+            'vibrate' in navigator) {
+          try {
+            navigator.vibrate([200, 100, 200]);
+          } catch (error) {
+            console.warn('Failed to vibrate:', error);
+          }
         }
       }
     });
