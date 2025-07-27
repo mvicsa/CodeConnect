@@ -39,7 +39,7 @@ export default function CommentAI({
 
   return (
     <div className="flex gap-3 items-start">
-      <UserAvatar src="/ai.avif" firstName="AI" />
+      <UserAvatar aiSrc="/ai.avif" ai="AI" />
 
       <div className="flex-1 overflow-hidden">
         <div className="bg-accent p-3 rounded-xl relative">

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications } from '@/hooks/useNotifications';
-import { NotificationFilter, Notification, NotificationType, NotificationUser } from '@/types/notification';
+import { NotificationFilter, Notification, NotificationType } from '@/types/notification';
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -86,9 +86,9 @@ const getNotificationTitle = (notification: Notification): string => {
 };
 
 // Helper function to get user display name
-const getUserDisplayName = (user: NotificationUser): string => {
-    return `${user.firstName} ${user.lastName}`;
-};
+// const getUserDisplayName = (user: NotificationUser): string => {
+//     return `${user.firstName} ${user.lastName}`;
+// };
 
 // Map reaction types to images (same as ReactionsMenu)
 const reactionImageMap = {

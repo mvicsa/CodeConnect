@@ -395,7 +395,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
     <Card className={`w-full dark:border-none shadow-none gap-4 ${className}`}>
       <CardHeader>
         <div className="flex items-center gap-3">
-          <UserAvatar src={isEditMode ? post?.createdBy?.avatar as string : user?.avatar as string} firstName={isEditMode ? post?.createdBy?.firstName as string : user?.firstName as string} />
+          <UserAvatar user={isEditMode ? post?.createdBy : user} />
           <div className="flex-1">
             <h3 className="font-semibold">{isEditMode ? 'Edit Post' : 'Create Post'}</h3>
             <p className="text-sm text-muted-foreground">
