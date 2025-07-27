@@ -533,7 +533,7 @@ export default function CommentItem({
   return (
     <div className="flex gap-3 items-start relative z-2">
       <Link href={`/profile/${comment.createdBy.username}`} className='relative'>
-        <UserAvatar src={hasCreatedBy(comment) ? (comment.createdBy.avatar || '') : ''} firstName={hasCreatedBy(comment) ? (comment.createdBy.firstName || '') : ((comment as CommentUser).user?.username || '')} />
+        <UserAvatar user={hasCreatedBy(comment) ? comment.createdBy : (comment as CommentUser).user} />
         {!isBlocked(comment.createdBy?._id || '') && !isBlockedBy(comment.createdBy?._id || '') && (
           <span
             className={

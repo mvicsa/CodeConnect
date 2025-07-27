@@ -308,7 +308,7 @@ const Post = memo(function Post({
           <CardHeader>
               <CardTitle className='flex items-center gap-2'>
                 <Link href={`/profile/${createdBy?.username}`} className='relative'>
-                  <UserAvatar src={createdBy?.avatar} firstName={createdBy?.firstName} />
+                  <UserAvatar user={createdBy} />
                   {!isBlocked(createdBy?._id || '') && !isBlockedBy(createdBy?._id || '') && (
                     <span
                       className={
