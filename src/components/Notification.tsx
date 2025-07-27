@@ -446,6 +446,7 @@ const NotificationPage = () => {
                                                             <div className="relative">
                                                                 <UserAvatar 
                                                                     src={notification.fromUserId?.avatar}
+                                                                    size={10}
                                                                     firstName={notification.fromUserId?.firstName}
                                                                 />
                                                                 <div className="absolute -bottom-1 -right-1 p-1 rounded-full bg-muted flex items-center">
