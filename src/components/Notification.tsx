@@ -38,6 +38,8 @@ import { formatTime } from '@/lib/utils';
 import { NavigationMenuItem, navigationMenuTriggerStyle } from './ui/navigation-menu';
 import { useRouter } from 'next/navigation';
 import UserAvatar from '@/components/UserAvatar';
+import { Avatar } from '@radix-ui/react-avatar';
+import { AvatarFallback, AvatarImage } from './ui/avatar';
 
 // Helper function to get icon based on notification type
 const getNotificationIcon = (type: NotificationType) => {
@@ -444,11 +446,10 @@ const NotificationPage = () => {
                                                     <div className="flex-shrink-0">
                                                         {notification.fromUserId ? (
                                                             <div className="relative">
-                                                                <UserAvatar 
-                                                                    src={notification.fromUserId?.avatar}
-                                                                    size={10}
-                                                                    firstName={notification.fromUserId?.firstName}
-                                                                />
+                                                                <Avatar className='flex items-center justify-center size-11 border-2 border-primary rounded-full bg-primary flex-shrink-0'>
+                                                                    <AvatarImage className='rounded-full object-cover w-full h-full' src={notification.fromUserId?.avatar || '/user.png'} />
+                                                                    <AvatarFallback>{notification.fromUserId?.firstName?.charAt(0).toUpperCase()}</AvatarFallback>
+                                                                </Avatar>
                                                                 <div className="absolute -bottom-1 -right-1 p-1 rounded-full bg-muted flex items-center">
                                                                 { reactionImage ? reactionImage : <IconComponent className="h-3 w-3" /> }
                                                                 </div>
