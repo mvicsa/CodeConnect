@@ -37,7 +37,6 @@ import Image from 'next/image';
 import { formatTime } from '@/lib/utils';
 import { NavigationMenuItem, navigationMenuTriggerStyle } from './ui/navigation-menu';
 import { useRouter } from 'next/navigation';
-import UserAvatar from '@/components/UserAvatar';
 import { Avatar } from '@radix-ui/react-avatar';
 import { AvatarFallback, AvatarImage } from './ui/avatar';
 
