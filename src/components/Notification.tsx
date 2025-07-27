@@ -37,6 +37,7 @@ import Image from 'next/image';
 import { formatTime } from '@/lib/utils';
 import { NavigationMenuItem, navigationMenuTriggerStyle } from './ui/navigation-menu';
 import { useRouter } from 'next/navigation';
+import UserAvatar from '@/components/UserAvatar';
 
 // Helper function to get icon based on notification type
 const getNotificationIcon = (type: NotificationType) => {
@@ -443,11 +444,9 @@ const NotificationPage = () => {
                                                     <div className="flex-shrink-0">
                                                         {notification.fromUserId ? (
                                                             <div className="relative">
-                                                                <Image
-                                                                    src={notification.fromUserId.avatar || '/user.png'}
-                                                                    alt={getUserDisplayName(notification.fromUserId)}
-                                                                    width={40}
-                                                                    height={40}
+                                                                <UserAvatar 
+                                                                    user={notification.fromUserId}
+                                                                    size={40}
                                                                     className="w-10 h-10 rounded-full object-cover border-2"
                                                                 />
                                                                 <div className="absolute -bottom-1 -right-1 p-1 rounded-full bg-muted flex items-center">
