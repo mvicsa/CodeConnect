@@ -421,7 +421,7 @@ export default function SandpackPlayground() {
                         {currentSpark?.owner?.username && (
                         <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                             Created by 
-                            <Link href={`/user/${currentSpark?.owner?.username}`} className='text-primary hover:underline'>
+                            <Link href={`/user/${currentSpark?.owner?._id}`} className='text-primary hover:underline'>
                                 {currentSpark?.owner?.username}
                             </Link>
                         </div>
