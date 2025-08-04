@@ -354,22 +354,22 @@ export default function CommentItem({
         // حذف إشعارات كل رد
         dispatch(removeNotificationsByCriteria({
           type: 'COMMENT_ADDED',
-          commentId: String(reply._id),
+          commentId: String(reply?._id),
         }));
         
         // حذف إشعارات التفاعلات على كل رد
         dispatch(removeNotificationsByCriteria({
           type: 'COMMENT_REACTION',
-          commentId: String(reply._id),
+          commentId: String(reply?._id),
         }));
         
         // حذف إشعارات المنشنات في كل رد
         dispatch(removeNotificationsByCriteria({
           type: 'USER_MENTIONED',
-          commentId: String(reply._id),
+          commentId: String(reply?._id),
         }));
         
-        console.log('🗑️ Deleted notifications for reply:', reply._id);
+        console.log('🗑️ Deleted notifications for reply:', reply?._id);
       });
     }
     
@@ -420,12 +420,12 @@ export default function CommentItem({
          console.log(`🔄 Socket: Sending deletion events for ${comment.replies.length} replies`);
          
          comment.replies.forEach((reply: Reply) => {
-          const replyMentions = extractMentions(reply.text || '');
+          const replyMentions = extractMentions(reply?.text || '');
           
           // حذف إشعارات كل رد
           socket.emit('notification:delete', {
             type: 'COMMENT_ADDED',
-            commentId: String(reply._id),
+            commentId: String(reply?._id),
             fromUserId: user._id,
             postId: comment.postId,
             mentions: replyMentions,
@@ -437,7 +437,7 @@ export default function CommentItem({
           // حذف إشعارات التفاعلات على كل رد
           socket.emit('notification:delete', {
             type: 'COMMENT_REACTION',
-            commentId: String(reply._id),
+            commentId: String(reply?._id),
             postId: comment.postId,
             deleteAllReactions: true,
             forceRefresh: true
@@ -446,14 +446,14 @@ export default function CommentItem({
           // حذف إشعارات المنشنات في كل رد
           socket.emit('notification:delete', {
             type: 'USER_MENTIONED',
-            commentId: String(reply._id),
+            commentId: String(reply?._id),
             fromUserId: user._id,
             postId: comment.postId,
             mentions: replyMentions,
             forceRefresh: true
           });
           
-          console.log('🔄 Socket: Sent deletion events for reply:', reply._id);
+          console.log('🔄 Socket: Sent deletion events for reply:', reply?._id);
         });
       }
       

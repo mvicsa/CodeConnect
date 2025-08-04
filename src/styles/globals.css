@@ -10,7 +10,7 @@
 
 body {
   font-family: var(--font-family);
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 code, kbd, samp, pre {

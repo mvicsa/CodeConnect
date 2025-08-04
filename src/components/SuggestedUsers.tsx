@@ -16,9 +16,10 @@ interface SuggestedUsersProps {
   limit?: number;
   cardTitle?: string;
   className?: string;
+  max?: number;
 }
 
-const SuggestedUsers = ({ limit = 3, cardTitle = 'Suggested Users', className = '' }: SuggestedUsersProps) => {
+const SuggestedUsers = ({ limit = 3, cardTitle = 'Suggested Users', max = 4, className = '' }: SuggestedUsersProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const { suggested } = useSelector((state: RootState) => state.follow);
   const { user } = useSelector((state: RootState) => state.auth);
@@ -112,7 +113,7 @@ const SuggestedUsers = ({ limit = 3, cardTitle = 'Suggested Users', className = 
               <Loader2 className='w-4 h-4 animate-spin' />
             </div>
           )}
-          {suggested.hasMore && !suggested.loading && !blockLoading && (
+          {suggested.hasMore && !suggested.loading && !blockLoading && suggested.items.length < max && (
             <Button onClick={handleLoadMoreSuggestions} className='w-full mt-2'>Load More</Button>
           )}
         </div>
