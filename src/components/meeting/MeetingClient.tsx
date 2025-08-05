@@ -1,36 +1,23 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { jwtDecode } from "jwt-decode";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   Video,
-  Users,
   Plus,
-  Copy,
-  Trash2,
-  Edit,
-  Calendar,
   Clock,
-  RefreshCw,
   ArrowLeft,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import Container from "@/components/Container";
 import { User } from "@/types/user";
-import { getAuthToken } from "@/lib/cookies";
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '@/store/store';
 import { fetchFollowing } from '@/store/slices/followSlice';
@@ -39,10 +26,10 @@ import {
   createRoom, 
   updateRoom, 
   deleteRoom,
-  clearError,
   type Room as ReduxRoom,
   type CreateRoomData,
-  type UpdateRoomData
+  type UpdateRoomData,
+  Room
 } from '@/store/slices/meetingSlice';
 import { RoomDialog } from "./RoomDialog";
 import { VideoConferenceComponent } from "./VideoConference";
@@ -54,13 +41,10 @@ import { useContext } from 'react';
 import { SocketContext } from '@/store/Provider';
 import axiosInstance from '@/lib/axios';
 
-// Remove local Room interface since we're using ReduxRoom from meetingSlice
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export const MeetingClient = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { rooms, loading, error, createLoading, updateLoading, deleteLoading } = useSelector((state: RootState) => state.meeting);
+  const { rooms, error, createLoading, updateLoading } = useSelector((state: RootState) => state.meeting);
   const { user } = useSelector((state: RootState) => state.auth);
   const { items: followedUsers } = useSelector((state: RootState) => state.follow.following);
   
@@ -94,7 +78,6 @@ export const MeetingClient = () => {
   };
   
   const [roomToDelete, setRoomToDelete] = useState<ReduxRoom | null>(null);
-  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [showSuggestionMenu, setShowSuggestionMenu] = useState(false);
 
   const t = useTranslations("meeting");
@@ -106,16 +89,6 @@ export const MeetingClient = () => {
   }, [user, followedUsers]);
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await axiosInstance.get('/users');
-        setAvailableUsers(response.data);
-      } catch (error) {
-        console.error("Error fetching users:", error);
-        toast.error("Failed to fetch users");
-      }
-    };
-
     const fetchFollowedUsers = async () => {
       try {
         if (user?._id) {
@@ -141,8 +114,6 @@ export const MeetingClient = () => {
         toast.error("Failed to fetch followed users");
       }
     };
-
-    fetchUsers();
     fetchFollowedUsers();
   }, [user?._id, dispatch]);
 
@@ -194,9 +165,9 @@ export const MeetingClient = () => {
           await sendRoomInvitationMessage(invitedUser, result, secretId);
         }
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error creating room:", error);
-      toast.error(error.message || "Failed to create room");
+      toast.error((error as Error).message || "Failed to create room");
     }
   };
 
@@ -318,9 +289,9 @@ export const MeetingClient = () => {
       
       await dispatch(deleteRoom(roomToDelete._id)).unwrap();
       toast.success(t("roomDeleted"));
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to delete room:", error);
-      toast.error(error.message || t("failedToDeleteRoom"));
+      toast.error((error as Error).message || t("failedToDeleteRoom"));
     } finally {
       setRoomToDelete(null);
     }
@@ -360,7 +331,7 @@ export const MeetingClient = () => {
 
     try {
       // Create a private chat room with the invited user
-      socket.emit('createPrivateRoom', { receiverId: invitedUser._id }, async (response: any) => {
+      socket.emit('createPrivateRoom', { receiverId: invitedUser._id }, async (response: { roomId: string }) => {
         if (response && response.roomId) {
           // Send the room invitation message
           const invitationMessage = {
@@ -389,7 +360,7 @@ export const MeetingClient = () => {
 
     try {
       // Create a private chat room with the removed user
-      socket.emit('createPrivateRoom', { receiverId: removedUser._id }, async (response: any) => {
+      socket.emit('createPrivateRoom', { receiverId: removedUser._id }, async (response: { roomId: string }) => {
         if (response && response.roomId) {
           // Send the cancellation message
           const cancellationMessage = {
@@ -415,65 +386,62 @@ export const MeetingClient = () => {
         token={token}
         currentRoom={currentRoom}
         onDisconnect={handleDisconnect}
-        t={t}
       />
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background p-3 sm:p-6">
       <Container>
-        <div className="mb-8">
-          <div className="flex gap-3">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex gap-2 sm:gap-3">
             <Link href="/" className="text-muted-foreground hover:text-primary">
-              <ArrowLeft className="h-6 w-6" />
+              <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
             </Link>
             <div>
-              <h1 className="text-3xl font-bold mb-2">{t("title")}</h1>
-              <p className="text-muted-foreground">{t("subtitle")}</p>
+              <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">{t("title")}</h1>
+              <p className="text-sm sm:text-base text-muted-foreground">{t("subtitle")}</p>
             </div>
           </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="join">{t("joinMeeting")}</TabsTrigger>
-            <TabsTrigger value="rooms">{t("myRooms")}</TabsTrigger>
-            <TabsTrigger value="sessions">{t("recentSessions")}</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 h-auto sm:h-10">
+            <TabsTrigger value="join" className="text-xs sm:text-sm py-2 sm:py-1.5">{t("joinMeeting")}</TabsTrigger>
+            <TabsTrigger value="rooms" className="text-xs sm:text-sm py-2 sm:py-1.5">{t("myRooms")}</TabsTrigger>
+            <TabsTrigger value="sessions" className="text-xs sm:text-sm py-2 sm:py-1.5">{t("recentSessions")}</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="join" className="space-y-6 mt-3">
-            <div className="grid md:grid-cols-2 gap-6">
+          <TabsContent value="join" className="space-y-4 sm:space-y-6 mt-3">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               <JoinMeetingCard
                 secretId={secretId}
                 setSecretId={setSecretId}
                 onJoinRoom={() => joinRoomBySecretId()}
                 isLoading={createLoading}
-                t={t}
               />
 
               <CreateRoomCard
                 onCreateRoom={() => setShowCreateDialog(true)}
-                t={t}
               />
             </div>
           </TabsContent>
 
-          <TabsContent value="rooms" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">{t("myRooms")}</h2>
-              <Button onClick={() => setShowCreateDialog(true)}>
+          <TabsContent value="rooms" className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+              <h2 className="text-lg sm:text-xl font-semibold">{t("myRooms")}</h2>
+              <Button onClick={() => setShowCreateDialog(true)} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4" />
                 {t("createRoom")}
               </Button>
             </div>
 
-            <div className="grid gap-4">
+            <div className="grid gap-3 sm:gap-4">
               {rooms.length === 0 ? (
                 <Card className="flex items-center dark:border-transparent">
-                  <CardContent className="flex flex-col items-center justify-center py-8">
-                    <Video className="h-12 w-12 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground text-center">
+                  <CardContent className="flex flex-col items-center justify-center py-6 sm:py-8">
+                    <Video className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-3 sm:mb-4" />
+                    <p className="text-sm sm:text-base text-muted-foreground text-center">
                       {t("noRooms")}
                     </p>
                   </CardContent>
@@ -483,7 +451,6 @@ export const MeetingClient = () => {
                   <RoomCard
                     key={room._id}
                     room={room}
-                    t={t}
                     onCopySecretId={copySecretId}
                     onJoinRoom={handleJoinRoom}
                     onEditRoom={handleEditRoom}
@@ -496,19 +463,19 @@ export const MeetingClient = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="sessions" className="space-y-6">
-            <h2 className="text-xl font-semibold">
+          <TabsContent value="sessions" className="space-y-4 sm:space-y-6">
+            <h2 className="text-lg sm:text-xl font-semibold">
               {t("recentSessionsTitle")}
             </h2>
 
-            <div className="grid gap-4">
+            <div className="grid gap-3 sm:gap-4">
               <Card className="dark:border-transparent">
-                <CardContent className="flex flex-col items-center justify-center py-8">
-                  <Clock className="h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground text-center">
+                <CardContent className="flex flex-col items-center justify-center py-6 sm:py-8">
+                  <Clock className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-3 sm:mb-4" />
+                  <p className="text-sm sm:text-base text-muted-foreground text-center">
                     Sessions feature is not implemented yet.
                   </p>
-                  <p className="text-sm text-muted-foreground text-center mt-2">
+                  <p className="text-xs sm:text-sm text-muted-foreground text-center mt-2">
                     This feature will be available in a future update.
                   </p>
                 </CardContent>
@@ -522,14 +489,13 @@ export const MeetingClient = () => {
           open={showCreateDialog}
           onOpenChange={setShowCreateDialog}
           mode="create"
-          roomData={newRoomData}
-          onRoomDataChange={setNewRoomData}
+          roomData={newRoomData as unknown as Room}
+          onRoomDataChange={(data: Room) => setNewRoomData(data as unknown as { name: string; description: string; isPrivate: boolean; maxParticipants: number; invitedUsers: User[]; inviteEmail: string; })}
           onSubmit={handleCreateRoom}
           isLoading={createLoading}
           followedUsers={followedUsers}
           showSuggestionMenu={showSuggestionMenu}
           setShowSuggestionMenu={setShowSuggestionMenu}
-          t={t}
           currentUser={user || undefined}
         />
 
@@ -538,7 +504,7 @@ export const MeetingClient = () => {
           open={showEditDialog}
           onOpenChange={setShowEditDialog}
           mode="edit"
-          roomData={editingRoom || {}}
+          roomData={editingRoom || ({} as Room)}
           onRoomDataChange={setEditingRoom}
           onSubmit={async () => {
             if (editingRoom) {
@@ -592,9 +558,9 @@ export const MeetingClient = () => {
                 setShowEditDialog(false);
                 setEditingRoom(null);
                 setOriginalInvitedUsers([]);
-              } catch (error: any) {
+              } catch (error) {
                 console.error('Update room error:', error);
-                toast.error(error.message || "Failed to update room");
+                toast.error((error as Error).message || "Failed to update room");
               }
             }
           }}
@@ -602,7 +568,6 @@ export const MeetingClient = () => {
           followedUsers={followedUsers}
           showSuggestionMenu={showSuggestionMenu}
           setShowSuggestionMenu={setShowSuggestionMenu}
-          t={t}
           currentUser={user || undefined}
         />
 
@@ -613,7 +578,6 @@ export const MeetingClient = () => {
             if (!open) setRoomToDelete(null);
           }}
           onConfirm={handleDeleteRoom}
-          t={t}
         />
 
         {error && (

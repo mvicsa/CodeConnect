@@ -1,22 +1,20 @@
 "use client";
 
+import { Room } from "@/store/slices/meetingSlice";
 import { LiveKitRoom, VideoConference } from "@livekit/components-react";
 import "@livekit/components-styles";
-import { Button } from "@/components/ui/button";
-import { Video, ArrowLeft } from "lucide-react";
+import { Video } from "lucide-react";
 import Link from "next/link";
-import { toast } from "sonner";
 
 interface VideoConferenceProps {
   token: string;
-  currentRoom: any;
+  currentRoom: Room;
   onDisconnect: () => void;
-  t: any;
 }
 
 const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || "wss://codeconnect-1r7agrz5.livekit.cloud";
 
-export const VideoConferenceComponent = ({ token, currentRoom, onDisconnect, t }: VideoConferenceProps) => {
+export const VideoConferenceComponent = ({ token, currentRoom, onDisconnect }: VideoConferenceProps) => {
   return (
     <div className="min-h-screen bg-background">
       <div className="flex items-center justify-between p-4 border-b">

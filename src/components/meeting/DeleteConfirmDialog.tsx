@@ -8,20 +8,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
 
 interface DeleteConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
-  t: any;
 }
 
 export const DeleteConfirmDialog = ({ 
   open, 
   onOpenChange, 
   onConfirm, 
-  t 
 }: DeleteConfirmDialogProps) => {
+  const t = useTranslations("meeting");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>

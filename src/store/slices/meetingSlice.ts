@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axiosInstance from '@/lib/axios';
 import { User } from '@/types/user';
 
@@ -12,6 +12,7 @@ export interface Room {
   isActive: boolean;
   createdBy: User;
   invitedUsers: User[];
+  inviteEmail?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -59,8 +60,8 @@ export const fetchRooms = createAsyncThunk(
       // Fetch only rooms created by the current user
       const response = await axiosInstance.get('/livekit/rooms/user/my-rooms');
       return response.data;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch rooms');
+    } catch (error) {
+      return rejectWithValue((error as Error).message || 'Failed to fetch rooms');
     }
   }
 );
@@ -81,9 +82,9 @@ export const createRoom = createAsyncThunk(
 
       const response = await axiosInstance.post('/livekit/rooms', payload);
       return response.data;
-    } catch (error: any) {
-      console.error('Create room error:', error.response?.data || error.message);
-      return rejectWithValue(error.response?.data?.message || 'Failed to create room');
+    } catch (error) {
+      console.error('Create room error:', (error as Error).message);
+      return rejectWithValue((error as Error).message || 'Failed to create room');
     }
   }
 );
@@ -104,9 +105,9 @@ export const updateRoom = createAsyncThunk(
 
       const response = await axiosInstance.put(`/livekit/rooms/${roomId}`, payload);
       return response.data;
-    } catch (error: any) {
-      console.error('Update room error:', error.response?.data || error.message);
-      return rejectWithValue(error.response?.data?.message || 'Failed to update room');
+    } catch (error) {
+      console.error('Update room error:', (error as Error).message);
+      return rejectWithValue((error as Error).message || 'Failed to update room');
     }
   }
 );
@@ -118,8 +119,8 @@ export const deleteRoom = createAsyncThunk(
     try {
       await axiosInstance.delete(`/livekit/rooms/${roomId}`);
       return roomId;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to delete room');
+    } catch (error) {
+      return rejectWithValue((error as Error).message || 'Failed to delete room');
     }
   }
 );
@@ -157,7 +158,7 @@ const meetingSlice = createSlice({
         state.createLoading = true;
         state.error = null;
       })
-      .addCase(createRoom.fulfilled, (state, action) => {
+      .addCase(createRoom.fulfilled, (state) => {
         state.createLoading = false;
         // Don't add to state here since we're refetching the complete list
         // state.rooms.push(action.payload);
