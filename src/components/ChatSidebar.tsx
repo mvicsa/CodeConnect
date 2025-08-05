@@ -184,7 +184,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
           )}
         >
           <div 
-            className="flex items-center space-x-3 flex-1 cursor-pointer"
+            className="flex items-center space-x-3 flex-1 cursor-pointer overflow-hidden"
             onClick={() => handleChatSelect(preview._id)}
           >
             <div className="relative">
