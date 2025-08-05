@@ -15,6 +15,7 @@ import sparksReducer from './slices/sparksSlice'
 import aiSuggestionsReducer from './slices/aiSuggestionsSlice'
 import archiveReducer from './slices/archiveSlice'
 import blockReducer from './slices/blockSlice'
+import meetingReducer from './slices/meetingSlice'
 
 
 
@@ -37,7 +38,8 @@ export const store = configureStore({
     sparks: sparksReducer,
     aiSuggestions: aiSuggestionsReducer,
     archive: archiveReducer,
-    block: blockReducer
+    block: blockReducer,
+    meeting: meetingReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

@@ -97,7 +97,15 @@
     "privateRoom": "غرفة خاصة",
     "cancel": "إلغاء",
     "participants": "مشاركين",
-    "recentSessionsTitle": "الجلسات الأخيرة"
+    "recentSessionsTitle": "الجلسات الأخيرة",
+    "roomNameRequired": "اسم الغرفة مطلوب",
+    "roomNameTooShort": "يجب أن يكون اسم الغرفة 3 أحرف على الأقل",
+    "roomNameTooLong": "لا يمكن أن يتجاوز اسم الغرفة 50 حرفًا",
+    "roomDescriptionTooLong": "لا يمكن أن يتجاوز وصف الغرفة 200 حرف",
+    "invalidInvitedEmails": "بعض البريد الإلكتروني للمدعوين غير صالح",
+    "maxParticipantsExceeded": "تم تجاوز الحد الأقصى للمشاركين",
+    "privateRoomError": "خطأ في إنشاء الغرفة الخاصة. يرجى التحقق من الإعدادات",
+    "invalidEmailFormat": "تنسيق البريد الإلكتروني غير صالح للعناوين: {{emails}}"
   },
   "tags": {
     "title": "العلامات",

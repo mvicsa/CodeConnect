@@ -27,6 +27,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Img from "next/image";
+import MarkdownWithCode from "./MarkdownWithCode";
+import { useTheme } from 'next-themes';
 
 interface ChatWindowProps {
   onBackToList: () => void;
@@ -83,6 +85,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const dispatch = useDispatch<AppDispatch>();
   const { checkBlockStatus, isBlocked, isBlockedBy } = useBlock();
   const checkBlockStatusRef = useRef(checkBlockStatus);
+  const { theme } = useTheme();
 
   // Block functionality
   const handleBlockUser = async () => {
@@ -588,12 +591,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     {msg.replyTo.sender._id === myUserId ? "you" : `${msg.replyTo.sender.firstName} ${msg.replyTo.sender.lastName}`}
                   </span>
                 </p>
-                <p className={cn(
+                <div className={cn(
                   "opacity-70 truncate",
                   isCurrentUser ? "text-secondary-foreground mt-1" : "text-gray-400"
                 )}>
-                  {msg.replyTo.content}
-                </p>
+                  <MarkdownWithCode 
+                    content={msg.replyTo.content} 
+                    theme={theme === 'dark' ? 'dark' : 'light'} 
+                  />
+                </div>
               </div>
             )}
             
@@ -653,7 +659,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               )}
               
               {/* Text Content */}
-              <p className="text-sm">{msg.content}</p>
+              <div className="text-sm">
+                <MarkdownWithCode 
+                  content={msg.content} 
+                  theme={theme === 'dark' ? 'dark' : 'light'} 
+                />
+              </div>
               <div className="flex items-center justify-between mt-1">
                 <p
                   className={cn(

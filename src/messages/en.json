@@ -99,7 +99,14 @@
     "participants": "participants",
     "recentSessionsTitle": "Recent Sessions",
     "confirm": "Confirm",
-    "delete": "Delete"
+    "delete": "Delete",
+    "roomNameRequired": "Room name is required",
+    "roomNameTooShort": "Room name must be at least 3 characters long",
+    "roomNameTooLong": "Room name cannot exceed 50 characters",
+    "roomDescriptionTooLong": "Room description cannot exceed 200 characters",
+    "invalidInvitedEmails": "Some invited emails are invalid",
+    "maxParticipantsExceeded": "Maximum number of participants exceeded",
+    "privateRoomError": "Error creating private room. Please check your settings"
   },
   "tags": {
     "title": "Tags",
@@ -114,5 +121,6 @@
     "noPostsFound": "No posts found with tag",
     "addTag": "Add a tag...",
     "tags": "Tags"
-  }
+  },
+  "invalidEmailFormat": "Invalid email format for: {{emails}}"
 }
