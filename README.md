@@ -1,85 +1,113 @@
-# CodeConnect ⚡
+# 🚀 CodeConnect - Where Developers Connect & Code Together
 
-A modern, collaborative platform for developers to share code, learn together, and build amazing projects. CodeConnect combines social networking with powerful coding tools to create the ultimate developer community experience.
+<div align="center">
 
-![CodeConnect Banner](https://img.shields.io/badge/CodeConnect-Collaborative%20Coding%20Platform-blue?style=for-the-badge&logo=code)
+![CodeConnect](https://img.shields.io/badge/CodeConnect-Collaborative%20Coding%20Platform-00d4ff?style=for-the-badge&logo=code&logoColor=white)
 
-## ✨ Features
+![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
+![React](https://img.shields.io/badge/React-19-61dafb?style=for-the-badge&logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?style=for-the-badge&logo=typescript)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-38b2ac?style=for-the-badge&logo=tailwind-css)
 
-### 🚀 Core Features
-- **Social Coding Platform** - Share code snippets, projects, and learn from other developers
-- **Real-time Chat** - Connect with fellow developers through instant messaging
-- **Video Meetings** - Host and join coding sessions with LiveKit integration
-- **Code Playground** - Interactive code editor with Sandpack for live coding
-- **Multi-language Support** - Full internationalization (English & Arabic) with RTL support
-- **Dark/Light Themes** - Beautiful UI with theme switching capabilities
+*A modern, collaborative platform where developers share code, learn together, and build amazing projects in real-time* ⚡
 
-### 💻 Development Tools
-- **Interactive Code Editor** - Write, test, and share code in real-time
-- **Syntax Highlighting** - Support for multiple programming languages
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-View%20Now-green?style=for-the-badge)](https://codeconnect.dev)
+
+</div>
+
+---
+
+## 🌟 What is CodeConnect?
+
+CodeConnect is the ultimate social coding platform that combines the power of collaborative development with modern social networking. Think of it as **GitHub meets Discord meets VS Code** - all in one beautiful, real-time experience.
+
+### ✨ Why CodeConnect?
+
+- 🎯 **Learn Together** - Share code snippets, get feedback, and learn from the community
+- 🤝 **Collaborate in Real-time** - Live coding sessions, pair programming, and instant messaging
+- 🚀 **Build Faster** - Interactive code playground with instant preview and sharing
+- 🌍 **Global Community** - Connect with developers worldwide in multiple languages
+- 🎨 **Beautiful Experience** - Modern UI with dark/light themes and smooth animations
+
+---
+
+## 🎮 Core Features
+
+### 💻 **Interactive Code Playground**
+- **Sandpack Integration** - Write, test, and share code in real-time
+- **Multi-file Support** - Create complex projects with multiple files
+- **Live Preview** - See your code changes instantly
+- **Syntax Highlighting** - Support for 50+ programming languages
 - **Code Sharing** - Save and share your coding sparks with the community
-- **Rating System** - Rate and discover quality code snippets
-- **File Management** - Create and manage multiple files in your projects
 
-### 👥 Social Features
-- **User Profiles** - Customizable profiles with avatar support
+### 🎥 **Real-time Video Meetings**
+- **LiveKit Powered** - High-quality video conferencing
+- **Screen Sharing** - Share your screen for pair programming
+- **Room Management** - Create private or public coding sessions
+- **Recording** - Record your coding sessions for later review
+
+### 💬 **Smart Chat System**
+- **Real-time Messaging** - Instant communication with Socket.io
+- **Code Snippets** - Share code directly in chat
+- **File Sharing** - Upload and share files seamlessly
+- **User Status** - See who's online and available
+
+### 👥 **Social Coding Network**
+- **Developer Profiles** - Showcase your skills and projects
 - **Follow System** - Follow other developers and stay updated
-- **Reactions** - React to posts with emojis (like, love, funny, etc.)
-- **Comments & Replies** - Engage in meaningful discussions
-- **Search & Discovery** - Find posts, users, and tags easily
-- **Blocking System** - Manage your community experience
+- **Reactions & Comments** - Engage with emoji reactions and discussions
+- **Search & Discovery** - Find posts, users, and trending topics
 
-### 📱 Modern UI/UX
-- **Responsive Design** - Works perfectly on desktop, tablet, and mobile
-- **Infinite Scroll** - Smooth browsing experience
-- **Real-time Notifications** - Stay updated with instant notifications
-- **Accessibility** - Built with accessibility in mind
-- **Modern Components** - Beautiful UI components using Radix UI
+### 🌐 **Global Accessibility**
+- **Multi-language Support** - English & Arabic with RTL support
+- **Responsive Design** - Perfect on desktop, tablet, and mobile
+- **Accessibility First** - Built with accessibility in mind
+- **Dark/Light Themes** - Beautiful themes with system detection
+
+---
 
 ## 🛠️ Technology Stack
 
-### Frontend
-- **Next.js 15** - React framework with App Router
-- **React 19** - Latest React with concurrent features
-- **TypeScript** - Type-safe development
-- **Tailwind CSS 4** - Utility-first CSS framework
-- **Redux Toolkit** - State management
-- **Next-intl** - Internationalization
+### **Frontend Framework**
+![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat&logo=next.js)
+![React](https://img.shields.io/badge/React-19-61dafb?style=flat&logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?style=flat&logo=typescript)
 
-### UI Components
-- **Radix UI** - Accessible component primitives
-- **Lucide React** - Beautiful icons
-- **Framer Motion** - Smooth animations
-- **Sonner** - Toast notifications
+### **Styling & UI**
+![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-38b2ac?style=flat&logo=tailwind-css)
+![Radix UI](https://img.shields.io/badge/Radix%20UI-Primitives-161618?style=flat)
+![Framer Motion](https://img.shields.io/badge/Framer%20Motion-12-0055ff?style=flat&logo=framer)
 
-### Code Editing & Collaboration
-- **Sandpack** - Interactive code playground
-- **Shiki** - Syntax highlighting
-- **LiveKit** - Real-time video meetings
-- **Socket.io** - Real-time chat functionality
+### **Code Editing & Collaboration**
+![Monaco](https://img.shields.io/badge/Monaco-Editor-494949?style=flat&logo=monaco)
+![Sandpack](https://img.shields.io/badge/Sandpack-Playground-000000?style=flat&logo=codesandbox)
+![Shiki](https://img.shields.io/badge/Shiki-Syntax%20Highlighting-854DFF?style=flat)
+![LiveKit](https://img.shields.io/badge/LiveKit-Video%20Meetings-000000?style=flat)
 
-### Authentication & Storage
-- **Clerk** - Authentication and user management
-- **ImageKit** - Image upload and management
-- **JWT** - Token-based authentication
+### **State Management & Data**
+![Redux Toolkit](https://img.shields.io/badge/Redux%20Toolkit-2.8-764abc?style=flat&logo=redux)
+![Socket.io](https://img.shields.io/badge/Socket.io-Real--time-010101?style=flat&logo=socket.io)
+![Axios](https://img.shields.io/badge/Axios-HTTP%20Client-5A29E4?style=flat&logo=axios)
 
-### Development Tools
-- **ESLint** - Code linting
-- **PostCSS** - CSS processing
-- **Vite** - Fast development server
+### **Authentication & Storage**
+![Clerk](https://img.shields.io/badge/Clerk-Authentication-6C47FF?style=flat)
+![ImageKit](https://img.shields.io/badge/ImageKit-Media%20CDN-4F46E5?style=flat)
+![JWT](https://img.shields.io/badge/JWT-Tokens-000000?style=flat&logo=json-web-tokens)
 
-## 🚀 Getting Started
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
-- npm or yarn
-- Git
+- **Node.js** 18+ 
+- **npm** or **yarn**
+- **Git**
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/codeconnect.git
+   git clone https://github.com/mvicsa/codeconnect.git
    cd codeconnect
    ```
 
@@ -91,30 +119,23 @@ A modern, collaborative platform for developers to share code, learn together, a
    ```
 
 3. **Environment Setup**
+   
    Create a `.env.local` file in the root directory:
    ```env
-   # Authentication
-   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-   CLERK_SECRET_KEY=your_clerk_secret_key
    
    # API Configuration
    NEXT_PUBLIC_API_URL=http://localhost:5000
    
-   # LiveKit (Video Meetings)
-   NEXT_PUBLIC_LIVEKIT_URL=your_livekit_url
-   LIVEKIT_API_KEY=your_livekit_api_key
-   LIVEKIT_API_SECRET=your_livekit_api_secret
-   
-   # ImageKit (Image Upload)
-   NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT=your_imagekit_url
+   # Media Storage (ImageKit)
+   NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT=https://ik.imagekit.io/your_endpoint
    NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY=your_imagekit_public_key
    IMAGEKIT_PRIVATE_KEY=your_imagekit_private_key
    
-   # Socket.io (Real-time Chat)
-   NEXT_PUBLIC_SOCKET_URL=your_socket_url
+   # Real-time Chat (Socket.io)
+   NEXT_PUBLIC_SOCKET_URL=http://localhost:3001
    ```
 
-4. **Run the development server**
+4. **Start development server**
    ```bash
    npm run dev
    # or
@@ -122,108 +143,232 @@ A modern, collaborative platform for developers to share code, learn together, a
    ```
 
 5. **Open your browser**
-   Navigate to [http://localhost:3000](http://localhost:3000)
+   Navigate to [http://localhost:3000](http://localhost:3000) 🎉
+
+---
 
 ## 📁 Project Structure
 
 ```
 CodeConnect/
-├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── [locale]/          # Internationalization routes
-│   │   │   ├── (auth)/        # Authentication pages
-│   │   │   ├── (mainlayout)/  # Main application layout
-│   │   │   │   ├── (timeline)/ # Social feed
-│   │   │   │   ├── playground/ # Code playground
-│   │   │   │   ├── chat/      # Real-time chat
-│   │   │   │   ├── meeting/   # Video meetings
-│   │   │   │   └── profile/   # User profiles
-│   │   │   └── api/           # API routes
-│   ├── components/            # Reusable components
-│   │   ├── ui/               # Base UI components
-│   │   ├── post/             # Post-related components
-│   │   ├── chat/             # Chat components
-│   │   └── layout/           # Layout components
-│   ├── store/                # Redux store and slices
-│   ├── hooks/                # Custom React hooks
-│   ├── lib/                  # Utility functions
-│   ├── types/                # TypeScript type definitions
-│   └── messages/             # Internationalization files
-├── public/                   # Static assets
-└── package.json             # Dependencies and scripts
+├── 📱 src/app/                    # Next.js App Router
+│   ├── 🌐 [locale]/              # Internationalization
+│   │   ├── 🔐 (auth)/            # Authentication pages
+│   │   ├── 🏠 (mainlayout)/      # Main app layout
+│   │   │   ├── 📰 (timeline)/    # Social feed & posts
+│   │   │   ├── 🎮 playground/    # Code playground
+│   │   │   ├── 💬 chat/          # Real-time chat
+│   │   │   ├── 🎥 meeting/       # Video meetings
+│   │   │   ├── 👤 profile/       # User profiles
+│   │   │   └── 🔍 search/        # Search functionality
+│   │   └── 🔌 api/               # API routes
+│   ├── 🧩 components/            # Reusable components
+│   │   ├── 🎨 ui/               # Base UI components
+│   │   ├── 📝 post/             # Post components
+│   │   ├── 💬 chat/             # Chat components
+│   │   ├── 🎮 code/             # Code editor components
+│   │   └── 🏗️ layout/           # Layout components
+│   ├── 🗂️ store/                # Redux store & slices
+│   ├── 🎣 hooks/                # Custom React hooks
+│   ├── 🛠️ lib/                  # Utility functions
+│   ├── 📝 types/                # TypeScript definitions
+│   └── 🌍 messages/             # i18n files
+├── 📦 public/                   # Static assets
+└── 📄 package.json             # Dependencies & scripts
 ```
 
-## 🌟 Key Features in Detail
+---
 
-### Code Playground
-- Interactive code editor powered by Sandpack
-- Support for multiple file types (JS, TS, CSS)
-- Real-time preview
-- Save and share code snippets
-- Rating system for community feedback
+## 🎯 Key Features Deep Dive
 
-### Real-time Chat
-- Instant messaging between users
-- Socket.io integration for real-time communication
-- Message history and notifications
-- User status indicators
+### 🎮 **Interactive Code Playground**
+```typescript
+// Example: Creating a code snippet
+const codeSnippet = {
+  title: "React Hooks Example",
+  language: "typescript",
+  code: `
+    import { useState, useEffect } from 'react';
+    
+    function Counter() {
+      const [count, setCount] = useState(0);
+      
+      useEffect(() => {
+        document.title = \`Count: \${count}\`;
+      }, [count]);
+      
+      return (
+        <button onClick={() => setCount(count + 1)}>
+          Count: {count}
+        </button>
+      );
+    }
+  `,
+  tags: ["react", "hooks", "typescript"]
+};
+```
 
-### Video Meetings
-- LiveKit-powered video conferencing
-- Create and join meeting rooms
-- Screen sharing capabilities
-- Room management and permissions
+**Features:**
+- ✅ **Real-time Preview** - See changes instantly
+- ✅ **Multi-file Support** - Create complex projects
+- ✅ **Syntax Highlighting** - 50+ languages supported
+- ✅ **Code Sharing** - Share with one click
+- ✅ **Rating System** - Community feedback
+- ✅ **Version History** - Track code evolution
 
-### Social Feed
-- Infinite scroll timeline
-- Post reactions and comments
-- User following system
-- Search and filtering capabilities
+### 🎥 **Video Meetings & Collaboration**
+- **High-quality Video** - Powered by LiveKit
+- **Screen Sharing** - Perfect for pair programming
+- **Room Permissions** - Public or private sessions
+- **Recording** - Save sessions for later
+- **Chat Integration** - Text chat during calls
 
-## 🎨 Customization
+### 💬 **Smart Chat System**
+- **Real-time Messaging** - Instant communication
+- **Code Snippets** - Share code in chat
+- **File Attachments** - Upload and share files
+- **User Status** - Online/offline indicators
+- **Message History** - Persistent conversations
 
-### Themes
-The application supports both light and dark themes with automatic system detection. Users can manually switch between themes using the theme toggle.
+### 👥 **Social Features**
+- **Developer Profiles** - Showcase your skills
+- **Follow System** - Connect with developers
+- **Reactions** - React with emojis
+- **Comments & Replies** - Engage in discussions
+- **Search & Discovery** - Find content easily
+
+---
+
+## 🎨 Customization & Theming
+
+### Theme System
+```typescript
+// Automatic theme detection
+const theme = useTheme(); // 'light' | 'dark' | 'system'
+
+// Manual theme switching
+const { setTheme } = useTheme();
+setTheme('dark'); // Switch to dark mode
+```
 
 ### Internationalization
 Currently supports:
-- English (en)
-- Arabic (ar) with RTL support
+- 🇺🇸 **English** (en)
+- 🇸🇦 **Arabic** (ar) with RTL support
 
-To add more languages, create new message files in `src/messages/` and update the locale configuration.
+To add more languages:
+1. Create new message files in `src/messages/`
+2. Update locale configuration
+3. Add language switcher component
+
+---
+
+## 🚀 Deployment
+
+### Vercel (Recommended)
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy
+vercel --prod
+```
+
+### Docker
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+### Environment Variables
+Make sure to set all required environment variables in your deployment platform.
+
+---
 
 ## 🤝 Contributing
 
-We welcome contributions! Please follow these steps:
+We love contributions! Here's how you can help:
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+### 🐛 **Bug Reports**
+- Use the [GitHub Issues](https://github.com/mvicsa/codeconnect/issues) page
+- Include detailed steps to reproduce
+- Add screenshots if applicable
 
-### Development Guidelines
-- Follow TypeScript best practices
-- Use ESLint for code linting
-- Write meaningful commit messages
-- Test your changes thoroughly
-- Update documentation when needed
+### 💡 **Feature Requests**
+- Open a [Feature Request](https://github.com/mvicsa/codeconnect/issues/new?template=feature_request.md)
+- Describe the use case and benefits
+- Include mockups if possible
+
+### 🔧 **Code Contributions**
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
+4. **Push** to the branch (`git push origin feature/amazing-feature`)
+5. **Open** a Pull Request
+
+### 📋 **Development Guidelines**
+- ✅ Follow TypeScript best practices
+- ✅ Use ESLint for code linting
+- ✅ Write meaningful commit messages
+- ✅ Test your changes thoroughly
+- ✅ Update documentation when needed
+- ✅ Follow the existing code style
+
+---
+
+## 📊 Project Status
+
+![GitHub stars](https://img.shields.io/github/stars/mvicsa/codeconnect?style=social)
+![GitHub forks](https://img.shields.io/github/forks/mvicsa/codeconnect?style=social)
+![GitHub issues](https://img.shields.io/github/issues/mvicsa/codeconnect)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/mvicsa/codeconnect)
+![GitHub license](https://img.shields.io/github/license/mvicsa/codeconnect)
+
+**Current Version:** `0.1.0`  
+**Last Updated:** `August 2025`  
+**Status:** `Active Development` 🚀
+
+---
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+---
 
 ## 🙏 Acknowledgments
 
-- [Next.js](https://nextjs.org/) - The React framework
-- [Sandpack](https://sandpack.codesandbox.io/) - Code playground
-- [LiveKit](https://livekit.io/) - Real-time video
-- [Radix UI](https://www.radix-ui.com/) - UI components
-- [Tailwind CSS](https://tailwindcss.com/) - CSS framework
+<div align="center">
+
+**Special thanks to these amazing projects that make CodeConnect possible:**
+
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat&logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61dafb?style=flat&logo=react)](https://reactjs.org/)
+[![Sandpack](https://img.shields.io/badge/Sandpack-Playground-000000?style=flat&logo=codesandbox)](https://sandpack.codesandbox.io/)
+[![LiveKit](https://img.shields.io/badge/LiveKit-Video-000000?style=flat)](https://livekit.io/)
+[![Radix UI](https://img.shields.io/badge/Radix%20UI-Primitives-161618?style=flat)](https://www.radix-ui.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-38b2ac?style=flat&logo=tailwind-css)](https://tailwindcss.com/)
+
+</div>
 
 ---
 
 <div align="center">
-  <p>Made with ❤️ by the CodeConnect Team</p>
-  <p>Join our community and start coding together! ⚡</p>
+
+## 🌟 **Join the CodeConnect Community!**
+
+**Connect, Code, and Create together** ⚡
+
+[![GitHub](https://img.shields.io/badge/GitHub-Star%20Us-181717?style=for-the-badge&logo=github)](https://github.com/mvicsa/codeconnect)
+
+**Made with ❤️ by the CodeConnect Team**
+
+*Where developers connect, collaborate, and code together* 🚀
+
 </div>
