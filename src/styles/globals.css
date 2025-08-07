@@ -238,3 +238,4 @@ canvas {
 .toast-notification [data-action] {
   @apply bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-200;
 }
+
