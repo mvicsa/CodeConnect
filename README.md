@@ -11,7 +11,7 @@
 
 *A modern, collaborative platform where developers share code, learn together, and build amazing projects in real-time* ⚡
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-View%20Now-green?style=for-the-badge)](https://codeconnect.dev)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-View%20Now-green?style=for-the-badge)](https://code-connect-vert.vercel.app/)
 
 </div>
 
