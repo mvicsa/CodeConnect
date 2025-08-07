@@ -1,14 +1,14 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { createHighlighter } from 'shiki'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useSelector } from 'react-redux'
 import { RootState } from '../../store/store'
 import { Button } from '../ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import { Loader2, X } from 'lucide-react'
-import { Textarea } from '../ui/textarea'
+import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import Editor from '@monaco-editor/react'
+import { selectAllLanguages, selectLanguageById, ProgrammingLanguage } from '../../store/slices/programmingLanguagesSlice'
+import CommandLanguageSelector from './CommandLanguageSelector'
 
 interface CodeEditorProps {
   value: string
@@ -19,9 +19,9 @@ interface CodeEditorProps {
   onRemove?: () => void
   showRemoveButton?: boolean
   className?: string
+  height?: string
+  readOnly?: boolean
 }
-
-type Highlighter = Awaited<ReturnType<typeof createHighlighter>>
 
 export default function CodeEditor({
   value,
@@ -30,233 +30,655 @@ export default function CodeEditor({
   onLanguageChange,
   className,
   onRemove,
-  showRemoveButton = true
+  showRemoveButton = true,
+  height = '240px',
+  readOnly = false
 }: CodeEditorProps) {
-  const programmingLanguages = useSelector((state: RootState) => state.programmingLanguages?.languages || [])
-  const [highlightedHtml, setHighlightedHtml] = useState('')
-  const [isHighlighting, setIsHighlighting] = useState(false)
-  const editorRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const highlightTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const highlighterRef = useRef<Highlighter | null>(null)
+  const programmingLanguages = useSelector(selectAllLanguages)
+  const editorRef = useRef<any>(null)
+  const monacoRef = useRef<any>(null)
+  const [isEditorReady, setIsEditorReady] = useState(false)
+  const [themesLoaded, setThemesLoaded] = useState(false)
 
-  // Highlight code like CodeBlock with caching
-  const highlightCode = useCallback(async (code: string, lang: string) => {
-    if (!code) {
-      setHighlightedHtml('')
-      return
-    }
-
-    setIsHighlighting(true)
-    try {
-      const htmlEl = document.documentElement
-      const isDark = htmlEl.classList.contains('dark')
-      const themeName = isDark ? 'code-dark' : 'code-light'
-
-      // Check if we need to create a new highlighter (language or theme changed)
-      const needsNewHighlighter = !highlighterRef.current || 
-        !highlighterRef.current.getLoadedLanguages().includes(lang) ||
-        !highlighterRef.current.getLoadedThemes().includes(themeName)
-
-      if (needsNewHighlighter) {
-        // Dispose old highlighter if it exists
-        if (highlighterRef.current) {
-          try {
-            highlighterRef.current.dispose()
-          } catch (error) {
-            console.warn('Error disposing highlighter:', error)
-          }
-        }
-
-        try {
-          const themePath = `/themes/${themeName}.json`
-          const response = await fetch(themePath)
-          
-          if (!response.ok) {
-            throw new Error(`Failed to load theme: ${response.status} ${response.statusText}`)
-          }
-          
-          const customTheme = await response.json()
-
-          highlighterRef.current = await createHighlighter({
-            langs: [lang || 'javascript'],
-            themes: [{ name: themeName, ...customTheme }],
-          })
-        } catch (themeError) {
-          console.error('Failed to load theme, using fallback:', themeError)
-          // Use a simple fallback theme
-          const fallbackTheme = {
-            name: themeName,
-            type: (isDark ? 'dark' : 'light') as 'dark' | 'light',
-            settings: [
-              {
-                scope: ['comment'],
-                settings: { foreground: isDark ? '#6a9955' : '#008000' }
-              },
-              {
-                scope: ['string'],
-                settings: { foreground: isDark ? '#ce9178' : '#a31515' }
-              },
-              {
-                scope: ['keyword'],
-                settings: { foreground: isDark ? '#569cd6' : '#0000ff' }
-              }
-            ],
-            fg: isDark ? '#d4d4d4' : '#000000',
-            bg: isDark ? '#1e1e1e' : '#ffffff'
-          }
-
-          highlighterRef.current = await createHighlighter({
-            langs: [lang || 'javascript'],
-            themes: [fallbackTheme],
-          })
-        }
-      }
-
-      if (!highlighterRef.current) {
-        throw new Error('Failed to create highlighter')
-      }
-
-      const html = highlighterRef.current.codeToHtml(code, {
-        lang: lang || 'javascript',
-        theme: themeName,
-      })
-
-      // Check if the highlighted HTML has the same line count as the original code
-      const originalLines = code.split('\n')
-      const highlightedLines = html.split('\n')
-      
-      // If there's a mismatch in line count, use the original content with highlighting
-      if (originalLines.length !== highlightedLines.length) {
-        // Use the original code structure but with basic highlighting
-        const fallbackHtml = code.replace(/\n/g, '<br>')
-        setHighlightedHtml(fallbackHtml)
-      } else {
-        setHighlightedHtml(html)
-      }
-    } catch (error) {
-      console.error('Failed to highlight code:', error)
-      // Fallback to plain text with preserved line structure
-      setHighlightedHtml(code.replace(/\n/g, '<br>'))
-    } finally {
-      setIsHighlighting(false)
-    }
+  // Get current theme
+  const getCurrentTheme = useCallback(() => {
+    if (typeof window === 'undefined') return 'code-light'
+    const htmlEl = document.documentElement
+    const isDark = htmlEl.classList.contains('dark')
+    return isDark ? 'code-dark' : 'code-light'
   }, [])
 
-  // Highlight when value or language changes with debouncing
-  useEffect(() => {
-    // Clear previous timeout
-    if (highlightTimeoutRef.current) {
-      clearTimeout(highlightTimeoutRef.current)
+  // Load custom themes
+  const loadCustomThemes = useCallback(async (monaco: any) => {
+    if (themesLoaded) return
+    
+    try {
+      // Load light theme
+      const lightThemeResponse = await fetch('/themes/code-light.json')
+      const lightTheme = await lightThemeResponse.json()
+      
+      // Load dark theme
+      const darkThemeResponse = await fetch('/themes/code-dark.json')
+      const darkTheme = await darkThemeResponse.json()
+
+      // Define custom themes
+      monaco.editor.defineTheme('code-light', {
+        base: 'vs',
+        inherit: true,
+        rules: [],
+        colors: lightTheme.colors
+      })
+
+      monaco.editor.defineTheme('code-dark', {
+        base: 'vs-dark',
+        inherit: true,
+        rules: [],
+        colors: darkTheme.colors
+      })
+
+      setThemesLoaded(true)
+    } catch (error) {
+      console.warn('Failed to load custom themes, using defaults:', error)
+      // Define fallback themes
+      monaco.editor.defineTheme('code-light', {
+        base: 'vs',
+        inherit: true,
+        rules: [],
+        colors: {}
+      })
+
+      monaco.editor.defineTheme('code-dark', {
+        base: 'vs-dark',
+        inherit: true,
+        rules: [],
+        colors: {}
+      })
+      setThemesLoaded(true)
     }
+  }, [themesLoaded])
 
-    // Debounce highlighting to avoid excessive calls
-    highlightTimeoutRef.current = setTimeout(() => {
-      highlightCode(value, language)
-    }, 300) // 300ms delay
-
-    return () => {
-      if (highlightTimeoutRef.current) {
-        clearTimeout(highlightTimeoutRef.current)
-      }
+  // Handle theme changes
+  const handleThemeChange = useCallback(() => {
+    if (editorRef.current && monacoRef.current && themesLoaded) {
+      const theme = getCurrentTheme()
+      monacoRef.current.editor.setTheme(theme)
     }
-  }, [value, language, highlightCode])
+  }, [getCurrentTheme, themesLoaded])
 
-  // Watch for theme changes like CodeBlock
+  // Watch for theme changes
   useEffect(() => {
+    if (typeof window === 'undefined') return
+
     const htmlEl = document.documentElement
-    const observer = new MutationObserver(() => {
-      if (value) {
-        // Clear previous timeout
-        if (highlightTimeoutRef.current) {
-          clearTimeout(highlightTimeoutRef.current)
-        }
-        
-        // Debounce theme change highlighting too
-        highlightTimeoutRef.current = setTimeout(() => {
-          highlightCode(value, language)
-        }, 100) // Shorter delay for theme changes
-      }
-    })
-
+    const observer = new MutationObserver(handleThemeChange)
+    
     observer.observe(htmlEl, {
       attributes: true,
       attributeFilter: ['class'],
     })
 
     return () => observer.disconnect()
-  }, [value, language, highlightCode])
+  }, [handleThemeChange])
 
-  // Cleanup highlighter on unmount
+  // Apply theme when themes are loaded
   useEffect(() => {
-    return () => {
-      if (highlighterRef.current) {
-        highlighterRef.current.dispose()
+    if (themesLoaded && monacoRef.current) {
+      const theme = getCurrentTheme()
+      monacoRef.current.editor.setTheme(theme)
+    }
+  }, [themesLoaded, getCurrentTheme])
+
+  // Before Mount - Setup themes before editor initialization
+  const handleBeforeMount = useCallback(async (monaco: any) => {
+    // Load themes first
+    await loadCustomThemes(monaco)
+    
+    // Set initial theme immediately
+    const theme = getCurrentTheme()
+    monaco.editor.setTheme(theme)
+    
+    // Configure Monaco for better TypeScript support
+    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: false,
+      noSyntaxValidation: false,
+    })
+    
+    monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: false,
+      noSyntaxValidation: false,
+    })
+
+    // Configure diagnostics for other languages
+    const configureLanguageDiagnostics = (monaco: any) => {
+      const languages = [
+        'java', 'python', 'cpp', 'csharp', 'php', 
+        'go', 'rust', 'kotlin', 'swift', 'scala', 'ruby'
+      ]
+
+      languages.forEach(lang => {
+        if (monaco.languages[lang] && monaco.languages[lang][`${lang}Defaults`]) {
+          monaco.languages[lang][`${lang}Defaults`].setDiagnosticsOptions({
+            noSemanticValidation: false,
+            noSyntaxValidation: false,
+          })
+        }
+      })
+    }
+
+    configureLanguageDiagnostics(monaco)
+  }, [loadCustomThemes, getCurrentTheme])
+
+  // Handle editor mount
+  const handleEditorDidMount = useCallback((editor: any, monaco: any) => {
+    editorRef.current = editor
+    monacoRef.current = monaco
+    
+    // Apply theme again to ensure it's set
+    const theme = getCurrentTheme()
+    monaco.editor.setTheme(theme)
+    
+    // Configure editor options
+    editor.updateOptions({
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      automaticLayout: true,
+      fontSize: 14,
+      fontFamily: 'Josefin Sans, "Courier New", monospace',
+      lineNumbers: 'on',
+      roundedSelection: false,
+      scrollbar: {
+        vertical: 'visible',
+        horizontal: 'visible',
+        verticalScrollbarSize: 8,
+        horizontalScrollbarSize: 8,
+      },
+      folding: true,
+      wordWrap: 'on',
+      suggestOnTriggerCharacters: true,
+      quickSuggestions: {
+        other: true,
+        comments: true,
+        strings: true,
+      },
+      parameterHints: {
+        enabled: true,
+      },
+      hover: {
+        enabled: true,
+      },
+      contextmenu: true,
+      mouseWheelZoom: true,
+      smoothScrolling: true,
+      cursorBlinking: 'blink',
+      cursorSmoothCaretAnimation: 'on',
+      renderWhitespace: 'selection',
+      renderControlCharacters: false,
+      renderLineHighlight: 'all',
+      selectOnLineNumbers: true,
+      glyphMargin: true,
+      foldingStrategy: 'indentation',
+      showFoldingControls: 'always',
+      links: true,
+      colorDecorators: true,
+      bracketPairColorization: {
+        enabled: true,
+      },
+      guides: {
+        bracketPairs: true,
+        indentation: true,
+      },
+      lineNumbersMinChars: 3,
+      lineDecorationsWidth: 10,
+      overviewRulerBorder: false,
+      hideCursorInOverviewRuler: true,
+    })
+
+    // Add code snippets
+    addCodeSnippets(monaco)
+
+    setIsEditorReady(true)
+  }, [getCurrentTheme])
+
+  // Handle editor change
+  const handleEditorChange = useCallback((value: string | undefined) => {
+    if (value !== undefined) {
+      onChange(value)
+    }
+  }, [onChange])
+
+  // Handle language change
+  const handleLanguageChange = useCallback((newLanguage: string) => {
+    onLanguageChange(newLanguage)
+    
+    // Update editor language if editor is ready
+    if (editorRef.current && monacoRef.current) {
+      const model = editorRef.current.getModel()
+      if (model) {
+        monacoRef.current.editor.setModelLanguage(model, newLanguage)
       }
     }
+  }, [onLanguageChange])
+
+  // Get Monaco language ID
+  const getMonacoLanguage = (languageId: string): string => {
+    const language = programmingLanguages.find(lang => lang.id === languageId)
+    return language?.monacoLanguage || 'plaintext'
+  }
+
+  // Add common code snippets
+  const addCodeSnippets = useCallback((monaco: any) => {
+    // JavaScript/TypeScript snippets
+    monaco.languages.registerCompletionItemProvider('javascript', {
+      provideCompletionItems: () => {
+        return {
+          suggestions: [
+            {
+              label: 'console.log',
+              kind: monaco.languages.CompletionItemKind.Function,
+              insertText: 'console.log(${1:value})',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Log a value to the console'
+            },
+            {
+              label: 'function',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'function ${1:functionName}(${2:params}) {',
+                '\t${3:// code}',
+                '}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a new function'
+            },
+            {
+              label: 'arrow function',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: 'const ${1:functionName} = (${2:params}) => {\n\t${3:// code}\n}',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create an arrow function'
+            },
+            {
+              label: 'if',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'if (${1:condition}) {',
+                '\t${2:// code}',
+                '}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create an if statement'
+            },
+            {
+              label: 'for',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'for (let ${1:i} = 0; ${1:i} < ${2:array}.length; ${1:i}++) {',
+                '\t${3:// code}',
+                '}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a for loop'
+            },
+            {
+              label: 'forEach',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: '${1:array}.forEach((${2:item}) => {\n\t${3:// code}\n})',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a forEach loop'
+            },
+            {
+              label: 'map',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: '${1:array}.map((${2:item}) => {\n\treturn ${3:item}\n})',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a map function'
+            },
+            {
+              label: 'filter',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: '${1:array}.filter((${2:item}) => {\n\treturn ${3:condition}\n})',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a filter function'
+            },
+            {
+              label: 'try-catch',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'try {',
+                '\t${1:// code}',
+                '} catch (${2:error}) {',
+                '\t${3:// handle error}',
+                '}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a try-catch block'
+            },
+            {
+              label: 'async function',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'async function ${1:functionName}(${2:params}) {',
+                '\ttry {',
+                '\t\t${3:// code}',
+                '\t} catch (${4:error}) {',
+                '\t\t${5:// handle error}',
+                '\t}',
+                '}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create an async function with error handling'
+            }
+          ]
+        }
+      }
+    })
+
+    // Python snippets
+    monaco.languages.registerCompletionItemProvider('python', {
+      provideCompletionItems: () => {
+        return {
+          suggestions: [
+            {
+              label: 'print',
+              kind: monaco.languages.CompletionItemKind.Function,
+              insertText: 'print(${1:value})',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Print a value to the console'
+            },
+            {
+              label: 'def',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'def ${1:function_name}(${2:params}):',
+                '\t${3:# code}',
+                '\tpass'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a new function'
+            },
+            {
+              label: 'if',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'if ${1:condition}:',
+                '\t${2:# code}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create an if statement'
+            },
+            {
+              label: 'for',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'for ${1:item} in ${2:iterable}:',
+                '\t${3:# code}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a for loop'
+            },
+            {
+              label: 'try-except',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'try:',
+                '\t${1:# code}',
+                'except ${2:Exception} as ${3:e}:',
+                '\t${4:# handle error}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a try-except block'
+            },
+            {
+              label: 'class',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'class ${1:ClassName}:',
+                '\tdef __init__(self, ${2:params}):',
+                '\t\tself.${3:attribute} = ${4:value}',
+                '\t',
+                '\tdef ${5:method_name}(self):',
+                '\t\t${6:# code}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a new class'
+            }
+          ]
+        }
+      }
+    })
+
+    // HTML snippets
+    monaco.languages.registerCompletionItemProvider('html', {
+      provideCompletionItems: () => {
+        return {
+          suggestions: [
+            {
+              label: 'html5',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                '<!DOCTYPE html>',
+                '<html lang="en">',
+                '<head>',
+                '\t<meta charset="UTF-8">',
+                '\t<meta name="viewport" content="width=device-width, initial-scale=1.0">',
+                '\t<title>${1:Document}</title>',
+                '</head>',
+                '<body>',
+                '\t${2}',
+                '</body>',
+                '</html>'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a basic HTML5 document'
+            },
+            {
+              label: 'div',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: '<div>${1}</div>',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a div element'
+            },
+            {
+              label: 'link',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: '<link rel="stylesheet" href="${1:style.css}">',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a link element'
+            },
+            {
+              label: 'script',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: '<script src="${1:script.js}"></script>',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a script element'
+            }
+          ]
+        }
+      }
+    })
+
+    // Java snippets
+    monaco.languages.registerCompletionItemProvider('java', {
+      provideCompletionItems: () => {
+        return {
+          suggestions: [
+            {
+              label: 'public class',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'public class ${1:ClassName} {',
+                '\tpublic static void main(String[] args) {',
+                '\t\t${2:// code}',
+                '\t}',
+                '}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a public class with main method'
+            },
+            {
+              label: 'public method',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'public ${1:void} ${2:methodName}(${3:params}) {',
+                '\t${4:// code}',
+                '}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a public method'
+            },
+            {
+              label: 'if',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'if (${1:condition}) {',
+                '\t${2:// code}',
+                '}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create an if statement'
+            },
+            {
+              label: 'for',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'for (int ${1:i} = 0; ${1:i} < ${2:array}.length; ${1:i}++) {',
+                '\t${3:// code}',
+                '}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a for loop'
+            },
+            {
+              label: 'try-catch',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'try {',
+                '\t${1:// code}',
+                '} catch (${2:Exception} ${3:e}) {',
+                '\t${4:// handle error}',
+                '}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a try-catch block'
+            },
+            {
+              label: 'System.out.println',
+              kind: monaco.languages.CompletionItemKind.Function,
+              insertText: 'System.out.println(${1:value})',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Print a value to the console'
+            }
+          ]
+        }
+      }
+    })
+
+    // C++ snippets
+    monaco.languages.registerCompletionItemProvider('cpp', {
+      provideCompletionItems: () => {
+        return {
+          suggestions: [
+            {
+              label: 'main function',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                '#include <iostream>',
+                'using namespace std;',
+                '',
+                'int main() {',
+                '\t${1:// code}',
+                '\treturn 0;',
+                '}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a main function with iostream'
+            },
+            {
+              label: 'cout',
+              kind: monaco.languages.CompletionItemKind.Function,
+              insertText: 'cout << ${1:value} << endl;',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Print a value to the console'
+            },
+            {
+              label: 'if',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'if (${1:condition}) {',
+                '\t${2:// code}',
+                '}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create an if statement'
+            },
+            {
+              label: 'for',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'for (int ${1:i} = 0; ${1:i} < ${2:size}; ${1:i}++) {',
+                '\t${3:// code}',
+                '}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a for loop'
+            }
+          ]
+        }
+      }
+    })
+
+    // C# snippets
+    monaco.languages.registerCompletionItemProvider('csharp', {
+      provideCompletionItems: () => {
+        return {
+          suggestions: [
+            {
+              label: 'Console.WriteLine',
+              kind: monaco.languages.CompletionItemKind.Function,
+              insertText: 'Console.WriteLine(${1:value});',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Print a value to the console'
+            },
+            {
+              label: 'public class',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'public class ${1:ClassName}',
+                '{',
+                '\tpublic static void Main(string[] args)',
+                '\t{',
+                '\t\t${2:// code}',
+                '\t}',
+                '}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create a public class with Main method'
+            },
+            {
+              label: 'if',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: [
+                'if (${1:condition})',
+                '{',
+                '\t${2:// code}',
+                '}'
+              ].join('\n'),
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Create an if statement'
+            }
+          ]
+        }
+      }
+    })
   }, [])
-
-  // Handle textarea input
-  const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newValue = e.target.value
-    onChange(newValue)
-  }
-
-  // Handle textarea scroll sync (horizontal only)
-  const handleTextareaScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
-    if (editorRef.current) {
-      editorRef.current.scrollLeft = e.currentTarget.scrollLeft
-    }
-  }
-
-  // Handle editor scroll sync (horizontal only)
-  const handleEditorScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (textareaRef.current) {
-      textareaRef.current.scrollLeft = e.currentTarget.scrollLeft
-    }
-  }
-
-  // Handle textarea key events
-  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Tab') {
-      e.preventDefault()
-      const target = e.currentTarget
-      const start = target.selectionStart
-      const end = target.selectionEnd
-      const newValue = value.substring(0, start) + '  ' + value.substring(end)
-      onChange(newValue)
-      
-      // Set cursor position after tab
-      setTimeout(() => {
-        target.setSelectionRange(start + 2, start + 2)
-      }, 0)
-    }
-  }
-
-  // Sync textarea with highlighted content (but don't interfere with cursor)
-  useEffect(() => {
-    if (textareaRef.current && textareaRef.current.value !== value) {
-      textareaRef.current.value = value
-    }
-  }, [value])
 
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Select value={language} onValueChange={onLanguageChange}>
-            <SelectTrigger className="text-xs h-8 w-32">
-              <SelectValue placeholder="Language" />
-            </SelectTrigger>
-            <SelectContent>
-              {programmingLanguages.map((lang: string) => (
-                <SelectItem key={lang} value={lang}>
-                  {lang.toUpperCase()}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <CommandLanguageSelector 
+          value={language} 
+          onValueChange={handleLanguageChange}
+        />
         {showRemoveButton && onRemove && (
           <Button
             size="sm"
@@ -269,60 +691,74 @@ export default function CodeEditor({
         )}
       </div>
       
-      {/* VS Code-like Editor */}
-      <div 
-        className="relative rounded-lg overflow-hidden cursor-text group"
-        dir="ltr"
-      >
-        {/* Hidden textarea for input */}
-        <Textarea
-          ref={textareaRef}
+      {/* Monaco Editor */}
+      <div className="rounded-lg">
+        <Editor
+          height={height}
+          defaultLanguage={getMonacoLanguage(language)}
+          language={getMonacoLanguage(language)}
           value={value}
-          onChange={handleTextareaInput}
-          onScroll={handleTextareaScroll}
-          onKeyDown={handleTextareaKeyDown}
-          spellCheck={false}
-          autoCorrect="off"
-          autoCapitalize="off"
-          autoComplete="off"
-          className="relative resize-none !bg-transparent border-0 rounded-lg outline-none z-50 !text-sm text-transparent w-full overflow-x-auto overflow-y-hidden"
-          style={{
-            color: 'transparent !important',
-            caretColor: 'var(--primary)',
-            whiteSpace: 'pre-wrap',
-            lineHeight: '1.501 !important',
-            fontFamily: 'var(--font-family)',
-            fontSize: '14px !important',
-            pointerEvents: 'auto',
-            userSelect: 'text',
-            padding: '16px',
-            boxShadow: 'none'
+          onChange={handleEditorChange}
+          onMount={handleEditorDidMount}
+          beforeMount={handleBeforeMount}
+          options={{
+            readOnly,
+            theme: getCurrentTheme(),
+            automaticLayout: true,
+            scrollBeyondLastLine: false,
+            minimap: { enabled: false },
+            fontSize: 14,
+            fontFamily: 'Josefin Sans, "Courier New", monospace',
+            lineNumbers: 'on',
+            roundedSelection: false,
+            scrollbar: {
+              vertical: 'visible',
+              horizontal: 'visible',
+              verticalScrollbarSize: 8,
+              horizontalScrollbarSize: 8,
+            },
+            folding: true,
+            wordWrap: 'on',
+            suggestOnTriggerCharacters: true,
+            quickSuggestions: {
+              other: true,
+              comments: true,
+              strings: true,
+            },
+            parameterHints: {
+              enabled: true,
+            },
+            hover: {
+              enabled: true,
+            },
+            contextmenu: true,
+            mouseWheelZoom: true,
+            smoothScrolling: true,
+            cursorBlinking: 'blink',
+            cursorSmoothCaretAnimation: 'on',
+            renderWhitespace: 'selection',
+            renderControlCharacters: false,
+            renderLineHighlight: 'all',
+            selectOnLineNumbers: true,
+            glyphMargin: true,
+            foldingStrategy: 'indentation',
+            showFoldingControls: 'always',
+            links: true,
+            colorDecorators: true,
+            bracketPairColorization: {
+              enabled: true,
+            },
+            guides: {
+              bracketPairs: true,
+              indentation: true,
+            },
+            lineNumbersMinChars: 3,
+            lineDecorationsWidth: 10,
+            overviewRulerBorder: false,
+            hideCursorInOverviewRuler: true,
           }}
         />
-        
-        {/* Syntax highlighted overlay like CodeBlock */}
-        <div
-          ref={editorRef}
-          onScroll={handleEditorScroll}
-          className="absolute top-0 left-0 right-0 bottom-0 text-sm whitespace-prewrap bg-[#f8f8f8] dark:bg-background z-10 pointer-events-none overflow-x-auto overflow-y-hidden"
-          style={{
-            lineHeight: '1.501 !important',
-            fontFamily: 'var(--font-family)',
-            fontSize: '14px !important',
-            padding: '16px'
-          }}
-          dangerouslySetInnerHTML={{ __html: highlightedHtml || value.replace(/\n/g, '<br>') }}
-        />
-        
-        {/* Show highlighting status */}
-        {isHighlighting && (
-          <div className="absolute top-0 right-0 flex items-center justify-center w-full h-full text-muted-foreground bg-background z-20">
-            <div className="text-xs px-2 py-1 rounded">
-              <Loader2 className="size-5 animate-spin" />
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
-} 
+}
