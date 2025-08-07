@@ -5,7 +5,7 @@ import { Button } from '../ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command'
 import { cn } from '@/lib/utils'
-import { Check, ChevronDown, Code } from 'lucide-react'
+import { Check, ChevronDown } from 'lucide-react'
 
 interface CommandLanguageSelectorProps {
   value: string

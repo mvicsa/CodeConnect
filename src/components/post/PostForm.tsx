@@ -469,7 +469,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
 
         {/* Code Editor */}
         {showCodeEditor && (
-          <div className="border rounded-lg p-4 bg-accent">
+          <div className="border rounded-lg p-4 dark:bg-accent">
             <CodeEditor
               value={content.code?.code || ''}
               onChange={handleCodeChange}
@@ -482,7 +482,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
 
         {/* Image Upload */}
         {showImageUpload && (
-          <div className="border rounded-lg p-4 bg-accent">
+          <div className="border rounded-lg p-4 dark:bg-accent">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <h4 className="font-medium flex items-center gap-2">
@@ -547,7 +547,7 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
 
         {/* Video Upload */}
         {(showVideoUpload || content.video) && (
-          <div className="border rounded-lg p-4 bg-accent">
+          <div className="border rounded-lg p-4 dark:bg-accent">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <h4 className="font-medium flex items-center gap-2">

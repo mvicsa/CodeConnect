@@ -9,6 +9,7 @@ import { Badge } from '../ui/badge'
 import { selectAllLanguages, selectLanguagesByCategory, ProgrammingLanguage } from '../../store/slices/programmingLanguagesSlice'
 import { cn } from '@/lib/utils'
 import { ChevronDown, Code, Search } from 'lucide-react'
+import { RootState } from '@/store/store'
 
 interface AdvancedLanguageSelectorProps {
   value: string
@@ -38,18 +39,18 @@ export default function AdvancedLanguageSelector({
   const currentLanguage = programmingLanguages.find(lang => lang.id === value) || programmingLanguages[0]
 
   const languagesByCategory = {
-    web: useSelector((state: any) => selectLanguagesByCategory(state, 'web')),
-    backend: useSelector((state: any) => selectLanguagesByCategory(state, 'backend')),
-    mobile: useSelector((state: any) => selectLanguagesByCategory(state, 'mobile')),
-    desktop: useSelector((state: any) => selectLanguagesByCategory(state, 'desktop')),
-    data: useSelector((state: any) => selectLanguagesByCategory(state, 'data')),
-    other: useSelector((state: any) => selectLanguagesByCategory(state, 'other'))
+    web: useSelector((state: RootState) => selectLanguagesByCategory(state, 'web')),
+    backend: useSelector((state: RootState) => selectLanguagesByCategory(state, 'backend')),
+    mobile: useSelector((state: RootState) => selectLanguagesByCategory(state, 'mobile')),
+    desktop: useSelector((state: RootState) => selectLanguagesByCategory(state, 'desktop')),
+    data: useSelector((state: RootState) => selectLanguagesByCategory(state, 'data')),
+    other: useSelector((state: RootState) => selectLanguagesByCategory(state, 'other'))
   }
 
   // Filter languages based on search
   const filteredLanguages = programmingLanguages.filter(lang => 
     lang.displayName.toLowerCase().includes(searchValue.toLowerCase()) ||
-    lang.description.toLowerCase().includes(searchValue.toLowerCase()) ||
+    lang.description?.toLowerCase().includes(searchValue.toLowerCase()) ||
     lang.category.toLowerCase().includes(searchValue.toLowerCase())
   )
 
@@ -57,7 +58,7 @@ export default function AdvancedLanguageSelector({
   const filteredLanguagesByCategory = Object.entries(languagesByCategory).reduce((acc, [category, languages]) => {
     const filtered = languages.filter(lang => 
       lang.displayName.toLowerCase().includes(searchValue.toLowerCase()) ||
-      lang.description.toLowerCase().includes(searchValue.toLowerCase()) ||
+      lang.description?.toLowerCase().includes(searchValue.toLowerCase()) ||
       lang.category.toLowerCase().includes(searchValue.toLowerCase())
     )
     if (filtered.length > 0) {
