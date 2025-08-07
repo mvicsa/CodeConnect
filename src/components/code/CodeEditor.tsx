@@ -2,13 +2,42 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useSelector } from 'react-redux'
-import { RootState } from '../../store/store'
 import { Button } from '../ui/button'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Editor from '@monaco-editor/react'
-import { selectAllLanguages, selectLanguageById, ProgrammingLanguage } from '../../store/slices/programmingLanguagesSlice'
+
+import { selectAllLanguages } from '../../store/slices/programmingLanguagesSlice'
 import CommandLanguageSelector from './CommandLanguageSelector'
+
+// Monaco types for client-side only
+interface MonacoEditor {
+  getModel(): MonacoModel | null
+  updateOptions(options: Record<string, unknown>): void
+}
+
+interface MonacoModel {
+  setValue(value: string): void
+  getValue(): string
+}
+
+interface MonacoInstance {
+  editor: {
+    setTheme(theme: string): void
+    defineTheme(id: string, theme: { base: string; inherit: boolean; rules: unknown[]; colors: Record<string, string> }): void
+    setModelLanguage(model: MonacoModel, language: string): void
+  }
+  languages: {
+    typescript: {
+      javascriptDefaults: {
+        setDiagnosticsOptions(options: Record<string, unknown>): void
+      }
+      typescriptDefaults: {
+        setDiagnosticsOptions(options: Record<string, unknown>): void
+      }
+    }
+  }
+}
 
 interface CodeEditorProps {
   value: string
@@ -35,9 +64,8 @@ export default function CodeEditor({
   readOnly = false
 }: CodeEditorProps) {
   const programmingLanguages = useSelector(selectAllLanguages)
-  const editorRef = useRef<any>(null)
-  const monacoRef = useRef<any>(null)
-  const [isEditorReady, setIsEditorReady] = useState(false)
+  const editorRef = useRef<MonacoEditor>(null)
+  const monacoRef = useRef<MonacoInstance>(null)
   const [themesLoaded, setThemesLoaded] = useState(false)
 
   // Get current theme
@@ -49,7 +77,7 @@ export default function CodeEditor({
   }, [])
 
   // Load custom themes
-  const loadCustomThemes = useCallback(async (monaco: any) => {
+  const loadCustomThemes = useCallback(async (monacoInstance: MonacoInstance) => {
     if (themesLoaded) return
     
     try {
@@ -62,14 +90,14 @@ export default function CodeEditor({
       const darkTheme = await darkThemeResponse.json()
 
       // Define custom themes
-      monaco.editor.defineTheme('code-light', {
+      monacoInstance.editor.defineTheme('code-light', {
         base: 'vs',
         inherit: true,
         rules: [],
         colors: lightTheme.colors
       })
 
-      monaco.editor.defineTheme('code-dark', {
+      monacoInstance.editor.defineTheme('code-dark', {
         base: 'vs-dark',
         inherit: true,
         rules: [],
@@ -80,14 +108,14 @@ export default function CodeEditor({
     } catch (error) {
       console.warn('Failed to load custom themes, using defaults:', error)
       // Define fallback themes
-      monaco.editor.defineTheme('code-light', {
+      monacoInstance.editor.defineTheme('code-light', {
         base: 'vs',
         inherit: true,
         rules: [],
         colors: {}
       })
 
-      monaco.editor.defineTheme('code-dark', {
+      monacoInstance.editor.defineTheme('code-dark', {
         base: 'vs-dark',
         inherit: true,
         rules: [],
@@ -129,35 +157,36 @@ export default function CodeEditor({
   }, [themesLoaded, getCurrentTheme])
 
   // Before Mount - Setup themes before editor initialization
-  const handleBeforeMount = useCallback(async (monaco: any) => {
+  const handleBeforeMount = useCallback(async (monacoInstance: MonacoInstance) => {
     // Load themes first
-    await loadCustomThemes(monaco)
+    await loadCustomThemes(monacoInstance)
     
     // Set initial theme immediately
     const theme = getCurrentTheme()
-    monaco.editor.setTheme(theme)
+    monacoInstance.editor.setTheme(theme)
     
     // Configure Monaco for better TypeScript support
-    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+    monacoInstance.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
       noSemanticValidation: false,
       noSyntaxValidation: false,
     })
     
-    monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+    monacoInstance.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
       noSemanticValidation: false,
       noSyntaxValidation: false,
     })
 
     // Configure diagnostics for other languages
-    const configureLanguageDiagnostics = (monaco: any) => {
+    const configureLanguageDiagnostics = (monacoInstance: MonacoInstance) => {
       const languages = [
         'java', 'python', 'cpp', 'csharp', 'php', 
         'go', 'rust', 'kotlin', 'swift', 'scala', 'ruby'
       ]
 
       languages.forEach(lang => {
-        if (monaco.languages[lang] && monaco.languages[lang][`${lang}Defaults`]) {
-          monaco.languages[lang][`${lang}Defaults`].setDiagnosticsOptions({
+        const langModule = (monacoInstance.languages as unknown as Record<string, unknown>)[lang];
+        if (langModule && (langModule as Record<string, unknown>)[`${lang}Defaults`]) {
+          ((langModule as Record<string, unknown>)[`${lang}Defaults`] as { setDiagnosticsOptions: (options: { noSemanticValidation: boolean; noSyntaxValidation: boolean }) => void }).setDiagnosticsOptions({
             noSemanticValidation: false,
             noSyntaxValidation: false,
           })
@@ -165,17 +194,17 @@ export default function CodeEditor({
       })
     }
 
-    configureLanguageDiagnostics(monaco)
+    configureLanguageDiagnostics(monacoInstance)
   }, [loadCustomThemes, getCurrentTheme])
 
   // Handle editor mount
-  const handleEditorDidMount = useCallback((editor: any, monaco: any) => {
+  const handleEditorDidMount = useCallback((editor: MonacoEditor, monacoInstance: MonacoInstance) => {
     editorRef.current = editor
-    monacoRef.current = monaco
+    monacoRef.current = monacoInstance
     
     // Apply theme again to ensure it's set
     const theme = getCurrentTheme()
-    monaco.editor.setTheme(theme)
+    monacoInstance.editor.setTheme(theme)
     
     // Configure editor options
     editor.updateOptions({
@@ -234,9 +263,7 @@ export default function CodeEditor({
     })
 
     // Add code snippets
-    addCodeSnippets(monaco)
-
-    setIsEditorReady(true)
+    // addCodeSnippets(monacoInstance)
   }, [getCurrentTheme])
 
   // Handle editor change
@@ -266,411 +293,9 @@ export default function CodeEditor({
   }
 
   // Add common code snippets
-  const addCodeSnippets = useCallback((monaco: any) => {
-    // JavaScript/TypeScript snippets
-    monaco.languages.registerCompletionItemProvider('javascript', {
-      provideCompletionItems: () => {
-        return {
-          suggestions: [
-            {
-              label: 'console.log',
-              kind: monaco.languages.CompletionItemKind.Function,
-              insertText: 'console.log(${1:value})',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Log a value to the console'
-            },
-            {
-              label: 'function',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'function ${1:functionName}(${2:params}) {',
-                '\t${3:// code}',
-                '}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a new function'
-            },
-            {
-              label: 'arrow function',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: 'const ${1:functionName} = (${2:params}) => {\n\t${3:// code}\n}',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create an arrow function'
-            },
-            {
-              label: 'if',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'if (${1:condition}) {',
-                '\t${2:// code}',
-                '}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create an if statement'
-            },
-            {
-              label: 'for',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'for (let ${1:i} = 0; ${1:i} < ${2:array}.length; ${1:i}++) {',
-                '\t${3:// code}',
-                '}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a for loop'
-            },
-            {
-              label: 'forEach',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: '${1:array}.forEach((${2:item}) => {\n\t${3:// code}\n})',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a forEach loop'
-            },
-            {
-              label: 'map',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: '${1:array}.map((${2:item}) => {\n\treturn ${3:item}\n})',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a map function'
-            },
-            {
-              label: 'filter',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: '${1:array}.filter((${2:item}) => {\n\treturn ${3:condition}\n})',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a filter function'
-            },
-            {
-              label: 'try-catch',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'try {',
-                '\t${1:// code}',
-                '} catch (${2:error}) {',
-                '\t${3:// handle error}',
-                '}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a try-catch block'
-            },
-            {
-              label: 'async function',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'async function ${1:functionName}(${2:params}) {',
-                '\ttry {',
-                '\t\t${3:// code}',
-                '\t} catch (${4:error}) {',
-                '\t\t${5:// handle error}',
-                '\t}',
-                '}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create an async function with error handling'
-            }
-          ]
-        }
-      }
-    })
-
-    // Python snippets
-    monaco.languages.registerCompletionItemProvider('python', {
-      provideCompletionItems: () => {
-        return {
-          suggestions: [
-            {
-              label: 'print',
-              kind: monaco.languages.CompletionItemKind.Function,
-              insertText: 'print(${1:value})',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Print a value to the console'
-            },
-            {
-              label: 'def',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'def ${1:function_name}(${2:params}):',
-                '\t${3:# code}',
-                '\tpass'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a new function'
-            },
-            {
-              label: 'if',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'if ${1:condition}:',
-                '\t${2:# code}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create an if statement'
-            },
-            {
-              label: 'for',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'for ${1:item} in ${2:iterable}:',
-                '\t${3:# code}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a for loop'
-            },
-            {
-              label: 'try-except',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'try:',
-                '\t${1:# code}',
-                'except ${2:Exception} as ${3:e}:',
-                '\t${4:# handle error}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a try-except block'
-            },
-            {
-              label: 'class',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'class ${1:ClassName}:',
-                '\tdef __init__(self, ${2:params}):',
-                '\t\tself.${3:attribute} = ${4:value}',
-                '\t',
-                '\tdef ${5:method_name}(self):',
-                '\t\t${6:# code}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a new class'
-            }
-          ]
-        }
-      }
-    })
-
-    // HTML snippets
-    monaco.languages.registerCompletionItemProvider('html', {
-      provideCompletionItems: () => {
-        return {
-          suggestions: [
-            {
-              label: 'html5',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                '<!DOCTYPE html>',
-                '<html lang="en">',
-                '<head>',
-                '\t<meta charset="UTF-8">',
-                '\t<meta name="viewport" content="width=device-width, initial-scale=1.0">',
-                '\t<title>${1:Document}</title>',
-                '</head>',
-                '<body>',
-                '\t${2}',
-                '</body>',
-                '</html>'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a basic HTML5 document'
-            },
-            {
-              label: 'div',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: '<div>${1}</div>',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a div element'
-            },
-            {
-              label: 'link',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: '<link rel="stylesheet" href="${1:style.css}">',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a link element'
-            },
-            {
-              label: 'script',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: '<script src="${1:script.js}"></script>',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a script element'
-            }
-          ]
-        }
-      }
-    })
-
-    // Java snippets
-    monaco.languages.registerCompletionItemProvider('java', {
-      provideCompletionItems: () => {
-        return {
-          suggestions: [
-            {
-              label: 'public class',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'public class ${1:ClassName} {',
-                '\tpublic static void main(String[] args) {',
-                '\t\t${2:// code}',
-                '\t}',
-                '}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a public class with main method'
-            },
-            {
-              label: 'public method',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'public ${1:void} ${2:methodName}(${3:params}) {',
-                '\t${4:// code}',
-                '}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a public method'
-            },
-            {
-              label: 'if',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'if (${1:condition}) {',
-                '\t${2:// code}',
-                '}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create an if statement'
-            },
-            {
-              label: 'for',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'for (int ${1:i} = 0; ${1:i} < ${2:array}.length; ${1:i}++) {',
-                '\t${3:// code}',
-                '}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a for loop'
-            },
-            {
-              label: 'try-catch',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'try {',
-                '\t${1:// code}',
-                '} catch (${2:Exception} ${3:e}) {',
-                '\t${4:// handle error}',
-                '}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a try-catch block'
-            },
-            {
-              label: 'System.out.println',
-              kind: monaco.languages.CompletionItemKind.Function,
-              insertText: 'System.out.println(${1:value})',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Print a value to the console'
-            }
-          ]
-        }
-      }
-    })
-
-    // C++ snippets
-    monaco.languages.registerCompletionItemProvider('cpp', {
-      provideCompletionItems: () => {
-        return {
-          suggestions: [
-            {
-              label: 'main function',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                '#include <iostream>',
-                'using namespace std;',
-                '',
-                'int main() {',
-                '\t${1:// code}',
-                '\treturn 0;',
-                '}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a main function with iostream'
-            },
-            {
-              label: 'cout',
-              kind: monaco.languages.CompletionItemKind.Function,
-              insertText: 'cout << ${1:value} << endl;',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Print a value to the console'
-            },
-            {
-              label: 'if',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'if (${1:condition}) {',
-                '\t${2:// code}',
-                '}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create an if statement'
-            },
-            {
-              label: 'for',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'for (int ${1:i} = 0; ${1:i} < ${2:size}; ${1:i}++) {',
-                '\t${3:// code}',
-                '}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a for loop'
-            }
-          ]
-        }
-      }
-    })
-
-    // C# snippets
-    monaco.languages.registerCompletionItemProvider('csharp', {
-      provideCompletionItems: () => {
-        return {
-          suggestions: [
-            {
-              label: 'Console.WriteLine',
-              kind: monaco.languages.CompletionItemKind.Function,
-              insertText: 'Console.WriteLine(${1:value});',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Print a value to the console'
-            },
-            {
-              label: 'public class',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'public class ${1:ClassName}',
-                '{',
-                '\tpublic static void Main(string[] args)',
-                '\t{',
-                '\t\t${2:// code}',
-                '\t}',
-                '}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create a public class with Main method'
-            },
-            {
-              label: 'if',
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              insertText: [
-                'if (${1:condition})',
-                '{',
-                '\t${2:// code}',
-                '}'
-              ].join('\n'),
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Create an if statement'
-            }
-          ]
-        }
-      }
-    })
-  }, [])
+  // const addCodeSnippets = useCallback((monacoInstance: MonacoInstance) => {
+  //   // Code snippets can be added here if needed
+  // }, [])
 
   return (
     <div className={cn("space-y-3", className)}>
