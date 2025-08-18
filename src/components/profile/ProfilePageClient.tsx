@@ -1,8 +1,9 @@
 'use client'
 
-import PostsProfile from '@/components/post/PostsProfile';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import UserRatingsStats from './UserRatingsStats';
+import ProfileTabs from './ProfileTabs';
 import { RootState } from '@/store/store';
 import { CalendarIcon } from 'lucide-react';
 import React, { useMemo } from 'react';
@@ -1156,8 +1157,12 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
                     </>
                   </CardHeader>
                 </Card>
+
+                {/* User Ratings Stats */}
+                <UserRatingsStats userId={user?._id as string} />
+
                 {(user?.skills as string[])?.length > 0 && (
-                  <div className='mt-8'>
+                  <div className='mt-4'>
                     <h4 className='mb-4 text-2xl font-bold'>Skills</h4>
                   <div className='flex flex-wrap gap-2'>
                     {/* loop through user skills */}
@@ -1167,9 +1172,10 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
                     </div>
                   </div>
                 )}
+
               </div>
               <div className='col-span-16 md:col-span-11'>
-                <PostsProfile userId={user?._id as string} />
+                <ProfileTabs userId={user?._id as string} />
               </div>
             </div>
           </>

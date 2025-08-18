@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Sans_Arabic, Josefin_Sans } from "next/font/google";
+import { IBM_Plex_Sans_Arabic, Jost } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import "@/styles/globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -7,8 +7,8 @@ import ReduxProvider from "@/store/Provider";
 import { RtlProvider } from "@/components/RtlProvider";
 import { Toaster } from "@/components/ui/sonner";
 
-const josefinSans = Josefin_Sans({
-  variable: "--font-josefin-sans",
+const jost = Jost({
+  variable: "--font-jost",
   subsets: ["latin"],
 });
 
@@ -54,7 +54,7 @@ export default async function RootLayout({
         <link rel="alternate" hrefLang="en" href="/en" />
         <link rel="alternate" hrefLang="ar" href="/ar" />
       </head>
-      <body className={`${ibmPlexSansArabic.variable} ${josefinSans.variable}`}>
+      <body className={`${ibmPlexSansArabic.variable} ${jost.variable}`}>
         <NextIntlClientProvider
           key={locale}
           locale={locale}

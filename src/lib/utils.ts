@@ -41,3 +41,14 @@ export function formatTime(dateString: string): string {
         return 'Unknown time';
     }
 }
+
+export function totalTimeSpent(totalTimeSpent: number): string {
+    const totalTimeSpentInSeconds = Math.round(totalTimeSpent / 1000);
+    if (totalTimeSpentInSeconds < 60) {
+        return `${totalTimeSpentInSeconds}s`;
+    } else if (totalTimeSpentInSeconds < 3600) {
+        return `${Math.round(totalTimeSpentInSeconds / 60)}m ${totalTimeSpentInSeconds % 60}s`;
+    } else {
+        return `${Math.round(totalTimeSpentInSeconds / 3600)}h ${Math.round((totalTimeSpentInSeconds % 3600) / 60)}m ${totalTimeSpentInSeconds % 60}s`;
+    }
+}

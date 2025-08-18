@@ -642,6 +642,17 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
       }));
     });
 
+    // Listen for meeting session ended
+    newSocket.on('meeting:session_ended', () => {
+      console.log('🎯 [SOCKET] Session ended event received for user:', user?._id);
+      if (user?._id) {
+        console.log('🔄 [SOCKET] Refreshing meetings data for user:', user._id);
+        dispatch({ type: 'meeting/fetchRooms' });
+        dispatch({ type: 'meeting/fetchPublicSessions' });
+        dispatch({ type: 'meeting/fetchSessionHistory' });
+      }
+    });
+
     // Set the socket instance
     setSocket(newSocket);
 
@@ -667,6 +678,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         newSocket.off('chat:join_room'); // Added this line to remove the listener
         newSocket.off('post:reaction_updated'); // Added this line to remove the listener
         newSocket.off('comment:reaction_updated'); // Added this line to remove the listener
+        newSocket.off('meeting:session_ended'); // Added this line to remove the listener
         newSocket.off('notification');
         newSocket.off('notification:update');
         newSocket.off('notification:delete');

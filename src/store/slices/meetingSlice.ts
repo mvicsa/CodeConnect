@@ -9,12 +9,43 @@ export interface Room {
   isPrivate: boolean;
   maxParticipants: number;
   secretId: string;
+  publicId?: string; // Optional public ID for public rooms
   isActive: boolean;
   createdBy: User;
   invitedUsers: User[];
   inviteEmail?: string;
   createdAt: string;
   updatedAt: string;
+  currentParticipants?: number; // Current number of participants in the room
+}
+
+export interface PublicSession {
+  _id: string;
+  name: string;
+  description: string;
+  isPrivate: boolean;
+  maxParticipants: number;
+  isActive: boolean;
+  createdBy?: User; // Make createdBy optional
+  createdAt: string;
+  updatedAt: string;
+  currentParticipants?: number;
+}
+
+export interface SessionHistory {
+  roomId: string;
+  roomName: string;
+  roomDescription: string;
+  isPrivate: boolean;
+  isActive: boolean;
+  createdBy: User | null; // Make createdBy nullable since API can return null
+  createdAt: string;
+  endedAt?: string | null;
+  duration?: number | null;
+  totalTimeSpent: number;
+  joinCount: number;
+  lastJoined?: string | null; // Make lastJoined nullable since API can return null
+  status: string;
 }
 
 export interface CreateRoomData {
@@ -36,7 +67,11 @@ export interface UpdateRoomData {
 
 interface MeetingState {
   rooms: Room[];
+  publicSessions: PublicSession[];
+  sessionHistory: SessionHistory[];
   loading: boolean;
+  publicSessionsLoading: boolean;
+  sessionHistoryLoading: boolean;
   error: string | null;
   createLoading: boolean;
   updateLoading: boolean;
@@ -45,7 +80,11 @@ interface MeetingState {
 
 const initialState: MeetingState = {
   rooms: [],
+  publicSessions: [],
+  sessionHistory: [],
   loading: false,
+  publicSessionsLoading: true, // Start as true to show loading initially
+  sessionHistoryLoading: false,
   error: null,
   createLoading: false,
   updateLoading: false,
@@ -62,6 +101,33 @@ export const fetchRooms = createAsyncThunk(
       return response.data;
     } catch (error) {
       return rejectWithValue((error as Error).message || 'Failed to fetch rooms');
+    }
+  }
+);
+
+// Fetch public sessions
+export const fetchPublicSessions = createAsyncThunk(
+  'meeting/fetchPublicSessions',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get('/livekit/rooms/public');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue((error as Error).message || 'Failed to fetch public sessions');
+    }
+  }
+);
+
+// Fetch session history
+export const fetchSessionHistory = createAsyncThunk(
+  'meeting/fetchSessionHistory',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get('/livekit/rooms/my-session-history');
+      // Extract the mySessionHistory array from the response
+      return response.data.mySessionHistory || [];
+    } catch (error) {
+      return rejectWithValue((error as Error).message || 'Failed to fetch session history');
     }
   }
 );
@@ -149,6 +215,36 @@ const meetingSlice = createSlice({
       })
       .addCase(fetchRooms.rejected, (state, action) => {
         state.loading = false;
+        state.error = action.payload as string;
+      });
+
+    // Fetch public sessions
+    builder
+      .addCase(fetchPublicSessions.pending, (state) => {
+        state.publicSessionsLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchPublicSessions.fulfilled, (state, action) => {
+        state.publicSessionsLoading = false;
+        state.publicSessions = action.payload;
+      })
+      .addCase(fetchPublicSessions.rejected, (state, action) => {
+        state.publicSessionsLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Fetch session history
+    builder
+      .addCase(fetchSessionHistory.pending, (state) => {
+        state.sessionHistoryLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchSessionHistory.fulfilled, (state, action) => {
+        state.sessionHistoryLoading = false;
+        state.sessionHistory = action.payload;
+      })
+      .addCase(fetchSessionHistory.rejected, (state, action) => {
+        state.sessionHistoryLoading = false;
         state.error = action.payload as string;
       });
 

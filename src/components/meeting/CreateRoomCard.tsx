@@ -7,9 +7,10 @@ import { useTranslations } from "next-intl";
 
 interface CreateRoomCardProps {
   onCreateRoom: () => void;
+  isLoading?: boolean;
 }
 
-export const CreateRoomCard = ({ onCreateRoom }: CreateRoomCardProps) => {
+export const CreateRoomCard = ({ onCreateRoom, isLoading = false }: CreateRoomCardProps) => {
   const t = useTranslations("meeting");
   return (
     <Card className="flex flex-col dark:border-transparent h-full">
@@ -21,9 +22,19 @@ export const CreateRoomCard = ({ onCreateRoom }: CreateRoomCardProps) => {
         <CardDescription className="text-xs sm:text-sm">{t("createNewRoomDesc")}</CardDescription>
       </CardHeader>
       <CardContent className="mt-auto pt-0">
-        <Button onClick={onCreateRoom} className="w-full h-9 sm:h-10 text-sm sm:text-base">
-          <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
-          <span className="ml-2">{t("createRoom")}</span>
+        <Button 
+          onClick={onCreateRoom} 
+          disabled={isLoading}
+          className="w-full h-9 sm:h-10 text-sm sm:text-base"
+        >
+          {isLoading ? (
+            <div className="h-3 w-3 sm:h-4 sm:w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          ) : (
+            <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+          )}
+          <span>
+            {isLoading ? "Creating..." : t("createRoom")}
+          </span>
         </Button>
       </CardContent>
     </Card>

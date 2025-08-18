@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --font-family: 'Josefin Sans', 'IBM Plex Sans Arabic';
+  --font-family: 'Jost', 'IBM Plex Sans Arabic';
 }
 
 body {
@@ -237,5 +237,156 @@ canvas {
 
 .toast-notification [data-action] {
   @apply bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-200;
+}
+
+/* Rating component styles */
+.rating-stars {
+  @apply flex gap-1;
+}
+
+.rating-star {
+  @apply p-2 transition-all duration-200 cursor-pointer;
+}
+
+.rating-star.filled {
+  @apply text-yellow-500 hover:text-yellow-600;
+}
+
+.rating-star.empty {
+  @apply text-gray-300 hover:text-yellow-400;
+}
+
+.rating-form-field {
+  @apply space-y-3;
+}
+
+.rating-form-field label {
+  @apply text-sm font-medium;
+}
+
+.rating-comment-counter {
+  @apply text-xs text-muted-foreground;
+}
+
+/* Enhanced rating animations */
+.rating-star:hover {
+  transform: scale(1.1);
+}
+
+.rating-star:active {
+  transform: scale(0.95);
+}
+
+/* Rating feedback styles */
+.rating-feedback {
+  @apply flex items-center gap-2 text-sm;
+}
+
+.rating-feedback.excellent {
+  @apply text-green-600;
+}
+
+.rating-feedback.very-good {
+  @apply text-blue-600;
+}
+
+.rating-feedback.good {
+  @apply text-yellow-600;
+}
+
+.rating-feedback.needs-improvement {
+  @apply text-orange-600;
+}
+
+/* Rating dialog enhancements */
+.rating-dialog-content {
+  @apply max-w-2xl;
+}
+
+.rating-dialog-header {
+  @apply text-center;
+}
+
+.rating-dialog-icon {
+  @apply mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-yellow-400 to-orange-500;
+}
+
+.rating-dialog-title {
+  @apply text-2xl font-bold;
+}
+
+.rating-dialog-description {
+  @apply text-base leading-relaxed;
+}
+
+/* Session details card */
+.session-details-card {
+  @apply bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 p-6 rounded-xl border border-blue-200/50 dark:border-blue-800/50;
+}
+
+.session-details-header {
+  @apply font-semibold text-blue-900 dark:text-blue-100;
+}
+
+.session-details-content {
+  @apply space-y-1 text-sm text-blue-800 dark:text-blue-200;
+}
+
+.session-details-badge {
+  @apply bg-white/50 dark:bg-blue-900/50 px-2 py-1 rounded text-xs font-mono;
+}
+
+/* Rating buttons */
+.rating-primary-button {
+  @apply flex-1 h-12 text-base font-medium bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 shadow-lg hover:shadow-xl transition-all duration-200;
+}
+
+.rating-secondary-button {
+  @apply h-12 px-6 border-2 hover:bg-muted/50;
+}
+
+/* Rating form grid */
+.rating-form-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+}
+
+/* Rating form spacing */
+.rating-form-section {
+  @apply space-y-6;
+}
+
+.rating-form-actions {
+  @apply flex gap-3 justify-end pt-4 border-t;
+}
+
+/* Rating form inputs */
+.rating-form-textarea {
+  @apply resize-none transition-all duration-200 focus:ring-2 focus:ring-primary/20;
+}
+
+.rating-form-checkbox {
+  @apply data-[state=checked]:bg-primary data-[state=checked]:border-primary;
+}
+
+/* Rating form labels */
+.rating-form-label {
+  @apply text-sm font-medium flex items-center gap-2;
+}
+
+.rating-form-required {
+  @apply text-red-500;
+}
+
+/* Rating form feedback */
+.rating-form-feedback {
+  @apply flex items-center gap-2 text-sm;
+}
+
+.rating-form-feedback-icon {
+  @apply h-4 w-4;
+}
+
+.rating-form-feedback-text {
+  @apply font-medium;
 }
 
