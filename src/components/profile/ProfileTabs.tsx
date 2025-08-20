@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+  import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PostsProfile from '@/components/post/PostsProfile';
 import UserRatingsDetailed from './UserRatingsDetailed';
+import { ratingService } from '@/services/ratingService';
 
 interface ProfileTabsProps {
   userId: string;
@@ -11,22 +12,45 @@ interface ProfileTabsProps {
 
 const ProfileTabs: React.FC<ProfileTabsProps> = ({ userId }) => {
   const [activeTab, setActiveTab] = useState('posts');
+  const [ratingCount, setRatingCount] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchRatingCount = async () => {
+      try {
+        const response = await ratingService.getUserReceivedRatings(userId, 1, 1);
+        setRatingCount(response.pagination.total || 0);
+      } catch (error) {
+        console.error('Failed to fetch rating count:', error);
+        setRatingCount(0);
+      }
+    };
+
+    if (userId) {
+      fetchRatingCount();
+    }
+  }, [userId]);
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList className="grid w-full grid-cols-2 mb-2">
-        <TabsTrigger value="posts">Posts</TabsTrigger>
-        <TabsTrigger value="ratings">Ratings</TabsTrigger>
-      </TabsList>
-      
-      <TabsContent value="posts" className="space-y-4">
-        <PostsProfile userId={userId} />
-      </TabsContent>
-      
-      <TabsContent value="ratings" className="space-y-4">
-        <UserRatingsDetailed userId={userId} />
-      </TabsContent>
-    </Tabs>
+    <>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+       { ratingCount > 0 && (
+          <TabsList className="grid w-full grid-cols-2 mb-2">
+            <TabsTrigger value="posts">Posts</TabsTrigger>
+            <TabsTrigger value="ratings" className="relative">
+              Ratings
+            </TabsTrigger>
+          </TabsList>
+        )}
+        
+        <TabsContent value="posts" className="space-y-4">
+          <PostsProfile userId={userId} />
+        </TabsContent>
+        
+        <TabsContent value="ratings" className="space-y-4">
+          <UserRatingsDetailed userId={userId} />
+        </TabsContent>
+      </Tabs>
+    </> 
   );
 };
 

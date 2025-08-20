@@ -98,9 +98,7 @@ export default function RatingsPage() {
     if (currentUser?._id) {
       fetchRatings();
     }
-  }, [fetchRatings]);
-
-
+  }, [fetchRatings, currentUser?._id]);
 
   // Reset to first page when switching tabs
   useEffect(() => {
@@ -242,13 +240,10 @@ export default function RatingsPage() {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "received" | "submitted")} className="mb-6">
           <TabsList className="grid w-full grid-cols-2">
-
             <TabsTrigger value="received" disabled={!currentUser?._id}>Received Ratings</TabsTrigger>
             <TabsTrigger value="submitted" disabled={!currentUser?._id}>Submitted Ratings</TabsTrigger>
           </TabsList>
         </Tabs>
-
-                 
 
          {/* Filters and Search */}
          <div className="mb-6 space-y-4">
@@ -314,9 +309,11 @@ export default function RatingsPage() {
                     <div className="flex items-start justify-between mb-4 flex-wrap">
                       <div>
                         <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-semibold text-lg">
-                            {rating.roomName || "Session"}
-                          </h3>
+                          <Link href={`/meeting/${rating.sessionId}`} className="hover:underline hover:text-primary transition-colors">
+                            <h3 className="font-semibold text-lg">
+                              {rating.roomName || "Session"}
+                            </h3>
+                          </Link>
                           <Badge variant="outline" className={getRatingColor(rating.overallRating)}>
                             {rating.overallRating} Star{rating.overallRating !== 1 ? 's' : ''}
                           </Badge>

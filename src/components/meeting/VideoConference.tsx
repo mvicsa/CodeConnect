@@ -45,7 +45,7 @@ export const VideoConferenceComponent = ({
   };
 
   return (
-    <div className="min-h-screen bg-background relative">
+    <div className="min-h-screen bg-background fixed w-full top-0 left-0 z-50">
       <div className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center space-x-3">
           <Video className="h-6 w-6 text-primary" />
@@ -85,7 +85,7 @@ export const VideoConferenceComponent = ({
                 <AlertDialogHeader>
                   <AlertDialogTitle>End Session</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Are you sure you want to end this session? All participants will be disconnected.
+                    Are you sure you want to end this session? All participants will be disconnected and may be prompted to rate the session.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

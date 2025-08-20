@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -11,13 +12,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { RefreshCw, Plus, X } from "lucide-react";
+import { RefreshCw, Plus, X, Calendar as CalendarIcon } from "lucide-react";
 import { User } from "@/types/user";
 import { Room } from "@/store/slices/meetingSlice";
 import { useTranslations } from "next-intl";
+import { useDispatch } from "react-redux";
+import { fetchUserByEmail } from "@/store/slices/userSlice";
+import { AppDispatch } from "@/store/store";
 
 interface RoomDialogProps {
   open: boolean;
@@ -47,6 +52,7 @@ export const RoomDialog = ({
   currentUser
 }: RoomDialogProps) => {
   const t = useTranslations("meeting");
+  const dispatch = useDispatch<AppDispatch>();
    
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -68,19 +74,12 @@ export const RoomDialog = ({
     };
   }, [mode, setShowSuggestionMenu]);
 
-  const handleAddEmail = () => {
+  const handleAddEmail = async () => {
     const email = roomData.inviteEmail?.trim();
     if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      // Check if user exists in followedUsers
-      const existingUser = followedUsers.find(u => u.email === email);
-      const userToAdd = existingUser || {
-        _id: `temp-${Date.now()}`,
-        email: email,
-        username: email.split('@')[0],
-        firstName: '',
-        lastName: '',
-        avatar: ''
-      };
+      // get User by Email
+      const user = await dispatch(fetchUserByEmail(email)).unwrap() as User;
+      const userToAdd = user;
       
       // Add user to invited users if not already added
       onRoomDataChange({
@@ -152,6 +151,93 @@ export const RoomDialog = ({
               placeholder={mode === 'create' ? t('enterDescription') : 'Enter room description'}
               className="text-sm sm:text-base"
             />
+          </div>
+          <div className="grid gap-2">
+            <label htmlFor={`${mode}-scheduledStartTime`} className="text-sm font-medium">
+              {mode === 'create' ? 'Scheduled Start Time' : 'Scheduled Start Time'}
+            </label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={`w-full justify-start text-left font-normal ${roomData.scheduledStartTime ? 'text-primary' : 'text-muted-foreground'}`}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {roomData.scheduledStartTime ? (
+                    <span>
+                      {new Date(roomData.scheduledStartTime).toLocaleDateString()} at{' '}
+                      {new Date(roomData.scheduledStartTime).toLocaleTimeString([], { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </span>
+                  ) : (
+                    <span>Pick meeting start date and time (optional)</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={roomData.scheduledStartTime ? new Date(roomData.scheduledStartTime) : undefined}
+                  onSelect={(date) => {
+                    if (date) {
+                      // Preserve existing time if available, otherwise set to current time
+                      const existingTime = roomData.scheduledStartTime ? new Date(roomData.scheduledStartTime) : new Date();
+                      const newDateTime = new Date(date);
+                      newDateTime.setHours(existingTime.getHours(), existingTime.getMinutes(), 0, 0);
+                      
+                      onRoomDataChange({ 
+                        ...roomData, 
+                        scheduledStartTime: newDateTime.toISOString()
+                      });
+                    } else {
+                      onRoomDataChange({ 
+                        ...roomData, 
+                        scheduledStartTime: undefined
+                      });
+                    }
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            
+            {/* Time input for scheduled start time */}
+            {roomData.scheduledStartTime && (
+              <div className="flex gap-2">
+                <Input
+                  type="time"
+                  value={new Date(roomData.scheduledStartTime!).toTimeString().slice(0, 5)}
+                  onChange={(e) => {
+                    const [hours, minutes] = e.target.value.split(':').map(Number);
+                    const currentDate = new Date(roomData.scheduledStartTime!);
+                    currentDate.setHours(hours || 0, minutes || 0, 0, 0);
+                    
+                    onRoomDataChange({ 
+                      ...roomData, 
+                      scheduledStartTime: currentDate.toISOString()
+                    });
+                  }}
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onRoomDataChange({ 
+                      ...roomData, 
+                      scheduledStartTime: undefined
+                    });
+                  }}
+                >
+                  Clear
+                </Button>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Optional: Set when you&apos;d like the meeting to start. Participants can join earlier.
+            </p>
           </div>
           <div className="grid gap-2 hidden">
             <label htmlFor={`${mode}-maxParticipants`} className="text-sm font-medium">
@@ -242,7 +328,7 @@ export const RoomDialog = ({
               {/* Invited Users Display */}
               {roomData.invitedUsers && roomData.invitedUsers.length > 0 ? (
                 <div className="border rounded-md p-2 mt-2">
-                  <div className="flex flex-wrap gap-2 mb-2">
+                  <div className="flex flex-wrap gap-2">
                     {roomData.invitedUsers
                       .filter((user: User) => user._id !== currentUser?._id && user._id) // Hide current user by ID and filter out users without ID
                       .map((user: User, index: number) => {
@@ -272,9 +358,6 @@ export const RoomDialog = ({
                         );
                       })}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Invited users will receive an invitation to join the room.
-                  </p>
                 </div>
               ) : null}
             </div>
@@ -294,7 +377,7 @@ export const RoomDialog = ({
             ) : mode === 'create' ? (
               <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
             ) : null}
-            <span className="ml-2">{mode === 'create' ? t('createRoom') : 'Update Room'}</span>
+            <span>{mode === 'create' ? t('createRoom') : 'Update Room'}</span>
           </Button>
         </div>
       </DialogContent>

@@ -4,15 +4,16 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Copy, Video, Edit, Trash2, Calendar, Users, Globe, Lock } from "lucide-react";
+import { Video, Edit, Trash2, Calendar, Users, Globe, Lock, ExternalLink } from "lucide-react";
 import { Room as ReduxRoom } from "@/store/slices/meetingSlice";
 import { User } from "@/types/user";
 import { useTranslations } from "next-intl";
 import axiosInstance from "@/lib/axios";
+import Link from "next/link";
+import { AxiosError } from "axios";
 
 interface RoomCardProps {
   room: ReduxRoom;
-  onCopySecretId: (roomId: string) => void;
   onJoinRoom: (room: ReduxRoom) => void;
   onEditRoom: (room: ReduxRoom) => void;
   onDeleteRoom: (room: ReduxRoom) => void;
@@ -24,11 +25,12 @@ interface RoomCardProps {
   rating?: number;
   ratingCount?: number;
   ratingLoading?: boolean;
+  showEditDelete?: boolean;
+  showCopyButton?: boolean;
 }
 
 export const RoomCard = ({ 
   room, 
-  onCopySecretId, 
   onJoinRoom, 
   onEditRoom, 
   onDeleteRoom, 
@@ -39,23 +41,49 @@ export const RoomCard = ({
   showRating = false,
   rating = 0,
   ratingCount = 0,
-  ratingLoading = false
+  ratingLoading = false,
+  showEditDelete = true,
+  showCopyButton = true
 }: RoomCardProps) => {
   const t = useTranslations("meeting");
   const [liveParticipantCount, setLiveParticipantCount] = useState<number | null>(null);
   const [isJoining, setIsJoining] = useState(false);
+  // const [isLoadingStatus, setIsLoadingStatus] = useState(true);
   const [liveRoomStatus, setLiveRoomStatus] = useState<{
     hasActiveSession: boolean;
     participantCount: number;
   } | null>(null);
-  const [isStatusLoaded, setIsStatusLoaded] = useState(false);
+
+  const [secretId, setSecretId] = useState<string | null>(null);
+  const [isLoadingSecretId, setIsLoadingSecretId] = useState(false);
 
   // Reset loading state when room changes
   useEffect(() => {
-    setIsStatusLoaded(false);
     setLiveParticipantCount(null);
     setLiveRoomStatus(null);
+    setSecretId(null); // Reset secret ID when room changes
+    // setIsLoadingStatus(true); // Reset loading state
   }, [room._id]);
+
+  // Fetch secret ID for private rooms when component mounts
+  useEffect(() => {
+    if (room.isPrivate && showCopyButton && !secretId && !isLoadingSecretId) {
+      const fetchSecretId = async () => {
+        setIsLoadingSecretId(true);
+        try {
+          const fetchedSecretId = await getRoomSecretId(room._id);
+          if (fetchedSecretId) {
+            setSecretId(fetchedSecretId);
+          }
+        } catch (error) {
+          console.error('Failed to fetch secret ID:', error);
+        } finally {
+          setIsLoadingSecretId(false);
+        }
+      };
+      fetchSecretId();
+    }
+  }, [room._id, room.isPrivate, showCopyButton, secretId, isLoadingSecretId, getRoomSecretId]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -92,23 +120,10 @@ export const RoomCard = ({
           console.log('Private room - Database state - currentParticipants:', participantCount);
           console.log('Calculated hasActiveSession:', hasActiveSession || participantCount > 0);
           
-          // Set initial state from database
-          // A room is considered active if:
-          // 1. It's marked as active in the database, OR
-          // 2. It has current participants, OR
-          // 3. It's a newly created room (within last 24 hours)
-          const isNewlyCreated = new Date(room.createdAt).getTime() > Date.now() - 24 * 60 * 60 * 1000;
-          const calculatedActiveStatus = hasActiveSession || participantCount > 0 || isNewlyCreated;
-          
+          // Don't set state immediately - wait for real data or API failure
           console.log('Room created at:', room.createdAt);
-          console.log('Is newly created (within 24h):', isNewlyCreated);
-          console.log('Final calculated active status:', calculatedActiveStatus);
-          
-          setLiveParticipantCount(participantCount);
-          setLiveRoomStatus({
-            hasActiveSession: calculatedActiveStatus,
-            participantCount
-          });
+          console.log('Database state - isActive:', hasActiveSession);
+          console.log('Database state - currentParticipants:', participantCount);
           
           // Try to get live status if available, but don't fail if unavailable
           try {
@@ -122,10 +137,10 @@ export const RoomCard = ({
               if (statusData.participantCount !== undefined && statusData.participantCount >= 0) {
                 console.log('Updating private room with live data:', statusData);
                 
-                // Use live data if available, but fall back to calculated status if not
+                // Use live data if available, default to false if not specified
                 const liveActiveStatus = statusData.hasActiveSession !== undefined 
                   ? statusData.hasActiveSession 
-                  : (statusData.participantCount > 0 || isNewlyCreated);
+                  : false;
                 
                 console.log('Live data - participantCount:', statusData.participantCount);
                 console.log('Live data - hasActiveSession:', statusData.hasActiveSession);
@@ -140,22 +155,43 @@ export const RoomCard = ({
             }
           } catch (privateRoomError) {
             console.log('Private room live status not available, using database state');
-            console.log('Error details:', privateRoomError);
+            console.log('Error details:', (privateRoomError as AxiosError<{ status: number; message: string }>)?.response?.status || (privateRoomError as Error)?.message || privateRoomError);
             // This is expected for private rooms, not an error
-            // Keep the database-based status we already set
+            // Use database values as fallback
+            setLiveParticipantCount(participantCount);
+            setLiveRoomStatus({
+              hasActiveSession: hasActiveSession, // Use exact database value
+              participantCount
+            });
           }
         } else {
           console.log('--- Public Room Handling ---');
-          // Public room - use regular status endpoint
-          const response = await axiosInstance.get(`/livekit/rooms/${room._id}/status`);
-          console.log('LiveKit status response:', response.data);
-          
-          if (response.status === 200) {
-            const statusData = response.data;
-            setLiveParticipantCount(statusData.participantCount || 0);
+          // Public room - try to use status endpoint, but fallback gracefully if it fails
+          try {
+            const response = await axiosInstance.get(`/livekit/rooms/${room._id}/status`);
+            console.log('LiveKit status response:', response.data);
+            
+            if (response.status === 200) {
+              const statusData = response.data;
+              setLiveParticipantCount(statusData.participantCount || 0);
+              setLiveRoomStatus({
+                hasActiveSession: statusData.hasActiveSession || false,
+                participantCount: statusData.participantCount || 0
+              });
+            }
+          } catch (publicRoomError) {
+            console.log('Public room status endpoint not available, using database state');
+            console.log('Error details:', publicRoomError);
+            
+            // Use database values as fallback for public rooms too
+            const hasActiveSession = room.isActive || false;
+            const participantCount = room.currentParticipants || 0;
+            
+            // Use database values as fallback for public rooms
+            setLiveParticipantCount(participantCount);
             setLiveRoomStatus({
-              hasActiveSession: statusData.hasActiveSession || false,
-              participantCount: statusData.participantCount || 0
+              hasActiveSession: hasActiveSession, // Use exact database value
+              participantCount
             });
           }
         }
@@ -171,16 +207,12 @@ export const RoomCard = ({
           console.log('Fallback - isActive:', hasActiveSession);
           console.log('Fallback - currentParticipants:', participantCount);
           
-          // Use the same logic as the main flow for consistency
-          const isNewlyCreated = new Date(room.createdAt).getTime() > Date.now() - 24 * 60 * 60 * 1000;
-          const calculatedActiveStatus = hasActiveSession || participantCount > 0 || isNewlyCreated;
-          
-          console.log('Fallback - isNewlyCreated:', isNewlyCreated);
-          console.log('Fallback - calculated hasActiveSession:', calculatedActiveStatus);
+          // Use database values as fallback for private rooms
+          console.log('Fallback - using database values');
           
           setLiveParticipantCount(participantCount);
           setLiveRoomStatus({
-            hasActiveSession: calculatedActiveStatus,
+            hasActiveSession: hasActiveSession, // Use exact database value
             participantCount
           });
         } else {
@@ -192,7 +224,7 @@ export const RoomCard = ({
           });
         }
       } finally {
-        setIsStatusLoaded(true);
+        // setIsLoadingStatus(false); // Mark loading as complete
         console.log('=== RoomCard Status Fetch Complete ===');
         console.log('Final liveParticipantCount:', liveParticipantCount);
         console.log('Final liveRoomStatus:', liveRoomStatus);
@@ -213,28 +245,32 @@ export const RoomCard = ({
           {/* Header Section */}
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
             <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
-                <h3 className="font-semibold text-sm sm:text-base lg:text-lg truncate flex-1 min-w-0">
-                  {room.name}
-                </h3>
+              <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 mb-2">
+                <div>
+                  <Link 
+                    href={`/meeting/${room._id}`}
+                    className="group flex items-center gap-2 hover:text-primary transition-colors"
+                  >
+                    <h3 className="font-semibold text-sm sm:text-base lg:text-lg truncate">
+                      {room.name}
+                    </h3>
+                    <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </Link>
+                </div>
                 <div className="flex gap-1 sm:gap-2 flex-shrink-0">
                   <Badge 
                     variant="secondary" 
                     className={
-                      liveRoomStatus?.hasActiveSession 
+                      liveRoomStatus?.hasActiveSession === true
                         ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" 
                         : !room.isActive 
                           ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300" 
-                          : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
+                          : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
                     }
                   >
-                    {!isStatusLoaded ? (
-                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    ) : (
-                      (liveRoomStatus?.hasActiveSession ?? false) ? t("active") : (room.isActive ? t("inactive") : "Ended")
-                    )}
+                    {liveRoomStatus?.hasActiveSession === true ? "Live" : (room.isActive ? "Open" : "Ended")}
                   </Badge>
-                  <Badge variant={room.isPrivate ? "destructive" : "outline"} className="text-xs px-1.5 py-0.5">
+                  <Badge variant="outline" className="text-xs px-1.5 py-0.5">
                     {room.isPrivate ? <Lock className="h-3 w-3" /> : <Globe className="h-3 w-3" />}
                     {room.isPrivate ? t("private") : t("public")}
                   </Badge>
@@ -243,7 +279,7 @@ export const RoomCard = ({
               <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-2 leading-relaxed">
                 {room.description}
               </p>
-              <div className="flex items-center gap-4 text-xs sm:text-sm text-muted-foreground">
+              <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-xs sm:text-sm text-muted-foreground">
                 <span className="flex items-center gap-1 sm:gap-1.5">
                   <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                   <span className="truncate">{formatDate(room.createdAt)}</span>
@@ -290,18 +326,41 @@ export const RoomCard = ({
           {showActions && (
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-1 border-t border-border/50 pt-4">
             <div className="flex flex-1 sm:flex-none items-center gap-1.5 sm:gap-2">
-                             <Button
-                 variant="outline"
-                 size="sm"
-                 onClick={() => onCopySecretId(room._id)}
-                 className="h-7 sm:h-8 text-xs flex-1 sm:flex-none sm:min-w-[80px]"
-               >
-                 <Copy className="h-3 w-3 sm:h-4 sm:w-4" />
-                 <span className="hidden sm:inline ml-1">
-                   {room.isPrivate ? "Copy Secret ID" : "Copy Room ID"}
-                 </span>
-               </Button>
-                                           <Button
+              <Link href={`/meeting/${room._id}`}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 sm:h-8 text-xs flex-1 sm:flex-none sm:min-w-[80px]"
+                >
+                  <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline ml-1">View Details</span>
+                </Button>
+              </Link>
+              {/* {showCopyButton && room.isPrivate && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    if (secretId) {
+                      try {
+                        await navigator.clipboard.writeText(secretId);
+                        toast.success("Secret ID copied to clipboard!");
+                      } catch (error) {
+                        console.error('Failed to copy secret ID:', error);
+                        toast.error("Failed to copy secret ID");
+                      }
+                    }
+                  }}
+                  disabled={!secretId || isLoadingSecretId}
+                  className="h-7 sm:h-8 text-xs flex-1 sm:flex-none sm:min-w-[80px]"
+                >
+                  <Copy className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline ml-1">
+                    {isLoadingSecretId ? "Loading..." : secretId ? "Copy Secret ID" : "Loading..."}
+                  </span>
+                </Button>
+              )} */}
+              <Button
                 size="sm"
                 onClick={async () => {
                   setIsJoining(true);
@@ -337,7 +396,7 @@ export const RoomCard = ({
               </Button>
             </div>
             
-            {isCreator && (
+            {isCreator && showEditDelete && (
               <div className="flex items-center gap-1 sm:gap-1.5">
                 <Button
                   variant="outline"
@@ -350,7 +409,9 @@ export const RoomCard = ({
                 <Button
                   variant="destructive"
                   size="icon"
-                  onClick={() => onDeleteRoom(room)}
+                  onClick={() => {
+                    onDeleteRoom(room);
+                  }}
                   className="h-7 w-7 sm:h-8 sm:w-8"
                 >
                   <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />

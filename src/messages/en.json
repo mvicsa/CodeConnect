@@ -62,7 +62,7 @@
     "enterSecretId": "Enter secret ID",
     "joinMeetingBtn": "Join Meeting",
     "createNewRoom": "Create New Room",
-    "createNewRoomDesc": "Create a new meeting room and share the secret ID",
+    "createNewRoomDesc": "Create a new meeting room",
     "createRoom": "Create Room",
     "noRooms": "No rooms created yet. Create your first room to get started.",
     "noPublicSessions": "No public sessions available at the moment.",

@@ -38,16 +38,12 @@ import {
 import { RoomDialog } from "./RoomDialog";
 import { VideoConferenceComponent } from "./VideoConference";
 import { RoomCard } from "./RoomCard";
-import { JoinMeetingCard } from "./JoinMeetingCard";
-import { CreateRoomCard } from "./CreateRoomCard";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
-import { JoinPublicSessionCard } from "./JoinPublicSessionCard";
-import { PublicSessionCard } from "./PublicSessionCard";
 import { PublicSessionsSearch } from "./PublicSessionsSearch";
 import { useContext } from 'react';
 import { SocketContext } from '@/store/Provider';
 import axiosInstance from '@/lib/axios';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { Badge } from "@/components/ui/badge";
 import { formatTime } from "@/lib/utils";
 import { SessionRatingDialog } from '@/components/rating';
@@ -56,7 +52,7 @@ import { ratingService } from '@/services/ratingService';
 
 export const MeetingClient = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { rooms, publicSessions, error, createLoading, updateLoading, publicSessionsLoading, sessionHistory, sessionHistoryLoading } = useSelector((state: RootState) => state.meeting);
+  const { rooms, publicSessions, createLoading, updateLoading, publicSessionsLoading, sessionHistory, sessionHistoryLoading, currentPage, hasMoreSessions, totalSessions, totalRooms, activeRooms, endedRooms } = useSelector((state: RootState) => state.meeting);
   const { user } = useSelector((state: RootState) => state.auth);
   const { items: followedUsers } = useSelector((state: RootState) => state.follow.following);
   
@@ -71,30 +67,33 @@ export const MeetingClient = () => {
   const [editingRoom, setEditingRoom] = useState<ReduxRoom | null>(null);
   const [originalInvitedUsers, setOriginalInvitedUsers] = useState<User[]>([]);
   const [newRoomData, setNewRoomData] = useState({
-    name: "",
-    description: "",
+    name: '',
+    description: '',
     isPrivate: false,
     maxParticipants: 10,
     invitedUsers: [] as User[], // Array of User objects for UI
-    inviteEmail: ''
+    inviteEmail: '',
+    scheduledStartTime: undefined as string | undefined
   });
   const [publicSessionsSearchQuery, setPublicSessionsSearchQuery] = useState("");
 
   const resetNewRoomData = () => {
     setNewRoomData({
-      name: "",
-      description: "",
+      name: '',
+      description: '',
       isPrivate: false,
       maxParticipants: 10,
       invitedUsers: [],
-      inviteEmail: ''
+      inviteEmail: '',
+      scheduledStartTime: undefined
     });
   };
   
   const [roomToDelete, setRoomToDelete] = useState<ReduxRoom | null>(null);
   const [showSuggestionMenu, setShowSuggestionMenu] = useState(false);
-  const [isJoiningBySecretId, setIsJoiningBySecretId] = useState(false);
-  const [isJoiningPublicSession, setIsJoiningPublicSession] = useState(false);
+  
+  // Separate loading state for load more operations
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   // Rating dialog state
   const [showRatingDialog, setShowRatingDialog] = useState(false);
@@ -109,16 +108,33 @@ export const MeetingClient = () => {
   // Session ratings state
   const [sessionRatings, setSessionRatings] = useState<{[sessionId: string]: number}>({});
   const [sessionRatingCounts, setSessionRatingCounts] = useState<{[sessionId: string]: number}>({});
-  const [ratingsLoading, setRatingsLoading] = useState<{[sessionId: string]: boolean}>({});
+
 
   const t = useTranslations("meeting");
   const socket = useContext(SocketContext);
 
+  // Check socket connection status
+  useEffect(() => {
+    if (socket) {
+      console.log('🔌 Socket connected:', socket.connected);
+      
+      socket.on('connect', () => {
+        console.log('✅ Socket connected successfully');
+      });
+      
+      socket.on('disconnect', () => {
+        console.log('❌ Socket disconnected');
+      });
+      
+      socket.on('connect_error', (error: Error) => {
+        console.error('❌ Socket connection error:', error);
+      });
+    }
+  }, [socket]);
+
   // Function to fetch and calculate average rating for a session
   const fetchSessionRating = useCallback(async (sessionId: string) => {
     if (sessionRatings[sessionId] !== undefined) return; // Already fetched
-    
-    setRatingsLoading(prev => ({ ...prev, [sessionId]: true }));
     
     try {
       const ratings = await ratingService.getSessionRatings(sessionId);
@@ -135,10 +151,33 @@ export const MeetingClient = () => {
       console.error(`Failed to fetch ratings for session ${sessionId}:`, error);
       setSessionRatings(prev => ({ ...prev, [sessionId]: 0 }));
       setSessionRatingCounts(prev => ({ ...prev, [sessionId]: 0 }));
-    } finally {
-      setRatingsLoading(prev => ({ ...prev, [sessionId]: false }));
     }
   }, [sessionRatings]);
+
+  // Function to load more session history
+  const handleLoadMoreSessions = useCallback(async () => {
+    if (!hasMoreSessions || isLoadingMore) return;
+    
+    try {
+      console.log('🟢 Load More - Starting... Current sessions:', sessionHistory.length);
+      setIsLoadingMore(true);
+      const nextPage = currentPage + 1;
+      console.log('🟢 Load More - Fetching page:', nextPage);
+      
+      await dispatch(fetchSessionHistory({ 
+        page: nextPage, 
+        limit: 10, 
+        loadMore: true 
+      }));
+      
+      console.log('🟢 Load More - Completed. New sessions count:', sessionHistory.length);
+    } catch (error) {
+      console.error('Failed to load more sessions:', error);
+      toast.error('Failed to load more sessions');
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [hasMoreSessions, isLoadingMore, currentPage, dispatch, sessionHistory.length]);
 
   // Function to render star rating display
   const renderStarRating = (rating: number, size: 'sm' | 'md' = 'md') => {
@@ -241,7 +280,8 @@ export const MeetingClient = () => {
         description: newRoomData.description,
         isPrivate: newRoomData.isPrivate,
         maxParticipants: newRoomData.maxParticipants,
-        invitedUsers: newRoomData.isPrivate ? invitedEmails : [] // Only send invitedUsers for private rooms
+        invitedUsers: newRoomData.isPrivate ? invitedEmails : [], // Only send invitedUsers for private rooms
+        scheduledStartTime: newRoomData.scheduledStartTime // Include scheduled start time
       };
 
       console.log('Creating room with data:', roomDataToSend);
@@ -263,9 +303,8 @@ export const MeetingClient = () => {
       
       // Send invitation messages if room is private and has invited users
       if (newRoomData.isPrivate && newRoomData.invitedUsers.length > 0) {
-        const secretId = result.secretId;
         for (const invitedUser of newRoomData.invitedUsers) {
-          await sendRoomInvitationMessage(invitedUser, result, secretId);
+          await sendRoomInvitationMessage(invitedUser, result);
         }
       }
     } catch (error) {
@@ -274,12 +313,39 @@ export const MeetingClient = () => {
     }
   };
 
+  // Check localStorage for existing meeting data when component mounts
+  useEffect(() => {
+    const storedToken = localStorage.getItem('livekitToken');
+    const storedRoom = localStorage.getItem('currentRoom');
+    const isJoined = localStorage.getItem('isJoined');
+    
+    if (storedToken && storedRoom && isJoined === 'true') {
+      try {
+        const roomData = JSON.parse(storedRoom);
+        setToken(storedToken);
+        setCurrentRoom(roomData);
+        setJoined(true);
+        
+        // Clear localStorage after restoring state
+        localStorage.removeItem('livekitToken');
+        localStorage.removeItem('currentRoom');
+        localStorage.removeItem('isJoined');
+      } catch (error) {
+        console.error('Error parsing stored room data:', error);
+        // Clear invalid data
+        localStorage.removeItem('livekitToken');
+        localStorage.removeItem('currentRoom');
+        localStorage.removeItem('isJoined');
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (user?._id) {
       const fetchData = async () => {
-      await dispatch(fetchRooms());
+        await dispatch(fetchRooms());
         await dispatch(fetchPublicSessions());
-        await dispatch(fetchSessionHistory());
+        await dispatch(fetchSessionHistory({ page: 1, limit: 10, loadMore: false }));
       };
       fetchData();
       
@@ -324,7 +390,6 @@ export const MeetingClient = () => {
       return;
     }
 
-    setIsJoiningBySecretId(true);
     try {
       const roomResponse = await axiosInstance.get(`/livekit/rooms/join/${idToJoin}`);
 
@@ -390,8 +455,6 @@ export const MeetingClient = () => {
     } catch (error) {
       console.error("Network error joining room:", error);
       toast.error(t("failedToJoinRoom"));
-    } finally {
-      setIsJoiningBySecretId(false);
     }
   };
 
@@ -404,7 +467,6 @@ export const MeetingClient = () => {
       return;
     }
 
-    setIsJoiningPublicSession(true);
     try {
       console.log('Making request to join public room:', idToJoin);
       // Use the join-public endpoint for public rooms
@@ -473,91 +535,124 @@ export const MeetingClient = () => {
     } catch (error) {
       console.error("Network error joining room:", error);
       toast.error(t("failedToJoinRoom"));
-    } finally {
-      setIsJoiningPublicSession(false);
     }
   };
 
   // Remove updateRoom function since we're using Redux updateRoom thunk
 
-  const getRoomSecretId = async (roomId: string) => {
+  // Track if we're already fetching a secret ID to prevent multiple simultaneous calls
+  const [isFetchingSecretId, setIsFetchingSecretId] = useState(false);
+  // Track if the secret ID endpoint exists
+  const [secretIdEndpointExists, setSecretIdEndpointExists] = useState<boolean | null>(null);
+
+  // Check if the secret ID endpoint exists
+  const checkSecretIdEndpoint = useCallback(async () => {
+    if (secretIdEndpointExists !== null) return secretIdEndpointExists;
+    
     try {
+      // Try to call the endpoint with a dummy ID to see if it exists
+      await axiosInstance.get('/livekit/rooms/dummy-id/secret-id');
+      setSecretIdEndpointExists(true);
+      return true;
+    } catch (error) {
+      if (error && (error as AxiosError).response?.status === 404) {
+        setSecretIdEndpointExists(false);
+        return false;
+      }
+      // For other errors, assume it might exist
+      return true;
+    }
+  }, [secretIdEndpointExists]);
+
+  // Check endpoint availability when component mounts
+  useEffect(() => {
+    checkSecretIdEndpoint();
+  }, [checkSecretIdEndpoint]);
+
+  const getRoomSecretId = async (roomId: string) => {
+    // Check if endpoint exists first
+    const endpointExists = await checkSecretIdEndpoint();
+    if (!endpointExists) {
+      console.warn("Secret ID endpoint not available - private room feature disabled");
+      return null;
+    }
+
+    // Prevent multiple simultaneous calls
+    if (isFetchingSecretId) {
+      console.log("Already fetching secret ID, skipping...");
+      return null;
+    }
+
+    try {
+      setIsFetchingSecretId(true);
       const response = await axiosInstance.get(`/livekit/rooms/${roomId}/secret-id`);
 
       if (response.status === 200) {
         const { secretId } = response.data;
         return secretId;
       } else {
-        toast.error("Failed to get secret ID");
+        console.warn("Failed to get secret ID - non-200 status:", response.status);
         return null;
       }
     } catch (error) {
-      console.error("Failed to get secret ID:", error);
-      toast.error("Failed to get secret ID");
+      // Only show toast for non-404 errors (404 means endpoint doesn't exist)
+      if (error && (error as AxiosError).response?.status !== 404) {
+        console.error("Failed to get secret ID:", error);
+        toast.error("Failed to get secret ID");
+      } else {
+        console.warn("Secret ID endpoint not found (404) - this feature may not be implemented yet");
+        setSecretIdEndpointExists(false);
+      }
       return null;
+    } finally {
+      setIsFetchingSecretId(false);
     }
   };
 
-  const copySecretId = async (roomId: string) => {
-    // Find the room to check if it's public or private
-    const room = rooms.find(r => r._id === roomId);
+  // const copySecretId = async (roomId: string) => {
+  //   // Find the room to check if it's public or private
+  //   const room = rooms.find(r => r._id === roomId);
     
-    if (room?.isPrivate) {
-      // For private rooms, copy the secret ID
-      const secretId = await getRoomSecretId(roomId);
-      if (secretId) {
-        try {
-          await navigator.clipboard.writeText(secretId);
-          toast.success(t("secretIdCopied"));
-        } catch (error) {
-          console.error("Failed to copy secret ID:", error);
-          toast.error(t("failedToCopyId"));
-        }
-      }
-    } else {
-      // For public rooms, copy the room ID directly
-      try {
-        await navigator.clipboard.writeText(roomId);
-        toast.success("Room ID copied to clipboard!");
-      } catch (error) {
-        console.error("Failed to copy room ID:", error);
-        toast.error("Failed to copy room ID");
-      }
-    }
-  };
+  //   if (room?.isPrivate) {
+  //     // For private rooms, copy the secret ID
+  //     const secretId = await getRoomSecretId(roomId);
+  //     if (secretId) {
+  //       try {
+  //         await navigator.clipboard.writeText(secretId);
+  //         toast.success(t("secretIdCopied"));
+  //       } catch (error) {
+  //         console.error("Failed to copy secret ID:", error);
+  //         toast.error(t("failedToCopyId"));
+  //       }
+  //     }
+  //   } else {
+  //     // For public rooms, copy the room ID directly
+  //     try {
+  //       await navigator.clipboard.writeText(roomId);
+  //       toast.success("Room ID copied to clipboard!");
+  //     } catch (error) {
+  //       console.error("Failed to copy room ID:", error);
+  //       toast.error("Failed to copy room ID");
+  //     }
+  //   }
+  // };
 
-  const copyRoomId = async (roomId: string) => {
-    if (!roomId || typeof roomId !== 'string') {
-      toast.error("Invalid room ID");
-      return;
-    }
+  // const copyRoomId = async (roomId: string) => {
+  //   if (!roomId || typeof roomId !== 'string') {
+  //     toast.error("Invalid room ID");
+  //     return;
+  //   }
     
-    try {
-      await navigator.clipboard.writeText(roomId);
-      toast.success("Room ID copied to clipboard!");
-    } catch (error) {
-      console.error("Failed to copy room ID:", error);
-      toast.error("Failed to copy room ID");
-    }
-  };
+  //   try {
+  //     await navigator.clipboard.writeText(roomId);
+  //     toast.success("Room ID copied to clipboard!");
+  //   } catch (error) {
+  //     console.error("Failed to copy room ID:", error);
+  //     toast.error("Failed to copy room ID");
+  //   }
+  // };
 
   const handleDisconnect = async () => {
-    // Check if user was a participant (not creator) and show rating dialog
-    if (currentRoom && user && currentRoom.createdBy._id && currentRoom.createdBy._id !== user._id) {
-      const creatorName = currentRoom.createdBy.username || 
-                         currentRoom.createdBy.name || 
-                         currentRoom.createdBy.firstName || 
-                         'Unknown Creator';
-      
-      setRatingSessionData({
-        sessionId: currentRoom._id,
-        roomName: currentRoom.name || 'Unknown Session',
-        creatorName,
-        creatorId: currentRoom.createdBy._id,
-      });
-      setShowRatingDialog(true);
-    }
-    
     setJoined(false);
     setToken(null);
     setCurrentRoom(null);
@@ -566,7 +661,30 @@ export const MeetingClient = () => {
     // refresh the data
     await dispatch(fetchRooms());
     await dispatch(fetchPublicSessions());
-    await dispatch(fetchSessionHistory());
+    await dispatch(fetchSessionHistory({ page: 1, limit: 10, loadMore: false }));
+
+    const { data } = await axiosInstance.get(`/livekit/rooms/${currentRoom?._id}/status`);
+    
+    // Check if user was a participant (not creator) and show rating dialog
+    if (currentRoom && user && currentRoom.createdBy._id && currentRoom.createdBy._id !== user._id) {
+      const creatorName = currentRoom.createdBy.username || 
+        currentRoom.createdBy.name || 
+        currentRoom.createdBy.firstName || 
+        'Unknown Creator';
+      
+      setRatingSessionData({
+        sessionId: currentRoom._id,
+        roomName: currentRoom.name || 'Unknown Session',
+        creatorName,
+        creatorId: currentRoom.createdBy._id,
+      });
+
+      console.log("currentRoom Test", data)
+
+      if (data.isActive === false) {
+        setShowRatingDialog(true);
+      }
+    }
   };
 
   const handleEndSession = async () => {
@@ -583,7 +701,7 @@ export const MeetingClient = () => {
       
       // Refresh the data to update the ended sessions tab
       await dispatch(fetchRooms());
-      await dispatch(fetchSessionHistory());
+      await dispatch(fetchSessionHistory({ page: 1, limit: 10, loadMore: false }));
       if (!currentRoom.isPrivate) {
         await dispatch(fetchPublicSessions());
       }
@@ -626,7 +744,13 @@ export const MeetingClient = () => {
       
       // If the deleted room was public, refetch public sessions
       if (!roomToDelete.isPrivate) {
+        console.log('🔄 Deleting public room, refetching public sessions...');
+        console.log('🔄 Room to delete:', roomToDelete._id, roomToDelete.name);
+        console.log('🔄 Current publicSessions count before refetch:', publicSessions?.length || 0);
+        
         await dispatch(fetchPublicSessions());
+        
+        console.log('🔄 Public sessions refetched. New count:', publicSessions?.length || 0);
       }
       
       toast.success(t("roomDeleted"));
@@ -656,7 +780,15 @@ export const MeetingClient = () => {
         setCurrentRoom(room);
         joinRoomBySecretId(secretId);
       } else {
-        toast.error("Failed to get secret ID for private room");
+        // Check if the endpoint doesn't exist
+        if (secretIdEndpointExists === false) {
+          toast.error("Private room feature is not available yet");
+          console.warn("Cannot join private room - secret ID endpoint not implemented");
+          return;
+        }
+        // The getRoomSecretId function already handles 404 errors gracefully
+        // If we get here, it means there was a different error
+        toast.error("Unable to join private room - please try again later");
       }
     } else {
       // For public rooms, join directly using the room ID
@@ -694,45 +826,65 @@ export const MeetingClient = () => {
   };
 
   // Function to send room invitation message to a user
-  const sendRoomInvitationMessage = async (invitedUser: User, room: ReduxRoom, secretId: string) => {
+  const sendRoomInvitationMessage = async (invitedUser: User, room: ReduxRoom) => {
     if (!socket || !user) {
-      console.error('Socket or user not available');
+      console.error('❌ Socket or user not available for invitation message');
       return;
     }
 
+    console.log('📤 Sending invitation message to:', invitedUser._id, 'for room:', room.name);
+
     try {
       // Create a private chat room with the invited user
-      socket.emit('createPrivateRoom', { receiverId: invitedUser._id }, async (response: { roomId: string }) => {
+      socket.emit('createPrivateRoom', { receiverId: invitedUser._id }, (response: { roomId: string }) => {
+        console.log('🔵 createPrivateRoom response:', response);
+        
         if (response && response.roomId) {
+          console.log('✅ Private room created, sending invitation message...');
+          
           // Send the room invitation message
           const invitationMessage = {
             roomId: response.roomId,
-            content: `🎥 You've been invited to join a meeting room!\n\n📋 **Room Details:**\n\n• **Name:** ${room.name}\n\n• **Description:** ${room.description}\n\n• **Secret ID:** \`${secretId}\`\n\n🔗 **Join the meeting:**\nUse the secret ID above to join the room at: ${window.location.origin}/meeting\n\n👤 **Created by:** ${user.firstName} ${user.lastName} (@${user.username})`,
+            content: `🎥 You've been invited to join a meeting room!\n\n📋 **Room Details:**\n\n• **Name:** ${room.name}\n\n• **Description:** ${room.description}\n\n• 🔗 **Join the meeting via Link:**\n <${window.location.origin}/meeting/${room._id}/>\n\n👤 **Created by:** ${user.firstName} ${user.lastName} (@${user.username})`,
             type: 'text',
             replyTo: null,
           };
 
-          socket.emit('chat:send_message', invitationMessage);
+          console.log('📨 Sending invitation message:', invitationMessage);
+          socket.emit('chat:send_message', invitationMessage, (sendResponse: { success: boolean }) => {
+            console.log('📨 chat:send_message response:', sendResponse);
+            if (sendResponse && sendResponse.success) {
+              console.log('✅ Invitation message sent successfully!');
+            } else {
+              console.error('❌ Failed to send invitation message:', sendResponse);
+            }
+          });
         } else {
-          console.error('Failed to create private room for invitation message');
+          console.error('❌ Failed to create private room for invitation message. Response:', response);
         }
       });
     } catch (error) {
-      console.error('Error sending room invitation message:', error);
+      console.error('❌ Error sending room invitation message:', error);
     }
   };
 
   // Function to send cancellation message for removed users
   const sendInvitationCancellationMessage = async (removedUser: User, room: ReduxRoom) => {
     if (!socket || !user) {
-      console.error('Socket or user not available');
+      console.error('❌ Socket or user not available for cancellation message');
       return;
     }
 
+    console.log('📤 Sending cancellation message to:', removedUser.username, 'for room:', room.name);
+
     try {
       // Create a private chat room with the removed user
-      socket.emit('createPrivateRoom', { receiverId: removedUser._id }, async (response: { roomId: string }) => {
+      socket.emit('createPrivateRoom', { receiverId: removedUser._id }, (response: { roomId: string }) => {
+        console.log('🔵 createPrivateRoom response (cancellation):', response);
+        
         if (response && response.roomId) {
+          console.log('✅ Private room created, sending cancellation message...');
+          
           // Send the cancellation message
           const cancellationMessage = {
             roomId: response.roomId,
@@ -741,13 +893,21 @@ export const MeetingClient = () => {
             replyTo: null,
           };
 
-          socket.emit('chat:send_message', cancellationMessage);
+          console.log('📨 Sending cancellation message:', cancellationMessage);
+          socket.emit('chat:send_message', cancellationMessage, (sendResponse: { success: boolean }) => {
+            console.log('📨 chat:send_message response (cancellation):', sendResponse);
+            if (sendResponse && sendResponse.success) {
+              console.log('✅ Cancellation message sent successfully!');
+            } else {
+              console.error('❌ Failed to send cancellation message:', sendResponse);
+            }
+          });
         } else {
-          console.error('Failed to create private room for cancellation message');
+          console.error('❌ Failed to create private room for cancellation message. Response:', response);
         }
       });
     } catch (error) {
-      console.error('Error sending invitation cancellation message:', error);
+      console.error('❌ Error sending invitation cancellation message:', error);
     }
   };
 
@@ -772,18 +932,20 @@ export const MeetingClient = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div>
       <Container>
         <div className="mb-6 sm:mb-8">
-          <div className="flex gap-2 sm:gap-3">
-            <Link href="/">
-              <Button variant="ghost" size="icon" className="p-2 rounded-full">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-            <div className="flex-1">
-              <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">{t("title")}</h1>
-              <p className="text-sm sm:text-base text-muted-foreground">{t("subtitle")}</p>
+          <div className="flex flex-wrap justify-between gap-3">
+            <div className="flex gap-2 sm:gap-3">
+              <Link href="/">
+                <Button variant="ghost" size="icon" className="p-2 rounded-full">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">{t("title")}</h1>
+                <p className="text-sm sm:text-base text-muted-foreground">{t("subtitle")}</p>
+              </div>
             </div>
             <Link href="/ratings">
               <Button variant="outline" size="lg" className="flex items-center gap-2">
@@ -795,10 +957,9 @@ export const MeetingClient = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="gap-0">
-          <TabsList className="grid w-full grid-cols-4 h-auto sm:h-10 mb-3">
+          <TabsList className="grid w-full grid-cols-3 h-auto sm:h-10 mb-3">
             <TabsTrigger value="public" className="text-xs sm:text-sm py-2 sm:py-1.5">{t("publicSessions")}</TabsTrigger>
-            <TabsTrigger value="join" className="text-xs sm:text-sm py-2 sm:py-1.5">Private Sessions</TabsTrigger>
-            <TabsTrigger value="rooms" className="text-xs sm:text-sm py-2 sm:py-1.5">{t("myRooms")}</TabsTrigger>
+            <TabsTrigger value="rooms" className="text-xs sm:text-sm py-2 sm:py-1.5">My Sessions</TabsTrigger>
             <TabsTrigger value="ended" className="text-xs sm:text-sm py-2 sm:py-1.5">Sessions History</TabsTrigger>
           </TabsList>
 
@@ -808,7 +969,7 @@ export const MeetingClient = () => {
                 {t("publicSessionsTitle")}
               </h2>
               
-              <div className="grid grid-cols-1">
+              {/* <div className="grid grid-cols-1">
                 <JoinPublicSessionCard
                   roomId={roomId}
                   setRoomId={setRoomId}
@@ -816,7 +977,7 @@ export const MeetingClient = () => {
                   isLoading={isJoiningPublicSession}
                   isUserInRoom={joined}
                 />
-              </div>
+              </div> */}
 
               <PublicSessionsSearch
                 searchQuery={publicSessionsSearchQuery}
@@ -835,15 +996,40 @@ export const MeetingClient = () => {
                    // Sort public sessions by creation date (newest first)
                    [...filteredPublicSessions]
                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                     .map((session) => (
-                       <PublicSessionCard
-                         key={session._id}
-                         session={session}
-                         onJoinSession={handleJoinPublicSession}
-                         onCopyRoomId={copyRoomId}
-                         isUserInRoom={joined}
-                       />
-                     ))
+                     .map((session) => {
+                       // Convert PublicSession to Room format for RoomCard
+                       const roomData = {
+                         _id: session._id,
+                         name: session.name,
+                         description: session.description || '',
+                         isPrivate: false, // Public sessions are always public
+                         maxParticipants: session.maxParticipants || 10,
+                         createdAt: session.createdAt,
+                         createdBy: session.createdBy || { _id: '', username: '', firstName: '', lastName: '', email: '' } as User,
+                         invitedUsers: [],
+                         isActive: session.isActive || false,
+                         currentParticipants: session.currentParticipants || 0,
+                         secretId: '', // Public sessions don't have secret IDs
+                         updatedAt: session.updatedAt || session.createdAt
+                       };
+                       
+                      return (
+                          <RoomCard
+                             key={session._id}
+                             room={roomData}
+                             onJoinRoom={() => handleJoinPublicSession(session)} // Use handleJoinPublicSession
+                             onEditRoom={() => {}} // No edit for public sessions
+                             onDeleteRoom={() => {}} // No delete for public sessions
+                             getRoomSecretId={() => Promise.resolve(null)} // No secret ID for public sessions
+                             currentUser={user || undefined}
+                             isUserInRoom={joined}
+                             showActions={true} // Show actions but hide edit/delete
+                             showRating={false} // No rating for public sessions
+                             showEditDelete={false} // Hide edit/delete for public sessions
+                             showCopyButton={false} // Hide copy button for public sessions
+                           />
+                        );
+                     })
                  ) : (
                   <Card className="dark:border-transparent">
                     <CardContent className="flex flex-col items-center justify-center py-6 sm:py-8">
@@ -858,29 +1044,9 @@ export const MeetingClient = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="join" className="space-y-4 sm:space-y-6 ">
-            <div className="space-y-4">
-              <h2 className="text-lg sm:text-xl font-semibold">Private Sessions</h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                <JoinMeetingCard
-                  secretId={secretId}
-                  setSecretId={setSecretId}
-                  onJoinRoom={() => joinRoomBySecretId()}
-                  isLoading={isJoiningBySecretId}
-                  isUserInRoom={joined}
-                />
-
-                <CreateRoomCard
-                  onCreateRoom={() => setShowCreateDialog(true)}
-                  isLoading={createLoading}
-                  />
-                </div>
-            </div>
-          </TabsContent>
-
           <TabsContent value="rooms" className="space-y-4 sm:space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-              <h2 className="text-lg sm:text-xl font-semibold">{t("myRooms")}</h2>
+              <h2 className="text-lg sm:text-xl font-semibold">My Sessions</h2>
               <Button onClick={() => setShowCreateDialog(true)} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4" />
                 {t("createRoom")}
@@ -890,14 +1056,13 @@ export const MeetingClient = () => {
             <div className="space-y-6">
               {/* Open Sessions */}
               <div className="space-y-3">
-                <h3 className="text-base font-medium text-muted-foreground">Open Sessions</h3>
                 <div className="grid gap-3 sm:gap-4">
                   {rooms.filter(room => room.isActive).length === 0 ? (
                     <Card className="flex items-center dark:border-transparent">
                       <CardContent className="flex flex-col items-center justify-center py-6 sm:py-8">
                         <Video className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-3 sm:mb-4" />
                         <p className="text-sm sm:text-base text-muted-foreground text-center">
-                          No open sessions
+                          No sessions
                         </p>
                       </CardContent>
                     </Card>
@@ -910,77 +1075,20 @@ export const MeetingClient = () => {
                         <RoomCard
                           key={room._id}
                           room={room}
-                          onCopySecretId={copySecretId}
                           onJoinRoom={handleJoinRoom}
                           onEditRoom={handleEditRoom}
                           onDeleteRoom={handleDeleteRoomClick}
                           getRoomSecretId={getRoomSecretId}
                           currentUser={user || undefined}
                           isUserInRoom={joined}
+                          showCopyButton={true}
                         />
                       ))
                   )}
                 </div>
               </div>
 
-                                                           {/* Ended Sessions */}
-                <div className="space-y-3">
-                  <h3 className="text-base font-medium text-muted-foreground">Ended Sessions</h3>
-                  <div className="grid gap-3 sm:gap-4">
-                                         {sessionHistory && sessionHistory.filter(session => !session.isActive && session.createdBy?._id === user?._id).length === 0 ? (
-                      <Card className="flex items-center dark:border-transparent">
-                        <CardContent className="flex flex-col items-center justify-center py-6 sm:py-8">
-                          <Globe className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-3 sm:mb-4" />
-                          <p className="text-sm sm:text-base text-muted-foreground text-center">
-                            No ended sessions
-                          </p>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                                             // Sort ended sessions by creation date (newest first) - ONLY YOUR ROOMS
-                       [...(sessionHistory || [])]
-                         .filter(session => !session.isActive && session.createdBy?._id === user?._id)
-                         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                         .map((session) => {
-                           // Convert session to room format for RoomCard
-                           const roomData = {
-                             _id: session.roomId,
-                             name: session.roomName,
-                             description: session.roomDescription, // SessionHistory doesn't have description
-                             isPrivate: session.isPrivate,
-                             maxParticipants: 10,
-                             createdAt: session.createdAt,
-                             createdBy: session.createdBy || { _id: '', username: '', firstName: '', lastName: '', email: '' } as User,
-                             invitedUsers: [],
-                             isActive: false,
-                             currentParticipants: 0,
-                             secretId: '', // Required by Room type
-                             updatedAt: session.createdAt // Use createdAt as updatedAt since SessionHistory doesn't have it
-                           };
-                           
-                                                       return (
-                              <div key={session.roomId}>
-                                <RoomCard
-                                  room={roomData}
-                                  onCopySecretId={() => {}} // No action needed for ended sessions
-                                  onJoinRoom={() => {}} // No action needed for ended sessions
-                                  onEditRoom={() => {}} // No action needed for ended sessions
-                                  onDeleteRoom={() => {}} // No action needed for ended sessions
-                                  getRoomSecretId={() => Promise.resolve(null)} // No action needed for ended sessions
-                                  currentUser={user || undefined}
-                                  isUserInRoom={false}
-                                  showActions={false} // Hide all action buttons
-                                  showRating={true} // Show rating inside the card
-                                  rating={sessionRatings[session.roomId] || 0}
-                                  ratingCount={sessionRatingCounts[session.roomId] || 0}
-                                  ratingLoading={ratingsLoading[session.roomId] || false}
-                                />
-                              </div>
-                            );
-                         })
-                    )}
-                  </div>
-                </div>
+
             </div>
           </TabsContent>
 
@@ -988,9 +1096,33 @@ export const MeetingClient = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg sm:text-xl font-semibold">
-                  My Session History
+                  Session History
                 </h2>
               </div>
+              
+              {/* Session Statistics */}
+              {!sessionHistoryLoading && sessionHistory && sessionHistory.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                  <Card className="dark:border-transparent">
+                    <CardContent className="p-3 sm:p-4 text-center">
+                      <div className="text-2xl sm:text-3xl font-bold text-primary">{totalRooms}</div>
+                      <div className="text-xs sm:text-sm text-muted-foreground">Total Sessions</div>
+                    </CardContent>
+                  </Card>
+                  <Card className="dark:border-transparent">
+                    <CardContent className="p-3 sm:p-4 text-center">
+                      <div className="text-2xl sm:text-3xl font-bold text-green-600">{activeRooms}</div>
+                      <div className="text-xs sm:text-sm text-muted-foreground">Active Sessions</div>
+                    </CardContent>
+                  </Card>
+                  <Card className="dark:border-transparent">
+                    <CardContent className="p-3 sm:p-4 text-center">
+                      <div className="text-2xl sm:text-3xl font-bold text-blue-600">{endedRooms}</div>
+                      <div className="text-xs sm:text-sm text-muted-foreground">Ended Sessions</div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
               
               {sessionHistoryLoading ? (
                 <Card className="dark:border-transparent">
@@ -1028,7 +1160,9 @@ export const MeetingClient = () => {
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                   <div className="flex items-center flex-wrap gap-2 mb-2">
-                                    <h4 className="font-medium">{session.roomName}</h4>
+                                    <Link href={`/meeting/${session.roomId}`} className="hover:text-primary hover:underline transition-colors">
+                                      <h4 className="font-medium">{session.roomName}</h4>
+                                    </Link>
                                     <Badge variant={session.isPrivate ? "secondary" : "default"}>
                                       {session.isPrivate ? "Private" : "Public"}
                                     </Badge>
@@ -1056,33 +1190,6 @@ export const MeetingClient = () => {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <h3 className="text-base font-medium text-muted-foreground">Ended Sessions</h3>
-                      {sessionHistory.filter(session => !session.isActive).length > 0 && (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>Overall Rating:</span>
-                          {(() => {
-                            const endedSessions = sessionHistory.filter(session => !session.isActive);
-                            const sessionsWithRatings = endedSessions.filter(session => 
-                              sessionRatings[session.roomId] > 0
-                            );
-                            
-                            if (sessionsWithRatings.length === 0) {
-                              return <span>No ratings yet</span>;
-                            }
-                            
-                            const totalRating = sessionsWithRatings.reduce((sum, session) => 
-                              sum + sessionRatings[session.roomId], 0
-                            );
-                            const averageRating = totalRating / sessionsWithRatings.length;
-                            
-                            return (
-                              <div className="flex items-center gap-1">
-                                {renderStarRating(averageRating, 'sm')}
-                                <span>({sessionsWithRatings.length} session{sessionsWithRatings.length !== 1 ? 's' : ''})</span>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
                     </div>
                     <div className="grid gap-3 sm:gap-4">
                       {sessionHistory.filter(session => !session.isActive).length === 0 ? (
@@ -1108,7 +1215,9 @@ export const MeetingClient = () => {
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                   <div className="flex items-center flex-wrap gap-2 mb-2">
-                                    <h4 className="font-medium">{session.roomName}</h4>
+                                    <Link href={`/meeting/${session.roomId}`} className="hover:text-primary hover:underline transition-colors">
+                                      <h4 className="font-medium">{session.roomName}</h4>
+                                    </Link>
                                     <Badge variant={session.isPrivate ? "secondary" : "default"}>
                                       {session.isPrivate ? "Private" : "Public"}
                                     </Badge>
@@ -1136,12 +1245,7 @@ export const MeetingClient = () => {
                                   
                                   {/* Average Rating Display */}
                                   <div className="mt-3 flex items-center gap-2">
-                                    {ratingsLoading[session.roomId] ? (
-                                      <div className="flex items-center gap-2">
-                                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                        <span className="text-xs text-muted-foreground">Loading rating...</span>
-                                      </div>
-                                    ) : sessionRatings[session.roomId] > 0 ? (
+                                    {sessionRatings[session.roomId] > 0 ? (
                                       <div className="flex items-center gap-2">
                                         <span className="text-xs text-muted-foreground">Average Rating:</span>
                                         {renderStarRating(sessionRatings[session.roomId], 'sm')}
@@ -1194,6 +1298,47 @@ export const MeetingClient = () => {
                       )}
                     </div>
                   </div>
+                  
+                  {/* Load More Button */}
+                  {hasMoreSessions && sessionHistory && sessionHistory.length > 0 && (
+                    <div className="flex flex-col items-center gap-3 pt-4">
+                      <Button
+                        onClick={handleLoadMoreSessions}
+                        disabled={isLoadingMore}
+                        variant="outline"
+                        className="flex items-center gap-2"
+                      >
+                        {isLoadingMore ? (
+                          <>
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            Load More Sessions
+                            <span className="text-xs text-muted-foreground">
+                              ({sessionHistory.length} of {totalSessions})
+                            </span>
+                          </>
+                        )}
+                      </Button>
+                      
+                      {/* Pagination Info */}
+                      <div className="text-xs text-muted-foreground text-center">
+                        Page {currentPage} • {Math.ceil(totalSessions / 10)} total pages
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Loading Indicator for Load More */}
+                  {isLoadingMore && hasMoreSessions && (
+                    <div className="flex justify-center pt-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Loading more sessions...
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <Card className="dark:border-transparent">
@@ -1217,7 +1362,15 @@ export const MeetingClient = () => {
           onOpenChange={setShowCreateDialog}
           mode="create"
           roomData={newRoomData as unknown as Room}
-          onRoomDataChange={(data: Room) => setNewRoomData(data as unknown as { name: string; description: string; isPrivate: boolean; maxParticipants: number; invitedUsers: User[]; inviteEmail: string; })}
+          onRoomDataChange={(data: Room) => setNewRoomData(data as unknown as { 
+              name: string; 
+              description: string; 
+              isPrivate: boolean; 
+              maxParticipants: number; 
+              invitedUsers: User[]; 
+              inviteEmail: string; 
+              scheduledStartTime: string | undefined; 
+            })}
           onSubmit={handleCreateRoom}
           isLoading={createLoading}
           followedUsers={followedUsers}
@@ -1282,7 +1435,7 @@ export const MeetingClient = () => {
                   const secretId = await getRoomSecretId(editingRoom._id);
                   if (secretId) {
                     for (const addedUser of addedUsers) {
-                      await sendRoomInvitationMessage(addedUser, updatedRoom, secretId);
+                      await sendRoomInvitationMessage(addedUser, updatedRoom);
                     }
                   }
                 }
@@ -1347,11 +1500,11 @@ export const MeetingClient = () => {
           />
         )}
 
-        {error && (
+        {/* {error && (
           <div className="fixed bottom-4 right-4 bg-destructive text-destructive-foreground p-4 rounded-md shadow-lg">
             {error}
           </div>
-        )}
+        )} */}
       </Container>
     </div>
   );

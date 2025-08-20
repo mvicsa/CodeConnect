@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 
 interface DeleteConfirmDialogProps {
   open: boolean;
@@ -22,6 +24,14 @@ export const DeleteConfirmDialog = ({
   onConfirm, 
 }: DeleteConfirmDialogProps) => {
   const t = useTranslations("meeting");
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  useEffect(() => {
+    if (!open) {
+      setIsDeleting(false);
+    }
+  }, [open]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -37,9 +47,12 @@ export const DeleteConfirmDialog = ({
           </Button>
           <Button
             className="bg-danger text-danger-foreground hover:bg-danger/80"
-            onClick={onConfirm}
+            onClick={() => {
+              setIsDeleting(true);
+              onConfirm();
+            }}
           >
-            {t("delete")}
+            {isDeleting && open && <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin rounded-full" />} { t("delete") }
           </Button>
         </div>
       </DialogContent>

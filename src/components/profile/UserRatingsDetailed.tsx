@@ -32,7 +32,18 @@ const UserRatingsDetailed: React.FC<UserRatingsDetailedProps> = ({ userId }) => 
         
         if (response.ratings && response.ratings.length > 0) {
           const total = response.pagination.total || 0;
-          const average = response.ratings.reduce((sum, rating) => sum + rating.overallRating, 0) / response.ratings.length;
+          
+          // Calculate average from all ratings, not just the first 3
+          let average = 0;
+          if (total <= 100) { // If total is small enough, fetch all to get accurate average
+            const allRatingsResponse = await ratingService.getUserReceivedRatings(userId, 1, total);
+            if (allRatingsResponse.ratings && allRatingsResponse.ratings.length > 0) {
+              average = allRatingsResponse.ratings.reduce((sum, rating) => sum + rating.overallRating, 0) / allRatingsResponse.ratings.length;
+            }
+          } else {
+            // For large numbers, calculate from first 3 as fallback
+            average = response.ratings.reduce((sum, rating) => sum + rating.overallRating, 0) / response.ratings.length;
+          }
           
           setRatings(response.ratings);
           setTotalRatings(total);
@@ -144,15 +155,48 @@ const UserRatingsDetailed: React.FC<UserRatingsDetailedProps> = ({ userId }) => 
     );
   }
 
-  // Don't show anything if no ratings
+  // Show empty state if no ratings, but still display the tab
   if (totalRatings === 0) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-8">
-          <Star className="h-12 w-12 text-muted-foreground mb-4" />
-          <p className="text-muted-foreground text-center">No ratings yet</p>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        {/* Rating Summary - Show zeros when no ratings */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="text-center p-4">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Star className="h-6 w-6 text-muted-foreground" />
+                <span className="text-2xl font-bold text-muted-foreground">0.0</span>
+              </div>
+              <p className="text-sm text-muted-foreground">Average Rating</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="text-center p-4">
+              <div className="text-2xl font-bold text-muted-foreground">0</div>
+              <p className="text-sm text-muted-foreground">Total Ratings</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="text-center p-4">
+              <div className="text-2xl font-bold text-muted-foreground">0</div>
+              <p className="text-sm text-muted-foreground">4+ Star Ratings</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Empty State */}
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Star className="h-16 w-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold text-muted-foreground mb-2">No Ratings Yet</h3>
+            <p className="text-muted-foreground text-center max-w-md">
+              This user hasn&apos;t received any ratings yet. Ratings will appear here once other users rate their sessions.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -197,9 +241,11 @@ const UserRatingsDetailed: React.FC<UserRatingsDetailedProps> = ({ userId }) => 
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <h6 className="font-semibold">
-                        {rating.roomName || "Session"}
-                      </h6>
+                      <Link href={`/meeting/${rating.sessionId}`} className="hover:underline hover:text-primary transition-colors">
+                        <h6 className="font-semibold">
+                          {rating.roomName || "Session"}
+                        </h6>
+                      </Link>
                       <Badge variant="outline" className={getRatingColor(rating.overallRating)}>
                         {rating.overallRating} Star{rating.overallRating !== 1 ? 's' : ''}
                       </Badge>

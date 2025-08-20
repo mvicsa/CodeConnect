@@ -7,6 +7,7 @@ export enum NotificationType {
   LOGIN = 'LOGIN',
   USER_MENTIONED = 'USER_MENTIONED',
   RATING_RECEIVED = 'RATING_RECEIVED',
+  RATING_REQUESTED = 'RATING_REQUESTED',
 }
 
 export interface NotificationUser {

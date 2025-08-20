@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Star, ArrowLeft, Calendar, User, MessageSquare } from "lucide-react";
+import { Star, ArrowLeft, Calendar, User, MessageSquare, Eye } from "lucide-react";
 import { ratingService } from "@/services/ratingService";
 import { RatingResponseDto } from "@/types/rating";
 import { toast } from "sonner";
@@ -21,7 +21,15 @@ export default function RatingDetailPage() {
   const t = useTranslations("ratings");
   
   const [rating, setRating] = useState<RatingResponseDto | null>(null);
-  const [sessionInfo, setSessionInfo] = useState<{ name: string; description: string } | null>(null);
+  const [sessionInfo, setSessionInfo] = useState<{ 
+    name: string; 
+    description: string;
+    creator?: {
+      firstName: string;
+      lastName: string;
+      username?: string;
+    } | null;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,9 +43,22 @@ export default function RatingDetailPage() {
       const ratingData = await ratingService.getRatingById(ratingId);
       setRating(ratingData);
       
-      // Fetch session information if we have a sessionId
-      if (ratingData?.sessionId) {
-        await fetchSessionInfo(ratingData.sessionId);
+      // Set session info from rating data if available
+      if (ratingData) {
+        setSessionInfo({
+          name: ratingData.roomName || 'Unknown Session',
+          description: ratingData.roomDescription || 'No description available',
+          creator: ratingData.creatorFirstName || ratingData.creatorLastName ? {
+            firstName: ratingData.creatorFirstName || '',
+            lastName: ratingData.creatorLastName || '',
+            username: ratingData.creatorUsername
+          } : null
+        });
+        
+        // If we don't have complete session info, try to fetch it
+        if (!ratingData.roomName || !ratingData.roomDescription) {
+          await fetchSessionInfo(ratingData.sessionId);
+        }
       }
     } catch (error) {
       console.error("Failed to fetch rating details:", error);
@@ -61,7 +82,12 @@ export default function RatingDetailPage() {
       if (response.data) {
         setSessionInfo({
           name: response.data.roomName || 'Unknown Session',
-          description: response.data.roomDescription || 'No description available'
+          description: response.data.roomDescription || 'No description available',
+          creator: response.data.createdBy ? {
+            firstName: response.data.createdBy.firstName || '',
+            lastName: response.data.createdBy.lastName || '',
+            username: response.data.createdBy.username
+          } : null
         });
         return;
       }
@@ -75,7 +101,12 @@ export default function RatingDetailPage() {
       if (response.data) {
         setSessionInfo({
           name: response.data.name || 'Unknown Session',
-          description: response.data.description || 'No description available'
+          description: response.data.description || 'No description available',
+          creator: response.data.createdBy ? {
+            firstName: response.data.createdBy.firstName || '',
+            lastName: response.data.createdBy.lastName || '',
+            username: response.data.createdBy.username
+          } : null
         });
         return;
       }
@@ -86,7 +117,8 @@ export default function RatingDetailPage() {
     // If all else fails, set default values
     setSessionInfo({
       name: `Session ${sessionId.slice(-6)}`,
-      description: 'Session details not available'
+      description: 'Session details not available',
+      creator: null
     });
   };
 
@@ -188,19 +220,29 @@ export default function RatingDetailPage() {
       <Container>
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <div className="flex gap-4 mb-4">
-            <Link href="/ratings">
-              <Button variant="ghost" size="icon" className="p-2 rounded-full">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
+          <div className="flex flex-wrap justify-between gap-3 mb-4">
+            <div className="flex gap-3">
+              <Link href="/ratings">
+                <Button variant="ghost" size="icon" className="p-2 rounded-full">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+              <div>
+                  {/* Session Name */}
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2"> Session Name: {sessionInfo?.name || rating.sessionId}</h1>
+                <p className="text-sm sm:text-base text-muted-foreground">
+                  {t("detailedView")}
+                </p>
+              </div>
+            </div>
             <div>
-                {/* Session Name */}
-               <h1 className="text-2xl sm:text-3xl font-bold mb-2"> Session Name: {sessionInfo?.name || rating.sessionId}</h1>
-               <p className="text-sm sm:text-base text-muted-foreground">
-                 {t("detailedView")}
-               </p>
-             </div>
+              <Link href={`/meeting/${rating.sessionId}`}>
+                <Button variant="outline">
+                  <Eye className="h-4 w-4" />
+                  View Session
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -291,7 +333,7 @@ export default function RatingDetailPage() {
                   
                   {/* Session Name and Description */}
                   {sessionInfo && (
-                    <div className="mb-4 space-y-3">
+                    <div className="mb-3 space-y-3">
                       <div className="p-3 bg-accent rounded-lg">
                         <div className="text-sm text-muted-foreground mb-1">Session Name</div>
                         <div className="font-medium text-lg">{sessionInfo.name}</div>
@@ -302,10 +344,41 @@ export default function RatingDetailPage() {
                           <div className="font-medium">{sessionInfo.description}</div>
                         </div>
                       )}
+                      {/* Show Session Creator if available */}
+                      {(sessionInfo.creator || (rating.creatorFirstName && rating.creatorLastName)) && (
+                        <div className="p-3 bg-accent rounded-lg">
+                          <div className="text-sm text-muted-foreground mb-1">Session Creator</div>
+                          <div className="font-medium">
+                            {sessionInfo.creator ? (
+                              sessionInfo.creator.username ? (
+                                <Link href={`/profile/${sessionInfo.creator.username}`} className="hover:underline">
+                                  {sessionInfo.creator.firstName} {sessionInfo.creator.lastName}
+                                </Link>
+                              ) : (
+                                `${sessionInfo.creator.firstName} ${sessionInfo.creator.lastName}`
+                              )
+                            ) : (
+                              rating.creatorUsername ? (
+                                <Link href={`/profile/${rating.creatorUsername}`} className="hover:underline">
+                                  {rating.creatorFirstName} {rating.creatorLastName}
+                                </Link>
+                              ) : (
+                                `${rating.creatorFirstName} ${rating.creatorLastName}`
+                              )
+                            )}
+                            {sessionInfo.creator?.username && (
+                              <span className="text-sm text-muted-foreground ml-2">(@{sessionInfo.creator.username})</span>
+                            )}
+                            {!sessionInfo.creator?.username && rating.creatorUsername && (
+                              <span className="text-sm text-muted-foreground ml-2">(@{rating.creatorUsername})</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="flex items-center gap-3 p-3 bg-accent rounded-lg">
                       <Calendar className="h-5 w-5 text-muted-foreground" />
                         <div>

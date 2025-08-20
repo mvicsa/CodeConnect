@@ -10,11 +10,13 @@ import {
   Copy, 
   Calendar,
   User,
-  Globe
+  Globe,
+  ExternalLink
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PublicSession } from "@/store/slices/meetingSlice";
 import axiosInstance from "@/lib/axios";
+import Link from "next/link";
 
 interface PublicSessionCardProps {
   session: PublicSession;
@@ -75,7 +77,7 @@ export const PublicSessionCard = ({
     };
 
     fetchLiveRoomStatus();
-  }, [session._id, session.currentParticipants, session.isActive]);
+  }, [session._id, session.currentParticipants, session.isActive, session]);
 
   // Safety check for session data
   if (!session || !session._id) {
@@ -118,7 +120,13 @@ export const PublicSessionCard = ({
           <div className="flex-1">
             <CardTitle className="flex items-center gap-2 text-lg mb-2">
               <Video className="h-5 w-5 text-primary" />
-              {session.name || 'Unnamed Session'}
+              <Link 
+                href={`/meeting/${session._id}`}
+                className="group flex items-center gap-2 hover:text-primary transition-colors"
+              >
+                {session.name || 'Unnamed Session'}
+                <ExternalLink className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </Link>
             </CardTitle>
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
               <User className="h-4 w-4" />
@@ -165,12 +173,27 @@ export const PublicSessionCard = ({
             <div className="flex items-center gap-1">
                <Users className="h-4 w-4 text-muted-foreground" />
                <span>
-                 {liveParticipantCount ?? 0} {t("participants")}
+                 {liveParticipantCount ?? 0} current
+                 {session.totalParticipantsJoined && session.totalParticipantsJoined > (liveParticipantCount ?? 0) && (
+                   <span className="text-muted-foreground">
+                     {' '}({session.totalParticipantsJoined} total joined)
+                   </span>
+                 )}
                </span>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
+            <Link href={`/meeting/${session._id}`}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <ExternalLink className="h-3 w-3" />
+                View Details
+              </Button>
+            </Link>
             <Button
               variant="outline"
               size="sm"

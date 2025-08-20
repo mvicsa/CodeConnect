@@ -59,6 +59,8 @@ const getNotificationIcon = (type: NotificationType) => {
             return Bell;
         case NotificationType.RATING_RECEIVED:
             return Star;
+        case NotificationType.RATING_REQUESTED:
+            return Star;
         default:
             return Bell;
     }
@@ -85,6 +87,8 @@ const getNotificationTitle = (notification: Notification): string => {
             return 'Login Alert';
         case NotificationType.RATING_RECEIVED:
             return 'Session Rated';
+        case NotificationType.RATING_REQUESTED:
+            return 'Rating Requested';
         default:
             return 'Notification';
     }
@@ -135,6 +139,8 @@ const NotificationPage = () => {
             }
             // Fallback to ratings list if no specific rating ID
             return '/ratings';
+        } else if (notification.type === NotificationType.RATING_REQUESTED) {
+            return `/meeting/${notification.data?.roomId}`;
         } else if (notification.type.toLowerCase().includes('post')) {
             const extractedPostId = notification.data?.postId || notification.data?._id;
             if (typeof extractedPostId === 'string') return `/posts/${extractedPostId}`;

@@ -17,6 +17,10 @@ export interface Room {
   createdAt: string;
   updatedAt: string;
   currentParticipants?: number; // Current number of participants in the room
+  scheduledStartTime?: string; // When creator wants meeting to start
+  actualStartTime?: string;    // When session actually started
+  endedDate?: string;          // When session ended
+  totalParticipantsJoined?: number; // Total participants who joined (even if they left)
 }
 
 export interface PublicSession {
@@ -30,6 +34,7 @@ export interface PublicSession {
   createdAt: string;
   updatedAt: string;
   currentParticipants?: number;
+  totalParticipantsJoined?: number; // Total participants who joined (even if they left)
 }
 
 export interface SessionHistory {
@@ -55,6 +60,7 @@ export interface CreateRoomData {
   maxParticipants: number;
   invitedUsers: string[]; // Array of email strings
   inviteEmail?: string;
+  scheduledStartTime?: string; // Optional scheduled start time
 }
 
 export interface UpdateRoomData {
@@ -63,6 +69,7 @@ export interface UpdateRoomData {
   isPrivate: boolean;
   maxParticipants: number;
   invitedUsers: string[]; // Array of email strings
+  scheduledStartTime?: string; // Optional scheduled start time
 }
 
 interface MeetingState {
@@ -76,6 +83,14 @@ interface MeetingState {
   createLoading: boolean;
   updateLoading: boolean;
   deleteLoading: boolean;
+  // Pagination state for session history
+  currentPage: number;
+  hasMoreSessions: boolean;
+  totalSessions: number;
+  // Additional session statistics from backend
+  totalRooms: number;
+  activeRooms: number;
+  endedRooms: number;
 }
 
 const initialState: MeetingState = {
@@ -89,6 +104,14 @@ const initialState: MeetingState = {
   createLoading: false,
   updateLoading: false,
   deleteLoading: false,
+  // Pagination state for session history
+  currentPage: 1,
+  hasMoreSessions: true,
+  totalSessions: 0,
+  // Additional session statistics from backend
+  totalRooms: 0,
+  activeRooms: 0,
+  endedRooms: 0,
 };
 
 // Fetch all rooms
@@ -121,11 +144,35 @@ export const fetchPublicSessions = createAsyncThunk(
 // Fetch session history
 export const fetchSessionHistory = createAsyncThunk(
   'meeting/fetchSessionHistory',
-  async (_, { rejectWithValue }) => {
+  async ({ page = 1, limit = 10, loadMore = false }: { page?: number; limit?: number; loadMore?: boolean } = {}, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.get('/livekit/rooms/my-session-history');
-      // Extract the mySessionHistory array from the response
-      return response.data.mySessionHistory || [];
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+      
+      const response = await axiosInstance.get(`/livekit/rooms/my-session-history?${params.toString()}`);
+      
+      // Extract the mySessionHistory array and pagination info from the response
+      const sessionHistory = response.data.mySessionHistory || [];
+      const pagination = response.data.pagination || {
+        page: 1,
+        limit: 10,
+        total: sessionHistory.length,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false
+      };
+      
+      return {
+        sessionHistory,
+        pagination,
+        loadMore,
+        page,
+        // Additional metadata from backend
+        totalRooms: response.data.totalRooms,
+        activeRooms: response.data.activeRooms,
+        endedRooms: response.data.endedRooms
+      };
     } catch (error) {
       return rejectWithValue((error as Error).message || 'Failed to fetch session history');
     }
@@ -143,7 +190,8 @@ export const createRoom = createAsyncThunk(
         description: roomData.description,
         isPrivate: roomData.isPrivate,
         maxParticipants: roomData.maxParticipants,
-        invitedUsers: roomData.invitedUsers // Already an array of email strings
+        invitedUsers: roomData.invitedUsers, // Already an array of email strings
+        scheduledStartTime: roomData.scheduledStartTime
       };
 
       const response = await axiosInstance.post('/livekit/rooms', payload);
@@ -166,7 +214,8 @@ export const updateRoom = createAsyncThunk(
         description: roomData.description,
         isPrivate: roomData.isPrivate,
         maxParticipants: roomData.maxParticipants,
-        invitedUsers: roomData.invitedUsers // Already an array of email strings
+        invitedUsers: roomData.invitedUsers, // Already an array of email strings
+        scheduledStartTime: roomData.scheduledStartTime
       };
 
       const response = await axiosInstance.put(`/livekit/rooms/${roomId}`, payload);
@@ -226,7 +275,12 @@ const meetingSlice = createSlice({
       })
       .addCase(fetchPublicSessions.fulfilled, (state, action) => {
         state.publicSessionsLoading = false;
+        
+        // Simply set the public sessions without filtering
+        // The previous filtering logic was incorrect - it was filtering out
+        // public sessions from other users when comparing against user's rooms
         state.publicSessions = action.payload;
+        
       })
       .addCase(fetchPublicSessions.rejected, (state, action) => {
         state.publicSessionsLoading = false;
@@ -235,13 +289,48 @@ const meetingSlice = createSlice({
 
     // Fetch session history
     builder
-      .addCase(fetchSessionHistory.pending, (state) => {
-        state.sessionHistoryLoading = true;
+      .addCase(fetchSessionHistory.pending, (state, action) => {
+        // Only set loading to true for initial loads, not for load more
+        if (!action.meta?.arg?.loadMore) {
+          state.sessionHistoryLoading = true;
+        }
         state.error = null;
       })
       .addCase(fetchSessionHistory.fulfilled, (state, action) => {
-        state.sessionHistoryLoading = false;
-        state.sessionHistory = action.payload;
+        // Only set loading to false for initial loads
+        if (!action.payload.loadMore) {
+          state.sessionHistoryLoading = false;
+        }
+        
+        if (action.payload.loadMore) {
+          // Append new sessions for load more
+          console.log('🔵 Load More - Current sessions:', state.sessionHistory.length);
+          console.log('🔵 Load More - New sessions received:', action.payload.sessionHistory.length);
+          
+          const existingIds = new Set(state.sessionHistory.map(session => session.roomId));
+          const uniqueNewSessions = action.payload.sessionHistory.filter(
+            (session: SessionHistory) => !existingIds.has(session.roomId)
+          );
+          
+          console.log('🔵 Load More - Unique new sessions:', uniqueNewSessions.length);
+          console.log('🔵 Load More - Existing IDs:', Array.from(existingIds));
+          
+          state.sessionHistory = [...state.sessionHistory, ...uniqueNewSessions];
+          console.log('🔵 Load More - Final sessions count:', state.sessionHistory.length);
+        } else {
+          // Replace all sessions for initial load or refresh
+          state.sessionHistory = action.payload.sessionHistory;
+        }
+        
+        // Update pagination state
+        state.currentPage = action.payload.page;
+        state.hasMoreSessions = action.payload.pagination.hasNext;
+        state.totalSessions = action.payload.pagination.total;
+        
+        // Update additional session statistics if available
+        if (action.payload.totalRooms !== undefined) state.totalRooms = action.payload.totalRooms;
+        if (action.payload.activeRooms !== undefined) state.activeRooms = action.payload.activeRooms;
+        if (action.payload.endedRooms !== undefined) state.endedRooms = action.payload.endedRooms;
       })
       .addCase(fetchSessionHistory.rejected, (state, action) => {
         state.sessionHistoryLoading = false;
@@ -254,10 +343,29 @@ const meetingSlice = createSlice({
         state.createLoading = true;
         state.error = null;
       })
-      .addCase(createRoom.fulfilled, (state) => {
+      .addCase(createRoom.fulfilled, (state, action) => {
         state.createLoading = false;
-        // Don't add to state here since we're refetching the complete list
+        // Don't add to rooms state here since we're refetching the complete list
         // state.rooms.push(action.payload);
+        
+        // If the created room is public, add it to publicSessions
+        if (!action.payload.isPrivate) {
+          // Convert Room to PublicSession format
+          const publicSession = {
+            _id: action.payload._id,
+            name: action.payload.name,
+            description: action.payload.description,
+            isPrivate: false,
+            maxParticipants: action.payload.maxParticipants,
+            isActive: action.payload.isActive,
+            createdBy: action.payload.createdBy,
+            createdAt: action.payload.createdAt,
+            updatedAt: action.payload.updatedAt,
+            currentParticipants: action.payload.currentParticipants || 0,
+            totalParticipantsJoined: action.payload.totalParticipantsJoined || 0
+          };
+          state.publicSessions.unshift(publicSession); // Add to beginning of array
+        }
       })
       .addCase(createRoom.rejected, (state, action) => {
         state.createLoading = false;
@@ -290,7 +398,10 @@ const meetingSlice = createSlice({
       })
       .addCase(deleteRoom.fulfilled, (state, action) => {
         state.deleteLoading = false;
+        // Remove room from rooms array
         state.rooms = state.rooms.filter(room => room._id !== action.payload);
+        // Also remove from publicSessions if it exists there
+        state.publicSessions = state.publicSessions.filter(session => session._id !== action.payload);
       })
       .addCase(deleteRoom.rejected, (state, action) => {
         state.deleteLoading = false;
