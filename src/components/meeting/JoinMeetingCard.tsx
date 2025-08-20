@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Video, RefreshCw } from "lucide-react";
+import { Video, Loader2, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 interface JoinMeetingCardProps {
@@ -11,6 +11,7 @@ interface JoinMeetingCardProps {
   setSecretId: (value: string) => void;
   onJoinRoom: () => void;
   isLoading: boolean;
+  isUserInRoom?: boolean;
 }
 
 export const JoinMeetingCard = ({ 
@@ -18,6 +19,7 @@ export const JoinMeetingCard = ({
   setSecretId, 
   onJoinRoom, 
   isLoading, 
+  isUserInRoom = false,
 }: JoinMeetingCardProps) => {
   const t = useTranslations("meeting");
   return (
@@ -39,15 +41,15 @@ export const JoinMeetingCard = ({
           />
           <Button
             onClick={onJoinRoom}
-            disabled={isLoading || !secretId.trim()}
+            disabled={isLoading || isUserInRoom || !secretId.trim()}
             className="w-full h-9 sm:h-10 text-sm sm:text-base"
           >
             {isLoading ? (
-              <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+              <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
             ) : (
-              <Video className="h-3 w-3 sm:h-4 sm:w-4" />
+              <Users className="h-3 w-3 sm:h-4 sm:w-4" />
             )}
-            <span className="ml-2">{t("joinMeetingBtn")}</span>
+            <span>{isLoading ? "Joining..." : isUserInRoom ? "Already in a room" : "Join Session"}</span>
           </Button>
         </div>
       </CardContent>

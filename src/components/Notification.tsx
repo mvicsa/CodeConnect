@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Bell, Search, Clock, Trash2, Check, MessageSquare, Heart, UserPlus, FileText, Volume2, VolumeX, Smartphone, AtSign } from 'lucide-react';
+import { Bell, Search, Clock, Trash2, Check, MessageSquare, Heart, UserPlus, FileText, Volume2, VolumeX, Smartphone, AtSign, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -57,6 +57,10 @@ const getNotificationIcon = (type: NotificationType) => {
             return AtSign;
         case NotificationType.LOGIN:
             return Bell;
+        case NotificationType.RATING_RECEIVED:
+            return Star;
+        case NotificationType.RATING_REQUESTED:
+            return Star;
         default:
             return Bell;
     }
@@ -81,6 +85,10 @@ const getNotificationTitle = (notification: Notification): string => {
             return 'You were mentioned';
         case NotificationType.LOGIN:
             return 'Login Alert';
+        case NotificationType.RATING_RECEIVED:
+            return 'Session Rated';
+        case NotificationType.RATING_REQUESTED:
+            return 'Rating Requested';
         default:
             return 'Notification';
     }
@@ -123,7 +131,17 @@ const NotificationPage = () => {
     const getNotificationLink = (notification: Notification): string | undefined => {
         let postId: string | undefined = undefined;
 
-        if (notification.type.toLowerCase().includes('post')) {
+        if (notification.type === NotificationType.RATING_RECEIVED) {
+            // For rating notifications, redirect to specific rating detail page
+            const ratingId = notification.data?.ratingId || notification.data?._id;
+            if (ratingId) {
+                return `/ratings/${ratingId}`;
+            }
+            // Fallback to ratings list if no specific rating ID
+            return '/ratings';
+        } else if (notification.type === NotificationType.RATING_REQUESTED) {
+            return `/meeting/${notification.data?.roomId}`;
+        } else if (notification.type.toLowerCase().includes('post')) {
             const extractedPostId = notification.data?.postId || notification.data?._id;
             if (typeof extractedPostId === 'string') return `/posts/${extractedPostId}`;
         } else if (notification.type.toLowerCase().includes('comment') || notification.type.toLowerCase().includes('reply')) {
@@ -322,6 +340,7 @@ const NotificationPage = () => {
                                         <AlertDialogFooter>
                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                                             <AlertDialogAction
+                                                className='bg-destructive hover:bg-destructive/90'
                                                 onClick={async (e) => {
                                                     e.stopPropagation();
                                                     await handleDeleteAllNotifications();

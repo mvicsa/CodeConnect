@@ -1,3 +1,4 @@
+import { getAuthToken } from '@/lib/cookies';
 import { User } from '@/types/user';
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios, { AxiosError } from 'axios';
@@ -7,6 +8,24 @@ export const fetchUserByUsername = createAsyncThunk<User, string>(
   async (username, { rejectWithValue }) => {
     try {
       const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/users/${username}`);
+      return response.data;
+    } catch (error: unknown) {
+      const axiosError = error as AxiosError;
+      return rejectWithValue((axiosError.response?.data as { message?: string })?.message || 'Failed to fetch user');
+    }
+  }
+);
+
+// fetch user by email GET/users/email/{email} Get user by email address
+export const fetchUserByEmail = createAsyncThunk<User, string>(
+  'user/fetchByEmail',
+  async (email, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/users/email/${email}`, {
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`
+        }
+      });
       return response.data;
     } catch (error: unknown) {
       const axiosError = error as AxiosError;
@@ -42,6 +61,18 @@ const userSlice = createSlice({
         state.data = action.payload;
       })
       .addCase(fetchUserByUsername.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(fetchUserByEmail.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchUserByEmail.fulfilled, (state, action) => {
+        state.loading = false;
+        state.data = action.payload;
+      })
+      .addCase(fetchUserByEmail.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });

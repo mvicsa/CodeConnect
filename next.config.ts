@@ -6,7 +6,40 @@ const withIntl = withNextIntl();
 
 const nextConfig: NextConfig = {
     images: {
-      domains: ['images.pexels.com', 'github.com', 'images.unsplash.com', 'avatars.githubusercontent.com', 'ik.imagekit.io', 'livekit.io', 'randomuser.me', 'placehold.co'],
+      remotePatterns  : [
+        {
+          protocol: 'https',
+          hostname: 'images.pexels.com',
+        },
+        {
+          protocol: 'https',
+          hostname: 'github.com',
+        },
+        {
+          protocol: 'https',
+          hostname: 'images.unsplash.com',
+        },
+        {
+          protocol: 'https',
+          hostname: 'avatars.githubusercontent.com',
+        },
+        {
+          protocol: 'https',
+          hostname: 'ik.imagekit.io',
+        },
+        {
+          protocol: 'https',
+          hostname: 'livekit.io',
+        },
+        {
+          protocol: 'https',
+          hostname: 'randomuser.me',
+        },
+        {
+          protocol: 'https',
+          hostname: 'placehold.co',
+        },
+      ],
       unoptimized: false,
       formats: ['image/webp', 'image/avif'],
     },

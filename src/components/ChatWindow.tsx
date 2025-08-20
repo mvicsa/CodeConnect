@@ -597,6 +597,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 )}>
                   <MarkdownWithCode 
                     content={msg.replyTo.content} 
+                    maxLength={10000}
                     theme={theme === 'dark' ? 'dark' : 'light'} 
                   />
                 </div>
@@ -662,6 +663,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               <div className="text-sm">
                 <MarkdownWithCode 
                   content={msg.content} 
+                  maxLength={10000}
                   theme={theme === 'dark' ? 'dark' : 'light'} 
                 />
               </div>
