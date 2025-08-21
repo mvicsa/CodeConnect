@@ -46,27 +46,23 @@ export const VideoConferenceComponent = ({
 
   return (
     <div className="min-h-screen bg-background fixed w-full top-0 left-0 z-50">
-      <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center space-x-3">
+      <div className="flex items-center justify-between p-4 border-b h-[80px]">
+        <div className="flex items-center space-x-3 overflow-hidden">
           <Video className="h-6 w-6 text-primary" />
           <div>
-            <h1 className="text-xl font-semibold">{currentRoom.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              {currentRoom.description}
-            </p>
+            <h1 className="text-xl font-semibold mb-2 truncate">{currentRoom.name}</h1>
+            <div className="text-muted-foreground text-sm">
+              by
+              <Link
+                href={`/profile/${currentRoom?.createdBy?.username}`}
+                className="text-primary hover:underline ms-1"
+              >
+                @{currentRoom?.createdBy?.username}
+              </Link>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-muted-foreground">
-            Created by
-            <Link
-              href={`/profile/${currentRoom?.createdBy?.username}`}
-              className="text-primary hover:underline ms-1"
-            >
-              {currentRoom?.createdBy?.username}
-            </Link>
-          </div>
-          
           {/* End Session Button - Only for room creator */}
           {currentUser && currentRoom?.createdBy?._id === currentUser._id && (
             <AlertDialog open={isEndSessionDialogOpen} onOpenChange={setIsEndSessionDialogOpen}> 

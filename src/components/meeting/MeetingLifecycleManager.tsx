@@ -172,10 +172,7 @@ export const MeetingLifecycleManager = ({ children, currentUser, onRatingSubmitt
             await dispatch(fetchPublicSessions());
           }
           
-          const creatorName = room.createdBy.username || 
-            room.createdBy.name || 
-            room.createdBy.firstName || 
-            'Unknown Creator';
+          const creatorName = `${room.createdBy.firstName} ${room.createdBy.lastName}`;
           
           setRatingSessionData({
             sessionId: room._id,
@@ -340,10 +337,7 @@ export const MeetingLifecycleManager = ({ children, currentUser, onRatingSubmitt
             roomName: updatedRoomData.name
           });
           
-          const creatorName = updatedRoomData.createdBy.username || 
-            updatedRoomData.createdBy.name || 
-            updatedRoomData.createdBy.firstName || 
-            'Unknown Creator';
+          const creatorName = `${updatedRoomData.createdBy.firstName} ${updatedRoomData.createdBy.lastName}`;
           
           setRatingSessionData({
             sessionId: roomId,
@@ -485,10 +479,7 @@ export const MeetingLifecycleManager = ({ children, currentUser, onRatingSubmitt
             await dispatch(fetchPublicSessions());
           }
           
-          const creatorName = room.createdBy.username || 
-            room.createdBy.name || 
-            room.createdBy.firstName || 
-            'Unknown Creator';
+          const creatorName = `${room.createdBy.firstName} ${room.createdBy.lastName}`;
           
           setRatingSessionData({
             sessionId: room._id,

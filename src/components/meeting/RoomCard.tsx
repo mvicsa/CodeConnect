@@ -239,7 +239,7 @@ export const RoomCard = ({
   const isCreator = currentUser?._id === room.createdBy._id;
 
   return (
-    <Card className="dark:border-transparent hover:shadow-md transition-shadow p-6">
+    <Card className="dark:border-transparent p-6">
       <CardContent className="p-0">
         <div className="flex flex-col gap-3 sm:gap-4">
           {/* Header Section */}
@@ -268,7 +268,13 @@ export const RoomCard = ({
                           : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
                     }
                   >
-                    {liveRoomStatus?.hasActiveSession === true ? "Live" : (room.isActive ? "Open" : "Ended")}
+                    {liveRoomStatus?.hasActiveSession === true ? "Live" : (
+                      room.isActive ? (
+                        'scheduledStartTime' in room && room.scheduledStartTime && new Date(room.scheduledStartTime) > new Date() 
+                          ? "Scheduled" 
+                          : "Open"
+                      ) : "Ended"
+                    )}
                   </Badge>
                   <Badge variant="outline" className="text-xs px-1.5 py-0.5">
                     {room.isPrivate ? <Lock className="h-3 w-3" /> : <Globe className="h-3 w-3" />}

@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Container from "@/components/Container";
-import { Room, PublicSession, updateRoom, deleteRoom } from "@/store/slices/meetingSlice";
+import { Room, PublicSession, updateRoom, deleteRoom, fetchPublicSessions } from "@/store/slices/meetingSlice";
 import { User } from "@/types/user";
 import axiosInstance from "@/lib/axios";
 import { RoomDialog } from "./RoomDialog";
@@ -63,42 +63,11 @@ const VideoConferenceWrapper = ({
   onEndSession: () => Promise<void>;
   currentUser: User | null;
 }) => {
-  const { handleEndSessionWithRating: endSessionWithRating, handleDisconnectWithRating: disconnectWithRating } = useMeetingLifecycle();
+  // const { handleEndSessionWithRating: endSessionWithRating, handleDisconnectWithRating: disconnectWithRating } = useMeetingLifecycle();
 
-  const handleDisconnect = async () => {
-    if (currentRoom) {
-      // Use the lifecycle manager to handle potential rating
-      await disconnectWithRating(currentRoom);
-    }
-    
-    onDisconnect();
-  };
+  // No need for handleDisconnect here - VideoConferenceComponent will call onDisconnect directly
 
-  const handleEndSession = async () => {
-    if (!currentRoom) return;
-    
-    console.log('VideoConferenceWrapper.handleEndSession: Starting', { 
-      roomId: currentRoom._id, 
-      roomName: currentRoom.name,
-      currentUserId: currentUser?._id 
-    });
-    
-    try {
-      // Use the lifecycle manager to handle session ending with rating
-      console.log('VideoConferenceWrapper.handleEndSession: Calling endSessionWithRating');
-      const success = await endSessionWithRating(currentRoom);
-      console.log('VideoConferenceWrapper.handleEndSession: endSessionWithRating result', { success });
-      
-      if (success) {
-        // Call onEndSession only for local state updates (no API call)
-        console.log('VideoConferenceWrapper.handleEndSession: Calling onEndSession for local state updates');
-        onEndSession();
-      }
-    } catch (error) {
-      console.error("Error ending session:", error);
-      toast.error("Failed to end session");
-    }
-  };
+  // No need for handleEndSession here - VideoConferenceComponent will call onEndSession directly
 
   if (!isInVideoCall || !videoToken || !currentRoom) return null;
 
@@ -107,8 +76,8 @@ const VideoConferenceWrapper = ({
       <VideoConferenceComponent
         token={videoToken}
         currentRoom={currentRoom}
-        onDisconnect={handleDisconnect}
-        onEndSession={handleEndSession}
+        onDisconnect={onDisconnect}
+        onEndSession={onEndSession}
         currentUser={currentUser}
       />
       {/* Close button for non-creators */}
@@ -117,7 +86,7 @@ const VideoConferenceWrapper = ({
           variant="outline"
           size="icon"
           className="fixed top-4 right-4 z-10 bg-background/80 backdrop-blur-sm"
-          onClick={handleDisconnect}
+          onClick={onDisconnect}
         >
           <X className="h-4 w-4" />
         </Button>
@@ -210,6 +179,12 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
   const [videoToken, setVideoToken] = useState<string | null>(null);
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
 
+  // Add flag to prevent infinite loading after session ends
+  const [sessionEnded, setSessionEnded] = useState(false);
+
+  // Add state to force re-renders when meeting data changes
+  const [dataVersion, setDataVersion] = useState(0);
+
   // Ref to access the checkAndShowRatingDialog function from context
   const checkRatingDialogRef = useRef<((roomId: string) => Promise<void>) | null>(null);
 
@@ -241,6 +216,83 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
     });
   }, []);
 
+  // Function to refresh essential data after session ends (without causing infinite loops)
+  const refreshEssentialDataAfterSessionEnd = useCallback(async () => {
+    if (!meeting || sessionEnded) return;
+    
+    try {
+      console.log('MeetingDetailsClient: Refreshing essential data after session end');
+      
+      // Fetch updated meeting data to get all the latest fields
+      const roomResponse = await axiosInstance.get(`/livekit/rooms/${meeting._id}`);
+      if (roomResponse.data) {
+        console.log('MeetingDetailsClient: Updated meeting data received:', roomResponse.data);
+        
+        // Update meeting object with fresh data (preserving UI state)
+        setMeeting(prevMeeting => {
+          if (!prevMeeting) return roomResponse.data;
+          
+          const updatedMeeting = {
+            ...prevMeeting,
+            ...roomResponse.data,
+            // Ensure these critical fields are updated
+            isActive: false,
+            endedDate: roomResponse.data.endedDate || new Date().toISOString(),
+            currentParticipants: roomResponse.data.currentParticipants || 0,
+            totalParticipantsJoined: roomResponse.data.totalParticipantsJoined || prevMeeting.totalParticipantsJoined || 0,
+            createdAt: roomResponse.data.createdAt || prevMeeting.createdAt
+          };
+          
+          // Only add actualStartTime if it exists in the response (Room type)
+          if ('actualStartTime' in roomResponse.data && roomResponse.data.actualStartTime) {
+            (updatedMeeting as Room).actualStartTime = roomResponse.data.actualStartTime;
+          }
+          
+          return updatedMeeting;
+        });
+        
+        // Force re-render to update UI immediately
+        setDataVersion(prev => prev + 1);
+      }
+      
+      // Only fetch essential data that might have changed
+      const statusResponse = await axiosInstance.get(`/livekit/rooms/${meeting._id}/status`);
+      if (statusResponse.data) {
+        setRoomStatus(prevStatus => {
+          if (!prevStatus) return statusResponse.data;
+          return {
+            ...prevStatus,
+            ...statusResponse.data,
+            hasActiveSession: false, // Ensure this stays false
+            participantCount: 0 // Ensure this stays 0
+          };
+        });
+      }
+      
+      // Update session history if available
+      try {
+        const historyResponse = await axiosInstance.get(`/livekit/rooms/my-session-history`);
+        if (historyResponse.data?.mySessionHistory) {
+          const sessionData = historyResponse.data.mySessionHistory.find(
+            (session: { roomId: string }) => session.roomId === meeting._id
+          );
+          if (sessionData) {
+            setMeetingSessionHistory({
+              joinCount: sessionData.joinCount || 0,
+              totalTimeSpent: sessionData.totalTimeSpent || 0,
+              duration: sessionData.duration || 0
+            });
+          }
+        }
+      } catch {
+        console.log('No session history available for this meeting');
+      }
+      
+    } catch (error) {
+      console.error('MeetingDetailsClient: Error refreshing essential data after session end', error);
+    }
+  }, [meeting, sessionEnded]);
+
   const fetchMeetingDetails = useCallback(async () => {
     try {
       setLoading(true);
@@ -263,9 +315,6 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
         
         // Fetch room status
         const statusResponse = await axiosInstance.get(`/livekit/rooms/${meetingId}/status`);
-        console.log('Room Status Response:', statusResponse.data);
-        console.log('Room Status - participantCount:', statusResponse.data?.participantCount);
-        console.log('Room Status - hasActiveSession:', statusResponse.data?.hasActiveSession);
         setRoomStatus(statusResponse.data);
         
         // Fetch session history to get total participant count
@@ -374,17 +423,49 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
         participantCount: roomStatus.participantCount
       });
       
-      // If session ended, refresh data immediately
-      if (!roomStatus.hasActiveSession && meeting.isActive) {
-        console.log('MeetingDetailsClient: Session appears to have ended, refreshing data');
-        fetchMeetingDetails();
+      // Only refresh if there's a significant state change and session is still active
+      if (!roomStatus.hasActiveSession && meeting.isActive && roomStatus.participantCount > 0) {
+        console.log('MeetingDetailsClient: Session appears to have ended, updating local state only');
+        // Update local state without making API calls
+        setMeeting(prevMeeting => {
+          if (!prevMeeting) return meeting;
+          
+          const updatedMeeting = {
+            ...prevMeeting,
+            isActive: false,
+            endedDate: new Date().toISOString(),
+            currentParticipants: 0
+          };
+          
+          // Add actualStartTime if it doesn't exist yet
+          if (!('actualStartTime' in prevMeeting) || !prevMeeting.actualStartTime) {
+            (updatedMeeting as Room).actualStartTime = new Date().toISOString();
+          }
+          
+          return updatedMeeting;
+        });
+        
+        setRoomStatus(prevStatus => {
+          if (!prevStatus) return prevStatus;
+          return {
+            ...prevStatus,
+            hasActiveSession: false,
+            participantCount: 0
+          };
+        });
+        
+        // Set session ended flag to prevent further updates
+        setSessionEnded(true);
+        
+        // Refresh essential data immediately to ensure consistency
+        refreshEssentialDataAfterSessionEnd();
       }
     }
-  }, [roomStatus?.hasActiveSession, meeting?.isActive]);
+  }, [roomStatus?.hasActiveSession, meeting?.isActive, roomStatus?.participantCount, refreshEssentialDataAfterSessionEnd]);
 
   // Add effect to automatically update meeting data when Redux store changes
   useEffect(() => {
-    if (rooms && meeting) {
+    if (rooms && meeting && !sessionEnded) {
       // Find the updated meeting in the rooms array
       const updatedRoom = rooms.find(room => room._id === meeting._id);
       if (updatedRoom && updatedRoom !== meeting) {
@@ -404,8 +485,8 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
           // Merge the updated data to preserve UI state
           safeUpdateMeetingData(updatedRoom);
           
-          // Only refresh room status if the meeting state changed significantly
-          if (meeting.isActive !== updatedRoom.isActive) {
+          // Only refresh room status if the meeting state changed significantly and session is still active
+          if (meeting.isActive !== updatedRoom.isActive && updatedRoom.isActive) {
             console.log('MeetingDetailsClient: Meeting state changed, refreshing room status');
             // Use targeted refresh to avoid affecting UI
             const refreshStatus = async () => {
@@ -423,7 +504,7 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
         }
       }
     }
-  }, [rooms, meeting, safeUpdateMeetingData]);
+  }, [rooms, meeting, safeUpdateMeetingData, sessionEnded]);
 
   // Function to handle external session end events
   // const handleExternalSessionEnd = async () => {
@@ -466,9 +547,9 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
     const hasEnded = !meeting?.isActive && !roomStatus?.hasActiveSession;
     const canEdit = isOwner && !hasEnded; // Allow editing if owner and meeting hasn't ended
     
-    // Temporary fallback for testing - remove when backend provides real data
-    const tempTotalParticipants = meeting.totalParticipantsJoined || 
-      (roomStatus?.participantCount ? roomStatus.participantCount + Math.floor(Math.random() * 3) : 0) || 0;
+    // Use actual participant count from roomStatus, fallback to meeting data
+    const actualParticipantCount = roomStatus?.participantCount ?? meeting?.currentParticipants ?? 0;
+    const totalParticipantsJoined = meeting.totalParticipantsJoined ?? actualParticipantCount;
     
     console.log('Computed values:', { 
       isOwner, 
@@ -481,8 +562,9 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
       createdBy: meeting?.createdBy?._id,
       participantCount: roomStatus?.participantCount,
       currentParticipants: meeting?.currentParticipants,
-      totalParticipantsJoined: meeting?.totalParticipantsJoined,
-      tempTotalParticipants
+      meetingTotalParticipants: meeting?.totalParticipantsJoined,
+      actualParticipantCount,
+      totalParticipantsJoined
     });
     
     return {
@@ -492,9 +574,36 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
       isActive,
       hasEnded,
       canEdit,
-      tempTotalParticipants: tempTotalParticipants || 0
+      actualParticipantCount: actualParticipantCount || 0,
+      totalParticipantsJoined: totalParticipantsJoined || 0
     };
-  }, [meeting, user?._id, roomStatus?.hasActiveSession, roomStatus?.participantCount]);
+  }, [
+    meeting, 
+    user?._id, 
+    roomStatus?.hasActiveSession, 
+    roomStatus?.participantCount,
+    meeting?.currentParticipants,
+    meeting?.totalParticipantsJoined,
+    meeting?.isActive,
+    dataVersion
+  ]);
+
+  // Force re-computation when meeting data changes significantly
+  useEffect(() => {
+    if (meeting) {
+      console.log('MeetingDetailsClient: Meeting data changed, forcing re-computation', {
+        isActive: meeting.isActive,
+        currentParticipants: meeting.currentParticipants,
+        totalParticipantsJoined: meeting.totalParticipantsJoined,
+        endedDate: 'endedDate' in meeting ? meeting.endedDate : undefined
+      });
+    }
+  }, [
+    meeting?.isActive,
+    meeting?.currentParticipants,
+    meeting?.totalParticipantsJoined,
+    meeting && 'endedDate' in meeting ? meeting.endedDate : undefined
+  ]);
 
   // Fetch followed users for suggestions
   useEffect(() => {
@@ -640,40 +749,137 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
     }
   };
 
-  // Video conference functions
+  // Video conference functions - Update UI immediately
   const handleDisconnect = async () => {
-    if (currentRoom && lifecycleManagerRef.current?.handleParticipantLeave) {
-      console.log('MeetingDetailsClient: Using lifecycle manager to handle participant leave');
-      await lifecycleManagerRef.current.handleParticipantLeave(currentRoom);
-    }
+    console.log('MeetingDetailsClient.handleDisconnect: Starting', {
+      hasCurrentRoom: !!currentRoom,
+      roomId: currentRoom?._id,
+      roomName: currentRoom?.name
+    });
     
+    // Store currentRoom before clearing it
+    const roomToLeave = currentRoom;
+    
+    // Immediately update UI state for fast response
     setIsInVideoCall(false);
     setVideoToken(null);
     setCurrentRoom(null);
+    
+    // Show disconnect message immediately
     toast.info("Disconnected from meeting");
     
-    // Refresh meeting data after disconnect
-    await refreshMeetingData();
+    // Fetch fresh data from database after disconnect
+    fetchMeetingDetails();
+    
+    // Handle lifecycle management in background (non-blocking)
+    if (roomToLeave && lifecycleManagerRef.current?.handleParticipantLeave) {
+      console.log('MeetingDetailsClient: Using lifecycle manager to handle participant leave');
+      // Don't await this - let it run in background
+      lifecycleManagerRef.current.handleParticipantLeave(roomToLeave).catch(error => {
+        console.error('Error in background participant leave handling:', error);
+      });
+    }
+    
+    console.log('MeetingDetailsClient.handleDisconnect: Completed');
   };
 
+  // Session ending - Update UI immediately and database
   const handleEndSession = async () => {
     if (!currentRoom) return;
     
     try {
-      // Session ending is handled by MeetingLifecycleManager
-      // Just update local state here
+      // Set session ended flag to prevent infinite loading
+      setSessionEnded(true);
+      
+      // Immediately update local state for fast response
       setIsInVideoCall(false);
       setVideoToken(null);
       setCurrentRoom(null);
       
-      // Use lifecycle manager to refresh data if available
-      if (lifecycleManagerRef.current?.forceRefreshRoomData) {
-        console.log('MeetingDetailsClient: Using lifecycle manager to refresh data');
-        await lifecycleManagerRef.current.forceRefreshRoomData(currentRoom._id);
-      } else {
-        console.log('MeetingDetailsClient: Lifecycle manager not available, using fallback refresh');
-        // Fallback to local refresh
-        await fetchMeetingDetails();
+      // Immediately update meeting state to show as ended
+      if (meeting) {
+        setMeeting(prevMeeting => {
+          if (!prevMeeting) return meeting;
+          
+          const updatedMeeting = {
+            ...prevMeeting,
+            isActive: false,
+            endedDate: new Date().toISOString(),
+            currentParticipants: 0, // Reset current participants
+            totalParticipantsJoined: prevMeeting.totalParticipantsJoined || 0 // Keep total joined
+          };
+          
+          // Add actualStartTime if it doesn't exist yet (for first-time sessions)
+          if (!('actualStartTime' in prevMeeting) || !prevMeeting.actualStartTime) {
+            (updatedMeeting as Room).actualStartTime = new Date().toISOString();
+          }
+          
+          return updatedMeeting;
+        });
+        
+        // Also update room status immediately with comprehensive data
+        setRoomStatus(prevStatus => {
+          if (!prevStatus) return prevStatus;
+          return {
+            ...prevStatus,
+            hasActiveSession: false,
+            participantCount: 0,
+            joinCount: prevStatus.joinCount || 0,
+            totalTimeSpent: prevStatus.totalTimeSpent || 0,
+            duration: prevStatus.duration || 0,
+            lastJoined: prevStatus.lastJoined || undefined
+          };
+        });
+        
+        // Force re-render to update UI immediately
+        setDataVersion(prev => prev + 1);
+      }
+      
+      // Update session history if available
+      if (meetingSessionHistory) {
+        setMeetingSessionHistory(prevHistory => {
+          if (!prevHistory) return prevHistory;
+          return {
+            ...prevHistory,
+            joinCount: prevHistory.joinCount || 0,
+            totalTimeSpent: prevHistory.totalTimeSpent || 0,
+            duration: prevHistory.duration || 0
+          };
+        });
+      }
+      
+      // Send API request to end session in database
+      try {
+        console.log('MeetingDetailsClient: Sending API request to end session');
+        const response = await axiosInstance.post(`/livekit/rooms/${currentRoom._id}/end-session`);
+        console.log('MeetingDetailsClient: Session ended in database successfully', response.data);
+        
+        // Update additional data from API response if available
+        if (response.data) {
+          // Update any additional fields returned from the API
+          if (response.data.totalParticipantsJoined !== undefined) {
+            setMeeting(prevMeeting => ({
+              ...prevMeeting!,
+              totalParticipantsJoined: response.data.totalParticipantsJoined
+            }));
+          }
+          
+          if (response.data.totalTimeSpent !== undefined) {
+            setRoomStatus(prevStatus => ({
+              ...prevStatus!,
+              totalTimeSpent: response.data.totalTimeSpent
+            }));
+          }
+        }
+        
+        // Refresh essential data immediately after API success (no need for setTimeout)
+        refreshEssentialDataAfterSessionEnd();
+        
+        // Don't call fetchMeetingDetails here to avoid infinite loop
+        // The local state is already updated above
+      } catch (apiError) {
+        console.error('MeetingDetailsClient: Error ending session in database', apiError);
+        toast.error("Failed to end session in database");
       }
       
     } catch (error) {
@@ -683,48 +889,66 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
   };
 
   // Function to manually refresh meeting data
-  const refreshMeetingData = async () => {
-    console.log('MeetingDetailsClient: Manual refresh triggered');
-    try {
-      // Only refresh the data, don't trigger full component re-render
-      const roomResponse = await axiosInstance.get(`/livekit/rooms/${meetingId}`);
-      if (roomResponse.data) {
-        // Use safe update to preserve UI state
-        safeUpdateMeetingData(roomResponse.data);
-      }
+  // const refreshMeetingData = async () => {
+  //   console.log('MeetingDetailsClient: Manual refresh triggered');
+  //   try {
+  //     // Only refresh the data, don't trigger full component re-render
+  //     const roomResponse = await axiosInstance.get(`/livekit/rooms/${meetingId}`);
+  //     if (roomResponse.data) {
+  //       // Use safe update to preserve UI state
+  //       safeUpdateMeetingData(roomResponse.data);
+  //     }
       
-      // Update room status separately
-      const statusResponse = await axiosInstance.get(`/livekit/rooms/${meetingId}/status`);
-      if (statusResponse.data) {
-        setRoomStatus(statusResponse.data);
-      }
+  //     // Update room status separately
+  //     const statusResponse = await axiosInstance.get(`/livekit/rooms/${meetingId}/status`);
+  //     if (statusResponse.data) {
+  //       setRoomStatus(statusResponse.data);
+  //     }
       
-      // Also use lifecycle manager if available, but only for data refresh
-      if (lifecycleManagerRef.current?.forceRefreshRoomData && meeting) {
-        console.log('MeetingDetailsClient: Using lifecycle manager for additional refresh');
-        await lifecycleManagerRef.current.forceRefreshRoomData(meeting._id);
-      }
-    } catch (error) {
-      console.error('MeetingDetailsClient: Error during manual refresh', error);
-    }
-  };
+  //     // Also use lifecycle manager if available, but only for data refresh
+  //     if (lifecycleManagerRef.current?.forceRefreshRoomData && meeting) {
+  //       console.log('MeetingDetailsClient: Using lifecycle manager for additional refresh');
+  //       // Don't await this to avoid blocking
+  //       lifecycleManagerRef.current.forceRefreshRoomData(meeting._id).catch(error => {
+  //         console.error('Error in lifecycle manager refresh:', error);
+  //       });
+  //     }
+  //   } catch (error) {
+  //     console.error('MeetingDetailsClient: Error during manual refresh', error);
+  //   }
+  // };
 
-    const { isOwner, isPrivate, isInvited, isActive, canEdit } = computedValues;
+  // Lightweight refresh function for disconnection scenarios
+  // Only fetches essential data (room status) to avoid blocking UI updates
+  // const quickRefreshMeetingData = async () => {
+  //   console.log('MeetingDetailsClient: Quick refresh triggered for disconnection');
+  //   try {
+  //     // Only refresh essential data for fast response
+  //     const statusResponse = await axiosInstance.get(`/livekit/rooms/${meetingId}/status`);
+  //     if (statusResponse.data) {
+  //       setRoomStatus(statusResponse.data);
+  //     }
+  //   } catch (error) {
+  //     console.error('MeetingDetailsClient: Error during quick refresh', error);
+  //   }
+  // };
+
+  const { isOwner, isPrivate, isInvited, isActive, canEdit } = computedValues;
 
   // Function to format time duration in milliseconds
-  const formatDuration = (milliseconds: number) => {
-    const seconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
+  // const formatDuration = (milliseconds: number) => {
+  //   const seconds = Math.floor(milliseconds / 1000);
+  //   const minutes = Math.floor(seconds / 60);
+  //   const hours = Math.floor(minutes / 60);
     
-    if (hours > 0) {
-      return `${hours}h ${minutes % 60}m`;
-    } else if (minutes > 0) {
-      return `${minutes}m ${seconds % 60}s`;
-    } else {
-      return `${seconds}s`;
-    }
-  };
+  //   if (hours > 0) {
+  //     return `${hours}h ${minutes % 60}m`;
+  //   } else if (minutes > 0) {
+  //     return `${minutes}m ${seconds % 60}s`;
+  //   } else {
+  //     return `${seconds}s`;
+  //   }
+  // };
 
   if (loading) {
     return (
@@ -792,7 +1016,7 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
             />
           )}
 
-          <Container>
+        <Container>
           <div className="max-w-4xl mx-auto">
 
           {/* Header */}
@@ -870,7 +1094,7 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center flex-wrap justify-between gap-2 mb-2">
+                  <div className="flex items-start flex-wrap justify-between gap-2 mb-2">
                     <CardTitle className="text-2xl">{meeting.name}</CardTitle>
                     {/* State like RoomCard: Live, Open, or Ended with same colors */}
                     <div className="flex items-center flex-wrap gap-2">
@@ -907,9 +1131,6 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                           </>
                         )}
                       </Badge>
-                      {'scheduledStartTime' in meeting && meeting.scheduledStartTime && new Date(meeting.scheduledStartTime) > new Date() && (
-                          <MeetingCountdown scheduledStartTime={meeting.scheduledStartTime} />
-                        )}
                     </div>
                   </div>
                   <p className="text-muted-foreground text-lg">{meeting.description}</p>
@@ -975,11 +1196,11 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                     <div className="text-sm text-muted-foreground space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="flex items-center gap-1">
-                          Current: {roomStatus?.participantCount || meeting?.currentParticipants || 0}
+                          Current: {computedValues.actualParticipantCount}
                         </span>
                         {('totalParticipantsJoined' in meeting && meeting.totalParticipantsJoined) ? (
                           <span className="flex items-center gap-1">
-                            Total Joined: {meeting.totalParticipantsJoined}
+                            Total Joined: {computedValues.totalParticipantsJoined}
                           </span>
                         ) : meetingSessionHistory?.joinCount ? (
                           <span className="flex items-center gap-1">
@@ -1004,6 +1225,21 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
             </CardContent>
           </Card>
 
+          {/* Sesstion Start In */}
+          {meeting.isActive && 'scheduledStartTime' in meeting && meeting.scheduledStartTime && new Date(meeting.scheduledStartTime) > new Date() && (
+            <Card className="mb-4">
+              <CardContent>
+                <MeetingCountdown 
+                  scheduledStartTime={meeting.scheduledStartTime} 
+                  onCountdownComplete={() => {
+                    // Force re-render to update button state
+                    setDataVersion(prev => prev + 1);
+                  }}
+                />
+              </CardContent>
+            </Card>
+          )}
+
           {/* Creator Info & Join Button Card */}
           <Card className="mb-4">
             <CardContent>
@@ -1021,7 +1257,9 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                       <div>
                         <p className="font-medium">Created by</p>
                         <p className="text-sm text-muted-foreground">
-                          {meeting.createdBy.firstName} {meeting.createdBy.lastName}
+                          <Link href={`/profile/${meeting.createdBy.username}`} className="hover:underline">
+                            {meeting.createdBy.firstName} {meeting.createdBy.lastName}
+                          </Link>
                         </p>
                       </div>
                     </div>
@@ -1055,7 +1293,13 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                       <Button
                         onClick={handleJoinMeeting}
                         className="w-full flex items-center gap-2"
-                        disabled={!isActive || isJoining}
+                        disabled={
+                          !computedValues.isActive || 
+                          isJoining || 
+                          (Boolean('scheduledStartTime' in meeting && 
+                           meeting.scheduledStartTime && 
+                           new Date(meeting.scheduledStartTime) > new Date()))
+                        }
                       >
                         {isJoining ? (
                           <>
@@ -1065,15 +1309,15 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                         ) : (
                           <>
                             <Video className="w-4 h-4" />
-                            {roomStatus?.hasActiveSession 
-                              ? "Join Live Meeting" 
+                            {computedValues.isActive 
+                              ? "Join Meeting" 
                               : 'scheduledStartTime' in meeting && meeting.scheduledStartTime && new Date(meeting.scheduledStartTime) > new Date()
                                 ? "Join Scheduled Meeting"
-                                : (meeting?.isActive ? "Join Meeting" : "Meeting Ended")}
+                                : "Meeting Ended"}
                           </>
                         )}
                       </Button>
-                      {!isActive && (
+                      {!computedValues.isActive && (
                         <p className="text-xs text-muted-foreground mt-2 text-center">
                           This meeting has ended and cannot be joined
                         </p>
@@ -1131,43 +1375,13 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
             </Card>
           )}
 
-          {/* Session History (if available) */}
-          {roomStatus && roomStatus.totalTimeSpent && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Session Statistics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center p-4 border rounded-lg">
-                    <p className="text-2xl font-bold text-primary">
-                      {formatDuration(roomStatus.totalTimeSpent)}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Total Time</p>
-                  </div>
-                  <div className="text-center p-4 border rounded-lg">
-                    <p className="text-2xl font-bold text-primary">
-                      {roomStatus.joinCount || 0}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Join Count</p>
-                  </div>
-                  <div className="text-center p-4 border rounded-lg">
-                    <p className="text-2xl font-bold text-primary">
-                      {roomStatus.lastJoined ? new Date(roomStatus.lastJoined).toLocaleDateString() : 'Never'}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Last Joined</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Meeting Ratings */}
           {meeting && 'createdBy' in meeting && (
             <MeetingRatings
               meetingId={meeting._id}
               meetingName={meeting.name}
               creatorId={meeting.createdBy?._id || ''}
+              dataVersion={dataVersion}
             />
           )}
         </div>
@@ -1193,13 +1407,17 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                     email !== undefined && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
                   );
 
+                // Ensure scheduledStartTime is properly formatted for the backend
+                // If it's undefined, send null to explicitly clear it
+                const scheduledStartTime = editingRoom.scheduledStartTime === undefined ? null : editingRoom.scheduledStartTime;
+                
                 const roomDataToSend = {
                   name: editingRoom.name,
                   description: editingRoom.description,
                   isPrivate: editingRoom.isPrivate,
                   maxParticipants: editingRoom.maxParticipants,
                   invitedUsers: invitedEmails,
-                  scheduledStartTime: editingRoom.scheduledStartTime // Include scheduled start time
+                  scheduledStartTime: scheduledStartTime
                 };
 
                 // Call the update API using Redux
@@ -1207,6 +1425,10 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                   roomId: editingRoom._id, 
                   roomData: roomDataToSend 
                 })).unwrap();
+                
+                // Always refetch public sessions because room status might have changed
+                // (e.g., from Open to Scheduled, or vice versa)
+                await dispatch(fetchPublicSessions());
                 
                 setShowEditDialog(false);
                 setEditingRoom(null);
@@ -1275,12 +1497,12 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                 // Refresh the meeting data to show the updated rating immediately
                 fetchMeetingDetails();
               }
-              toast.success("Rating submitted successfully!");
+              // toast.success("Rating submitted successfully!");
             }} 
           />
         )}
                
-      </Container>
+        </Container>
       </>
       </ContextConnector>
     </MeetingLifecycleManager>

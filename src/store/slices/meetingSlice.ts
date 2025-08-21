@@ -60,7 +60,7 @@ export interface CreateRoomData {
   maxParticipants: number;
   invitedUsers: string[]; // Array of email strings
   inviteEmail?: string;
-  scheduledStartTime?: string; // Optional scheduled start time
+  scheduledStartTime?: string | null; // Optional scheduled start time, can be null to clear
 }
 
 export interface UpdateRoomData {
@@ -69,7 +69,7 @@ export interface UpdateRoomData {
   isPrivate: boolean;
   maxParticipants: number;
   invitedUsers: string[]; // Array of email strings
-  scheduledStartTime?: string; // Optional scheduled start time
+  scheduledStartTime?: string | null; // Optional scheduled start time, can be null to clear
 }
 
 interface MeetingState {

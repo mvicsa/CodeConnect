@@ -83,7 +83,7 @@ export const SessionRatingDialog: React.FC<SessionRatingDialogProps> = ({
               Rate This Session
             </DialogTitle>
             <DialogDescription className="text-base">
-              Share your experience with <span className="font-medium text-primary">@{creatorName}</span>
+              Share your experience with <span className="font-medium text-primary">{creatorName}</span>
             </DialogDescription>
           </DialogHeader>
           <RatingForm
@@ -117,15 +117,15 @@ export const SessionRatingDialog: React.FC<SessionRatingDialogProps> = ({
         </DialogHeader>
         
         <div className="space-y-6">
-          <div className="bg-primary/10 p-6 rounded-xl border border-primary/50">
+          <div className="bg-accent p-4 rounded-xl">
             <div className="flex items-start gap-3">
-              <MessageCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+              <MessageCircle className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
               <div className="space-y-2">
-                <h4 className="font-semibold text-primary">Session Details</h4>
-                <div className="space-y-1 text-sm text-primary">
+                <h4 className="font-semibold text-muted-foreground">Session Details</h4>
+                <div className="space-y-1 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">Session:</span>
-                    <span className="bg-white/50 dark:bg-primary/50 px-2 py-1 rounded text-xs font-mono">
+                    <span className="text-primary font-medium">
                       {roomName}
                     </span>
                   </div>
@@ -141,7 +141,7 @@ export const SessionRatingDialog: React.FC<SessionRatingDialogProps> = ({
           </div>
           
           <div className="space-y-4">
-            <div className="text-center">
+            <div>
               <p className="text-sm text-muted-foreground mb-4">
                 Your feedback helps creators improve and helps other users find great sessions
               </p>

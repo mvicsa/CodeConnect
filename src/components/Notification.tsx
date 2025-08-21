@@ -488,7 +488,9 @@ const NotificationPage = () => {
                                                         </div>
 
                                                         <p className="text-muted-foreground text-sm leading-relaxed mb-3">
-                                                            {notification.fromUserId?.firstName} {notification.fromUserId?.lastName} {notification.content}
+                                                            {notification.fromUserId?.firstName} {notification.fromUserId?.lastName} 
+                                                            {notification.type !== NotificationType.RATING_REQUESTED && (" ")}
+                                                            {notification.content}
                                                         </p>
 
                                                         <div className="flex items-center gap-2">
