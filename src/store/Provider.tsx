@@ -560,13 +560,8 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         }
       });
       
-      // Sort messages by _id (which is a timestamp-based ObjectId)
-      mergedMessages.sort((a, b) => {
-        // Convert string _id to timestamp for comparison
-        const aTime = parseInt(a._id.substring(0, 8), 16) * 1000;
-        const bTime = parseInt(b._id.substring(0, 8), 16) * 1000;
-        return aTime - bTime;
-      });
+      // Messages are already sorted by the backend in chronological order (oldest first)
+      // No need to sort again
       
       dispatch(setMessages({ roomId, messages: mergedMessages, currentUserId: user?._id }));
       dispatch(setHasMore({ roomId, hasMore }));

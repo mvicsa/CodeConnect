@@ -44,6 +44,10 @@ const ChatInterface: React.FC = () => {
   const chatPreviews: ChatPreview[] = chatRooms.map(room => {
     const roomMessages = messages[room._id] || [];
     const unreadCount = roomMessages.filter((m: Message) => !m.seenBy.includes(myUserId as string)).length;
+    
+    // Calculate the last message from the current messages array to ensure it's always up-to-date
+    const lastMessage = roomMessages.length > 0 ? roomMessages[roomMessages.length - 1] : null;
+    
     return {
       _id: room._id,
       type: room.type,
@@ -51,7 +55,7 @@ const ChatInterface: React.FC = () => {
       createdBy: room.createdBy,
       groupTitle: room.groupTitle,
       groupAvatar: room.groupAvatar,
-      lastMessage: room.lastMessage,
+      lastMessage: lastMessage,
       unreadCount,
     };
   });

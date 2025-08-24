@@ -213,16 +213,16 @@ const chatSlice = createSlice({
               deletedBy: userId
             };
 
-            // Update room's lastMessage if this was the last message
+            // Always update room's lastMessage to reflect the most recent non-deleted message
             const room = state.rooms.find(r => r._id === roomId);
-            if (room && room.lastMessage?._id === messageId) {
-              // Find the previous non-deleted message
-              const previousMessage = messages
-                .slice(0, messageIndex)
+            if (room) {
+              // Find the most recent non-deleted message (messages are in chronological order, so last is newest)
+              const mostRecentNonDeletedMessage = messages
+                .slice()
                 .reverse()
-                .find(m => !m.deleted && (!m.deletedFor || !m.deletedFor.includes(userId || '')));
+                .find(m => m._id !== messageId && !m.deleted && (!m.deletedFor || !m.deletedFor.includes(userId || '')));
               
-              room.lastMessage = previousMessage || {
+              room.lastMessage = mostRecentNonDeletedMessage || {
                 ...messages[messageIndex],
                 content: 'Message deleted'
               };
@@ -238,16 +238,16 @@ const chatSlice = createSlice({
             if (!messages[messageIndex].deletedFor.includes(userId)) {
               messages[messageIndex].deletedFor.push(userId);
 
-              // Update room's lastMessage if this was the last message
+              // Always update room's lastMessage to reflect the most recent non-deleted message for this user
               const room = state.rooms.find(r => r._id === roomId);
-              if (room && room.lastMessage?._id === messageId) {
-                // Find the previous non-deleted message for this user
-                const previousMessage = messages
-                  .slice(0, messageIndex)
+              if (room) {
+                // Find the most recent non-deleted message for this user
+                const mostRecentNonDeletedMessage = messages
+                  .slice()
                   .reverse()
-                  .find(m => !m.deleted && (!m.deletedFor || !m.deletedFor.includes(userId)));
+                  .find(m => m._id !== messageId && !m.deleted && (!m.deletedFor || !m.deletedFor.includes(userId)));
                 
-                room.lastMessage = previousMessage || {
+                room.lastMessage = mostRecentNonDeletedMessage || {
                   ...messages[messageIndex],
                   content: 'Message deleted'
                 };
