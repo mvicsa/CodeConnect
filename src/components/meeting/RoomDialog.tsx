@@ -154,13 +154,13 @@ export const RoomDialog = ({
           </div>
           <div className="grid gap-2">
             <label htmlFor={`${mode}-scheduledStartTime`} className="text-sm font-medium">
-              {mode === 'create' ? 'Scheduled Start Time' : 'Scheduled Start Time'}
+              Scheduled Start Time
             </label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className={`w-full justify-start text-left font-normal ${roomData.scheduledStartTime ? 'text-primary' : 'text-muted-foreground'}`}
+                  className="w-full justify-start text-left font-normal"
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {roomData.scheduledStartTime ? (
@@ -223,7 +223,6 @@ export const RoomDialog = ({
                 />
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => {
                     onRoomDataChange({ 
                       ...roomData, 
@@ -236,7 +235,7 @@ export const RoomDialog = ({
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              Optional: Set when you&apos;d like the meeting to start. Participants can join earlier.
+              Optional: Set when you&apos;d like the meeting to start. Participants can&apos;t join earlier.
             </p>
           </div>
           <div className="grid gap-2 hidden">

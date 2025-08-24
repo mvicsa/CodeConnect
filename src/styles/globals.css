@@ -130,6 +130,12 @@ canvas {
   --info-foreground: oklch(0.98 0.02 95);
   --plyr-color-main: var(--color-primary);
   --plyr-font-family: var(--font-family);
+  --light: oklch(1 0 0);
+  --light-foreground: oklch(0.22 0 0);
+  --light-border: oklch(0.92 0.004 286.32);
+  --dark: oklch(0.22 0 0);
+  --dark-foreground: oklch(0.985 0 0);
+  --dark-border: oklch(1 0 0 / 10%);
 }
 
 .dark {
@@ -216,6 +222,12 @@ canvas {
   --color-danger-foreground: var(--danger-foreground);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
+  --color-light: var(--light);
+  --color-light-foreground: var(--light-foreground);
+  --color-dark: var(--dark);
+  --color-dark-foreground: var(--dark-foreground);
+  --color-light-border: var(--light-border);
+  --color-dark-border: var(--dark-border);
 }
 
 /* Custom notification toast styles */

@@ -14,9 +14,10 @@ interface MeetingRatingsProps {
   meetingId: string;
   meetingName: string;
   creatorId: string;
+  dataVersion?: number; // Add dataVersion prop to trigger re-fetching
 }
 
-export const MeetingRatings = ({ meetingId }: MeetingRatingsProps) => {
+export const MeetingRatings = ({ meetingId, dataVersion }: MeetingRatingsProps) => {
   const [ratings, setRatings] = useState<RatingResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +46,7 @@ export const MeetingRatings = ({ meetingId }: MeetingRatingsProps) => {
     if (meetingId) {
       fetchMeetingRatings();
     }
-  }, [meetingId, fetchMeetingRatings]);
+  }, [meetingId, fetchMeetingRatings, dataVersion]);
 
   const renderStarRating = (rating: number, size: 'sm' | 'md' = 'md') => {
     const starSize = size === 'sm' ? 'h-3 w-3' : 'h-4 w-4';

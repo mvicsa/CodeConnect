@@ -11,7 +11,6 @@ import { toast } from "sonner";
 import {
   Video,
   Plus,
-  ArrowLeft,
   Globe,
   Star,
 } from "lucide-react";
@@ -545,38 +544,8 @@ export const MeetingClient = () => {
   // Track if the secret ID endpoint exists
   const [secretIdEndpointExists, setSecretIdEndpointExists] = useState<boolean | null>(null);
 
-  // Check if the secret ID endpoint exists
-  const checkSecretIdEndpoint = useCallback(async () => {
-    if (secretIdEndpointExists !== null) return secretIdEndpointExists;
-    
-    try {
-      // Try to call the endpoint with a dummy ID to see if it exists
-      await axiosInstance.get('/livekit/rooms/dummy-id/secret-id');
-      setSecretIdEndpointExists(true);
-      return true;
-    } catch (error) {
-      if (error && (error as AxiosError).response?.status === 404) {
-        setSecretIdEndpointExists(false);
-        return false;
-      }
-      // For other errors, assume it might exist
-      return true;
-    }
-  }, [secretIdEndpointExists]);
-
-  // Check endpoint availability when component mounts
-  useEffect(() => {
-    checkSecretIdEndpoint();
-  }, [checkSecretIdEndpoint]);
 
   const getRoomSecretId = async (roomId: string) => {
-    // Check if endpoint exists first
-    const endpointExists = await checkSecretIdEndpoint();
-    if (!endpointExists) {
-      console.warn("Secret ID endpoint not available - private room feature disabled");
-      return null;
-    }
-
     // Prevent multiple simultaneous calls
     if (isFetchingSecretId) {
       console.log("Already fetching secret ID, skipping...");
@@ -652,37 +621,57 @@ export const MeetingClient = () => {
   //   }
   // };
 
-  const handleDisconnect = async () => {
+  const handleDisconnect = async (skipPublicSessionsRefresh = false, skipDisconnectToast = false) => {
+    console.log('🔄 handleDisconnect called with:', { skipPublicSessionsRefresh, skipDisconnectToast, currentRoomId: currentRoom?._id });
+    
+    // Store currentRoom before setting it to null
+    const roomToCheck = currentRoom;
+    
     setJoined(false);
     setToken(null);
     setCurrentRoom(null);
-    toast.info(t("disconnected"));
+    
+    // Only show disconnect toast if not explicitly skipped
+    if (!skipDisconnectToast) {
+      toast.info(t("disconnected"));
+    }
 
     // refresh the data
     await dispatch(fetchRooms());
-    await dispatch(fetchPublicSessions());
+    // Always refresh public sessions for participants to see updated room status
+    // Only skip if explicitly requested (e.g., from handleEndSession)
+    if (!skipPublicSessionsRefresh) {
+      console.log('🔄 handleDisconnect: Refreshing public sessions for participant...');
+      await dispatch(fetchPublicSessions());
+      console.log('✅ handleDisconnect: Public sessions refreshed for participant');
+    } else {
+      console.log('⏭️ handleDisconnect: Skipping public sessions refresh');
+    }
     await dispatch(fetchSessionHistory({ page: 1, limit: 10, loadMore: false }));
 
-    const { data } = await axiosInstance.get(`/livekit/rooms/${currentRoom?._id}/status`);
-    
     // Check if user was a participant (not creator) and show rating dialog
-    if (currentRoom && user && currentRoom.createdBy._id && currentRoom.createdBy._id !== user._id) {
-      const creatorName = currentRoom.createdBy.username || 
-        currentRoom.createdBy.name || 
-        currentRoom.createdBy.firstName || 
-        'Unknown Creator';
-      
-      setRatingSessionData({
-        sessionId: currentRoom._id,
-        roomName: currentRoom.name || 'Unknown Session',
-        creatorName,
-        creatorId: currentRoom.createdBy._id,
-      });
+    if (roomToCheck && user && roomToCheck.createdBy._id && roomToCheck.createdBy._id !== user._id) {
+      try {
+        const { data } = await axiosInstance.get(`/livekit/rooms/${roomToCheck._id}/status`);
+        
+        const creatorName = roomToCheck.createdBy.username || 
+          roomToCheck.createdBy.name || 
+          roomToCheck.createdBy.firstName || 
+          'Unknown Creator';
+        
+        setRatingSessionData({
+          sessionId: roomToCheck._id,
+          roomName: roomToCheck.name || 'Unknown Session',
+          creatorName,
+          creatorId: roomToCheck.createdBy._id,
+        });
 
-      console.log("currentRoom Test", data)
-
-      if (data.isActive === false) {
-        setShowRatingDialog(true);
+        if (data.isActive === false) {
+          await dispatch(fetchRooms());
+          setShowRatingDialog(true);
+        }
+      } catch (error) {
+        console.error('Failed to check room status for rating dialog:', error);
       }
     }
   };
@@ -702,12 +691,17 @@ export const MeetingClient = () => {
       // Refresh the data to update the ended sessions tab
       await dispatch(fetchRooms());
       await dispatch(fetchSessionHistory({ page: 1, limit: 10, loadMore: false }));
-      if (!currentRoom.isPrivate) {
-        await dispatch(fetchPublicSessions());
-      }
+      
+      // Always refetch public sessions because room status might have changed
+      // (e.g., from Active to Ended, which affects public sessions display)
+      console.log('🔄 handleEndSession: Refreshing public sessions for creator...');
+      await dispatch(fetchPublicSessions());
+      console.log('✅ handleEndSession: Public sessions refreshed for creator');
       
       // Redirect all participants back to meeting page
-      handleDisconnect();
+      // Pass true to skip public sessions refresh since we already did it above
+      // Also pass true to skip the disconnect toast since we already show success toast
+      handleDisconnect(true, true);
       toast.success("Session ended successfully");
     } catch (error) {
       console.error("Failed to end session:", error);
@@ -937,11 +931,11 @@ export const MeetingClient = () => {
         <div className="mb-6 sm:mb-8">
           <div className="flex flex-wrap justify-between gap-3">
             <div className="flex gap-2 sm:gap-3">
-              <Link href="/">
+              {/* <Link href="/">
                 <Button variant="ghost" size="icon" className="p-2 rounded-full">
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
-              </Link>
+              </Link> */}
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">{t("title")}</h1>
                 <p className="text-sm sm:text-base text-muted-foreground">{t("subtitle")}</p>
@@ -1395,21 +1389,38 @@ export const MeetingClient = () => {
                   email !== undefined && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
                 );
 
+              // Ensure scheduledStartTime is properly formatted for the backend
+              // If it's undefined, send null to explicitly clear it
+              const scheduledStartTime = editingRoom.scheduledStartTime === undefined ? null : editingRoom.scheduledStartTime;
+              
               const roomDataToSend: UpdateRoomData = {
                 name: editingRoom.name,
                 description: editingRoom.description,
                 isPrivate: editingRoom.isPrivate,
                 maxParticipants: editingRoom.maxParticipants,
-                invitedUsers: invitedEmails
+                invitedUsers: invitedEmails,
+                scheduledStartTime: scheduledStartTime
               };
 
               try {
                 const updatedRoom = await dispatch(updateRoom({ roomId: editingRoom._id, roomData: roomDataToSend })).unwrap();
                 
-                // If the room was changed to public, refetch public sessions
-                if (editingRoom.isPrivate && !roomDataToSend.isPrivate) {
-                  await dispatch(fetchPublicSessions());
-                }
+                // Manually update the local state to ensure scheduledStartTime is correctly updated
+                // This is necessary because the backend might not send undefined values properly
+                const manuallyUpdatedRoom = {
+                  ...updatedRoom,
+                  scheduledStartTime: editingRoom.scheduledStartTime
+                };
+                
+                // Update the Redux store manually to ensure our changes are reflected
+                dispatch({
+                  type: 'meeting/updateRoom/fulfilled',
+                  payload: manuallyUpdatedRoom
+                });
+                
+                // Always refetch public sessions because room status might have changed
+                // (e.g., from Open to Scheduled, or vice versa)
+                await dispatch(fetchPublicSessions());
                 
                 // Compare original vs new invited users and send appropriate messages
                 if (editingRoom.isPrivate) {
@@ -1439,6 +1450,9 @@ export const MeetingClient = () => {
                     }
                   }
                 }
+                
+                // Refresh rooms data to ensure everything is up to date
+                await dispatch(fetchRooms());
                 
                 setShowEditDialog(false);
                 setEditingRoom(null);

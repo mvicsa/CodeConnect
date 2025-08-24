@@ -28,7 +28,7 @@ interface VideoConferenceProps {
   currentUser: User | null;
 }
 
-const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || "wss://codeconnect-1r7agrz5.livekit.cloud";
+const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL;
 
 export const VideoConferenceComponent = ({ 
   token, 
@@ -46,35 +46,29 @@ export const VideoConferenceComponent = ({
 
   return (
     <div className="min-h-screen bg-background fixed w-full top-0 left-0 z-50">
-      <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center space-x-3">
-          <Video className="h-6 w-6 text-primary" />
-          <div>
-            <h1 className="text-xl font-semibold">{currentRoom.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              {currentRoom.description}
-            </p>
+      <div className="flex items-center justify-between p-4 border-b border-dark-border text-dark-foreground h-[80px] bg-dark ">
+        <div className="flex items-center space-x-3 overflow-hidden">
+          <Video className="h-6 w-6 text-primary flex-shrink-0" />
+          <div className="overflow-hidden">
+            <h1 className="text-xl font-semibold mb-1 truncate">{currentRoom.name}</h1>
+            <div className="text-muted-foreground truncate text-sm">
+              by
+              <Link
+                href={`/profile/${currentRoom?.createdBy?.username}`}
+                className="text-primary hover:underline ms-1"
+              >
+                {currentRoom?.createdBy?.firstName} {currentRoom?.createdBy?.lastName}
+              </Link>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-muted-foreground">
-            Created by
-            <Link
-              href={`/profile/${currentRoom?.createdBy?.username}`}
-              className="text-primary hover:underline ms-1"
-            >
-              {currentRoom?.createdBy?.username}
-            </Link>
-          </div>
-          
           {/* End Session Button - Only for room creator */}
           {currentUser && currentRoom?.createdBy?._id === currentUser._id && (
             <AlertDialog open={isEndSessionDialogOpen} onOpenChange={setIsEndSessionDialogOpen}> 
               <AlertDialogTrigger asChild>
                 <Button
-                  variant="destructive"
-                  size="sm"
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 bg-danger hover:bg-danger/90 cursor-pointer"
                   onClick={() => setIsEndSessionDialogOpen(true)}
                 >
                   <PowerOff className="h-4 w-4" />
@@ -106,7 +100,24 @@ export const VideoConferenceComponent = ({
           data-lk-theme="default"
           serverUrl={LIVEKIT_URL}
           connect={true}
-          onDisconnected={onDisconnect}
+          options={{
+            adaptiveStream: true,
+            dynacast: true,
+            stopLocalTrackOnUnpublish: false,
+            videoCaptureDefaults: {
+              frameRate: 60,
+              resolution: {
+                width: 1920,
+                height: 1080,
+                frameRate: 60
+              }
+            }
+          }}
+          onDisconnected={() => {
+            console.log('🔄 LiveKit onDisconnected triggered, calling onDisconnect...');
+            onDisconnect();
+            console.log('✅ onDisconnect called successfully');
+          }}
           style={{ height: "100%", width: "100%" }}
         >
           <VideoConference />
