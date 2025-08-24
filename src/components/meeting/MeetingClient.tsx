@@ -621,37 +621,57 @@ export const MeetingClient = () => {
   //   }
   // };
 
-  const handleDisconnect = async () => {
+  const handleDisconnect = async (skipPublicSessionsRefresh = false, skipDisconnectToast = false) => {
+    console.log('🔄 handleDisconnect called with:', { skipPublicSessionsRefresh, skipDisconnectToast, currentRoomId: currentRoom?._id });
+    
+    // Store currentRoom before setting it to null
+    const roomToCheck = currentRoom;
+    
     setJoined(false);
     setToken(null);
     setCurrentRoom(null);
-    toast.info(t("disconnected"));
+    
+    // Only show disconnect toast if not explicitly skipped
+    if (!skipDisconnectToast) {
+      toast.info(t("disconnected"));
+    }
 
     // refresh the data
     await dispatch(fetchRooms());
-    await dispatch(fetchPublicSessions());
+    // Always refresh public sessions for participants to see updated room status
+    // Only skip if explicitly requested (e.g., from handleEndSession)
+    if (!skipPublicSessionsRefresh) {
+      console.log('🔄 handleDisconnect: Refreshing public sessions for participant...');
+      await dispatch(fetchPublicSessions());
+      console.log('✅ handleDisconnect: Public sessions refreshed for participant');
+    } else {
+      console.log('⏭️ handleDisconnect: Skipping public sessions refresh');
+    }
     await dispatch(fetchSessionHistory({ page: 1, limit: 10, loadMore: false }));
 
-    const { data } = await axiosInstance.get(`/livekit/rooms/${currentRoom?._id}/status`);
-    
     // Check if user was a participant (not creator) and show rating dialog
-    if (currentRoom && user && currentRoom.createdBy._id && currentRoom.createdBy._id !== user._id) {
-      const creatorName = currentRoom.createdBy.username || 
-        currentRoom.createdBy.name || 
-        currentRoom.createdBy.firstName || 
-        'Unknown Creator';
-      
-      setRatingSessionData({
-        sessionId: currentRoom._id,
-        roomName: currentRoom.name || 'Unknown Session',
-        creatorName,
-        creatorId: currentRoom.createdBy._id,
-      });
+    if (roomToCheck && user && roomToCheck.createdBy._id && roomToCheck.createdBy._id !== user._id) {
+      try {
+        const { data } = await axiosInstance.get(`/livekit/rooms/${roomToCheck._id}/status`);
+        
+        const creatorName = roomToCheck.createdBy.username || 
+          roomToCheck.createdBy.name || 
+          roomToCheck.createdBy.firstName || 
+          'Unknown Creator';
+        
+        setRatingSessionData({
+          sessionId: roomToCheck._id,
+          roomName: roomToCheck.name || 'Unknown Session',
+          creatorName,
+          creatorId: roomToCheck.createdBy._id,
+        });
 
-      console.log("currentRoom Test", data)
-
-      if (data.isActive === false) {
-        setShowRatingDialog(true);
+        if (data.isActive === false) {
+          await dispatch(fetchRooms());
+          setShowRatingDialog(true);
+        }
+      } catch (error) {
+        console.error('Failed to check room status for rating dialog:', error);
       }
     }
   };
@@ -671,12 +691,17 @@ export const MeetingClient = () => {
       // Refresh the data to update the ended sessions tab
       await dispatch(fetchRooms());
       await dispatch(fetchSessionHistory({ page: 1, limit: 10, loadMore: false }));
-      if (!currentRoom.isPrivate) {
-        await dispatch(fetchPublicSessions());
-      }
+      
+      // Always refetch public sessions because room status might have changed
+      // (e.g., from Active to Ended, which affects public sessions display)
+      console.log('🔄 handleEndSession: Refreshing public sessions for creator...');
+      await dispatch(fetchPublicSessions());
+      console.log('✅ handleEndSession: Public sessions refreshed for creator');
       
       // Redirect all participants back to meeting page
-      handleDisconnect();
+      // Pass true to skip public sessions refresh since we already did it above
+      // Also pass true to skip the disconnect toast since we already show success toast
+      handleDisconnect(true, true);
       toast.success("Session ended successfully");
     } catch (error) {
       console.error("Failed to end session:", error);

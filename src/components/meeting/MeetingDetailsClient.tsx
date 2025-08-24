@@ -305,13 +305,15 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
         console.log('Room - currentParticipants:', roomResponse.data.currentParticipants);
         console.log('Room - totalParticipantsJoined:', roomResponse.data.totalParticipantsJoined);
         
-        // Only set loading to false if this is the initial fetch
-        if (!meeting) {
-          setMeeting(roomResponse.data);
-        } else {
-          // For subsequent fetches, merge data to preserve UI state
-          setMeeting(prevMeeting => ({ ...prevMeeting, ...roomResponse.data }));
-        }
+        setMeeting(prevMeeting => {
+          // Only set loading to false if this is the initial fetch
+          if (!prevMeeting) {
+            return roomResponse.data;
+          } else {
+            // For subsequent fetches, merge data to preserve UI state
+            return { ...prevMeeting, ...roomResponse.data };
+          }
+        });
         
         // Fetch room status
         const statusResponse = await axiosInstance.get(`/livekit/rooms/${meetingId}/status`);
@@ -345,12 +347,14 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
       try {
         const sessionResponse = await axiosInstance.get(`/livekit/rooms/${meetingId}/status`);
         if (sessionResponse.data) {
-          if (!meeting) {
-            setMeeting(sessionResponse.data);
-          } else {
-            // For subsequent fetches, merge data to preserve UI state
-            setMeeting(prevMeeting => ({ ...prevMeeting, ...sessionResponse.data }));
-          }
+          setMeeting(prevMeeting => {
+            if (!prevMeeting) {
+              return sessionResponse.data;
+            } else {
+              // For subsequent fetches, merge data to preserve UI state
+              return { ...prevMeeting, ...sessionResponse.data };
+            }
+          });
           setRoomStatus(sessionResponse.data);
           return;
         }
@@ -360,13 +364,11 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
     } finally {
       setLoading(false);
     }
-  }, [meetingId, meeting]);
+  }, [meetingId]);
 
   useEffect(() => {
     fetchMeetingDetails();
-    
-    // Remove the problematic interval - we'll use more efficient methods
-  }, [meetingId]);
+  }, [fetchMeetingDetails]);
 
   // Check if user should see rating dialog when entering the page
   useEffect(() => {
@@ -461,7 +463,7 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
         refreshEssentialDataAfterSessionEnd();
       }
     }
-  }, [roomStatus?.hasActiveSession, meeting?.isActive, roomStatus?.participantCount, refreshEssentialDataAfterSessionEnd]);
+  }, [roomStatus?.hasActiveSession, meeting?.isActive, roomStatus?.participantCount, refreshEssentialDataAfterSessionEnd, meeting, roomStatus]);
 
   // Add effect to automatically update meeting data when Redux store changes
   useEffect(() => {
@@ -535,7 +537,12 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
   //   }
   // };
 
-  // Memoized computed values to prevent unnecessary re-renders
+  
+  const meetingTotalParticipants = meeting?.totalParticipantsJoined;
+  const meetingCurrentParticipants = meeting?.currentParticipants;
+  const roomStatusParticipantCount = roomStatus?.participantCount;
+  const roomStatusHasActiveSession = roomStatus?.hasActiveSession;
+
   const computedValues = useMemo(() => {
     if (!meeting) return {};
     
@@ -543,13 +550,13 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
     const isPrivate = meeting.isPrivate;
     const isInvited = 'invitedUsers' in meeting && 
       meeting.invitedUsers?.some((invitedUser: User) => invitedUser._id === user?._id);
-    const isActive = roomStatus?.hasActiveSession || meeting?.isActive;
-    const hasEnded = !meeting?.isActive && !roomStatus?.hasActiveSession;
-    const canEdit = isOwner && !hasEnded; // Allow editing if owner and meeting hasn't ended
+    const isActive = roomStatusHasActiveSession || meeting?.isActive;
+    const hasEnded = !meeting?.isActive && !roomStatusHasActiveSession;
+    const canEdit = isOwner && !hasEnded;
     
     // Use actual participant count from roomStatus, fallback to meeting data
-    const actualParticipantCount = roomStatus?.participantCount ?? meeting?.currentParticipants ?? 0;
-    const totalParticipantsJoined = meeting.totalParticipantsJoined ?? actualParticipantCount;
+    const actualParticipantCount = roomStatusParticipantCount ?? meetingCurrentParticipants ?? 0;
+    const totalParticipantsJoined = meetingTotalParticipants ?? actualParticipantCount;
     
     console.log('Computed values:', { 
       isOwner, 
@@ -557,12 +564,12 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
       hasEnded, 
       canEdit, 
       meetingIsActive: meeting?.isActive, 
-      roomStatusHasSession: roomStatus?.hasActiveSession,
+      roomStatusHasSession: roomStatusHasActiveSession,
       userId: user?._id,
       createdBy: meeting?.createdBy?._id,
-      participantCount: roomStatus?.participantCount,
-      currentParticipants: meeting?.currentParticipants,
-      meetingTotalParticipants: meeting?.totalParticipantsJoined,
+      participantCount: roomStatusParticipantCount,
+      currentParticipants: meetingCurrentParticipants,
+      meetingTotalParticipants: meetingTotalParticipants,
       actualParticipantCount,
       totalParticipantsJoined
     });
@@ -580,13 +587,13 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
   }, [
     meeting, 
     user?._id, 
-    roomStatus?.hasActiveSession, 
-    roomStatus?.participantCount,
-    meeting?.currentParticipants,
-    meeting?.totalParticipantsJoined,
-    meeting?.isActive,
-    dataVersion
+    roomStatusHasActiveSession, 
+    roomStatusParticipantCount,
+    meetingTotalParticipants,
+    meetingCurrentParticipants
   ]);
+
+  const endedDate = meeting && 'endedDate' in meeting ? meeting.endedDate : undefined
 
   // Force re-computation when meeting data changes significantly
   useEffect(() => {
@@ -595,14 +602,15 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
         isActive: meeting.isActive,
         currentParticipants: meeting.currentParticipants,
         totalParticipantsJoined: meeting.totalParticipantsJoined,
-        endedDate: 'endedDate' in meeting ? meeting.endedDate : undefined
+        endedDate
       });
     }
   }, [
+    meeting,
     meeting?.isActive,
     meeting?.currentParticipants,
     meeting?.totalParticipantsJoined,
-    meeting && 'endedDate' in meeting ? meeting.endedDate : undefined
+    endedDate
   ]);
 
   // Fetch followed users for suggestions

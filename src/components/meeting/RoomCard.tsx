@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Video, Edit, Trash2, Calendar, Users, Globe, Lock, ExternalLink } from "lucide-react";
+import { Video, Edit, Trash2, Calendar, Users, Globe, Lock, ExternalLink, Clock } from "lucide-react";
 import { Room as ReduxRoom } from "@/store/slices/meetingSlice";
 import { User } from "@/types/user";
 import { useTranslations } from "next-intl";
@@ -98,6 +98,9 @@ export const RoomCard = ({
   // Fetch live room status from LiveKit once when component mounts
   useEffect(() => {
     const fetchLiveRoomStatus = async () => {
+      let finalParticipantCount = 0;
+      let finalRoomStatus = { hasActiveSession: false, participantCount: 0 };
+      
       try {
         console.log('=== RoomCard Status Fetch ===');
         console.log('Room ID:', room._id);
@@ -146,6 +149,12 @@ export const RoomCard = ({
                 console.log('Live data - hasActiveSession:', statusData.hasActiveSession);
                 console.log('Live data - calculated activeStatus:', liveActiveStatus);
                 
+                finalParticipantCount = statusData.participantCount;
+                finalRoomStatus = {
+                  hasActiveSession: liveActiveStatus,
+                  participantCount: statusData.participantCount
+                };
+                
                 setLiveParticipantCount(statusData.participantCount);
                 setLiveRoomStatus({
                   hasActiveSession: liveActiveStatus,
@@ -158,6 +167,12 @@ export const RoomCard = ({
             console.log('Error details:', (privateRoomError as AxiosError<{ status: number; message: string }>)?.response?.status || (privateRoomError as Error)?.message || privateRoomError);
             // This is expected for private rooms, not an error
             // Use database values as fallback
+            finalParticipantCount = participantCount;
+            finalRoomStatus = {
+              hasActiveSession: hasActiveSession, // Use exact database value
+              participantCount
+            };
+            
             setLiveParticipantCount(participantCount);
             setLiveRoomStatus({
               hasActiveSession: hasActiveSession, // Use exact database value
@@ -173,6 +188,12 @@ export const RoomCard = ({
             
             if (response.status === 200) {
               const statusData = response.data;
+              finalParticipantCount = statusData.participantCount || 0;
+              finalRoomStatus = {
+                hasActiveSession: statusData.hasActiveSession || false,
+                participantCount: statusData.participantCount || 0
+              };
+              
               setLiveParticipantCount(statusData.participantCount || 0);
               setLiveRoomStatus({
                 hasActiveSession: statusData.hasActiveSession || false,
@@ -186,6 +207,12 @@ export const RoomCard = ({
             // Use database values as fallback for public rooms too
             const hasActiveSession = room.isActive || false;
             const participantCount = room.currentParticipants || 0;
+            
+            finalParticipantCount = participantCount;
+            finalRoomStatus = {
+              hasActiveSession: hasActiveSession, // Use exact database value
+              participantCount
+            };
             
             // Use database values as fallback for public rooms
             setLiveParticipantCount(participantCount);
@@ -210,6 +237,12 @@ export const RoomCard = ({
           // Use database values as fallback for private rooms
           console.log('Fallback - using database values');
           
+          finalParticipantCount = participantCount;
+          finalRoomStatus = {
+            hasActiveSession: hasActiveSession, // Use exact database value
+            participantCount
+          };
+          
           setLiveParticipantCount(participantCount);
           setLiveRoomStatus({
             hasActiveSession: hasActiveSession, // Use exact database value
@@ -217,6 +250,12 @@ export const RoomCard = ({
           });
         } else {
           // Public room fallback
+          finalParticipantCount = 0;
+          finalRoomStatus = {
+            hasActiveSession: false,
+            participantCount: 0
+          };
+          
           setLiveParticipantCount(0);
           setLiveRoomStatus({
             hasActiveSession: false,
@@ -226,8 +265,8 @@ export const RoomCard = ({
       } finally {
         // setIsLoadingStatus(false); // Mark loading as complete
         console.log('=== RoomCard Status Fetch Complete ===');
-        console.log('Final liveParticipantCount:', liveParticipantCount);
-        console.log('Final liveRoomStatus:', liveRoomStatus);
+        console.log('Final liveParticipantCount:', finalParticipantCount);
+        console.log('Final liveRoomStatus:', finalRoomStatus);
       }
     };
 
@@ -290,6 +329,12 @@ export const RoomCard = ({
                   <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                   <span className="truncate">{formatDate(room.createdAt)}</span>
                 </span>
+                {room.isActive && 'scheduledStartTime' in room && room.scheduledStartTime && new Date(room.scheduledStartTime) > new Date() && (
+                  <span className="flex items-center gap-1 sm:gap-1.5">
+                    <Clock className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                    <span className="truncate">{formatDate(room.scheduledStartTime || '')}</span>
+                  </span>
+                )}
                 <span className="flex items-center gap-1 sm:gap-1.5">
                   <Users className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                   <span>
@@ -388,7 +433,7 @@ export const RoomCard = ({
                     setIsJoining(false);
                   }
                 }}
-                disabled={isJoining || isUserInRoom}
+                disabled={isJoining || isUserInRoom || !!(room.isActive && 'scheduledStartTime' in room && room.scheduledStartTime && new Date(room.scheduledStartTime) > new Date())}
                 className="h-7 sm:h-8 text-xs flex-1 sm:flex-none sm:min-w-[80px]"
               >
                 {isJoining ? (

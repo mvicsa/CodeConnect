@@ -61,7 +61,7 @@ export const MeetingCountdown = ({ scheduledStartTime, onCountdownComplete }: Me
     return () => {
       clearInterval(timer);
     };
-  }, []); // Empty dependency array to run only once
+  }, [calculateTimeLeft]); // Empty dependency array to run only once
 
   const formatTimeUnit = (value: number, unit: string) => {
     const isSeconds = unit === 'Seconds';
