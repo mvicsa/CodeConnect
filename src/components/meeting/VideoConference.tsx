@@ -101,7 +101,7 @@ export const VideoConferenceComponent = ({
           serverUrl={LIVEKIT_URL}
           connect={true}
           options={{
-            adaptiveStream: true,
+            adaptiveStream: false,
             dynacast: true,
             stopLocalTrackOnUnpublish: false,
             videoCaptureDefaults: {

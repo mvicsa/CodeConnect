@@ -29,6 +29,7 @@ import {
 import Img from "next/image";
 import MarkdownWithCode from "./MarkdownWithCode";
 import { useTheme } from 'next-themes';
+import { formatDate, isToday } from "date-fns";
 
 interface ChatWindowProps {
   onBackToList: () => void;
@@ -454,12 +455,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const formatTime = (date: Date) => {
-    return new Intl.DateTimeFormat("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date);
-  };
+  // const formatTime = (date: Date) => {
+  //   return new Intl.DateTimeFormat("en-US", {
+  //     hour: "2-digit",
+  //     minute: "2-digit",
+  //   }).format(date);
+  // };
 
   const getInitials = (name: string) => {
     return name
@@ -674,7 +675,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     isCurrentUser ? "text-primary-foreground" : "text-muted-foreground"
                   )}
                 >
-                  {msg.createdAt ? formatTime(new Date(msg.createdAt)) : ""}
+                  {isToday(msg.createdAt) ? formatDate(new Date(msg.createdAt), 'hh:mm a') : formatDate(new Date(msg.createdAt), 'E, MMM d, yyyy - hh:mm a')}
                 </p>
                 {isCurrentUser && (
                   <div className="flex items-center space-x-1 ms-2">
