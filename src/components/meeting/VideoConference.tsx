@@ -1,7 +1,10 @@
 "use client";
 
 import { Room } from "@/store/slices/meetingSlice";
-import { LiveKitRoom, VideoConference } from "@livekit/components-react";
+import { 
+  LiveKitRoom, 
+  VideoConference
+} from "@livekit/components-react";
 import "@livekit/components-styles";
 import { Video, PowerOff } from "lucide-react";
 import Link from "next/link";
@@ -42,6 +45,109 @@ export const VideoConferenceComponent = ({
   const handleConfirmEndSession = async () => {
     await onEndSession();
     setIsEndSessionDialogOpen(false);
+  };
+
+  // High-quality settings for screen sharing
+  const roomOptions = {
+    // Disable automatic optimization to maintain consistent quality
+    adaptiveStream: false,
+    dynacast: true,
+    stopLocalTrackOnUnpublish: false,
+    
+    // Regular camera settings
+    videoCaptureDefaults: {
+      frameRate: 60,
+      resolution: {
+        width: 1920,
+        height: 1080,
+        frameRate: 60
+      }
+    },
+    
+    // Default publishing settings
+    publishDefaults: {
+      // Regular video settings
+      videoEncoding: {
+        maxBitrate: 4_000_000, // 4 Mbps for camera
+        maxFramerate: 60,
+        priority: 'high' as const,
+        degradationPreference: 'maintain-resolution' as const
+      },
+      
+      // Special settings for screen share
+      screenShareEncoding: {
+        maxBitrate: 8_000_000, // 8 Mbps for screen - excellent quality
+        maxFramerate: 60,
+        priority: 'high' as const,
+        degradationPreference: 'maintain-resolution' as const // Always maintain resolution
+      },
+      
+      // Audio settings
+      audioEncoding: {
+        maxBitrate: 128_000, // 128 kbps for high-quality audio
+        priority: 'high' as const
+      },
+      
+      // Disable features that might affect quality
+      simulcast: false, // Disable automatic scaling
+      backupCodec: false
+    },
+    
+    // Enhanced connection settings for high quality
+    rtcConfig: {
+      iceTransportPolicy: 'all' as const,
+      bundlePolicy: 'balanced' as const,
+      iceCandidatePoolSize: 10,
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    },
+    
+    // Additional stability settings
+    reconnectPolicy: {
+      nextRetryDelayInMs: (context: { retryCount: number }): number => {
+        return Math.min(context.retryCount * 2000, 10000);
+      },
+      maxRetryCount: 10
+    },
+    
+    // Network optimization
+    expWebRTCSimulcast: false, // Disable simulcast for consistent quality
+    
+    // Special settings for screen sharing
+    screenShareCaptureDefaults: {
+      // Maximum screen resolution
+      resolution: {
+        width: 1920,
+        height: 1080,
+        frameRate: 60
+      },
+      
+      // Advanced clarity options
+      video: {
+        width: { ideal: 1920, max: 3840 },
+        height: { ideal: 1080, max: 2160 },
+        frameRate: { ideal: 30, max: 60 },
+        displaySurface: 'monitor' as const,
+        logicalSurface: true,
+        cursor: 'always' as const
+      },
+      
+      // System audio recording
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+        sampleRate: 48000,
+        channelCount: 2
+      },
+      
+      // Quality preferences
+      preferCurrentTab: false,
+      selfBrowserSurface: 'exclude' as const,
+      systemAudio: 'include' as const
+    }
   };
 
   return (
@@ -100,19 +206,7 @@ export const VideoConferenceComponent = ({
           data-lk-theme="default"
           serverUrl={LIVEKIT_URL}
           connect={true}
-          options={{
-            adaptiveStream: false,
-            dynacast: true,
-            stopLocalTrackOnUnpublish: false,
-            videoCaptureDefaults: {
-              frameRate: 60,
-              resolution: {
-                width: 1920,
-                height: 1080,
-                frameRate: 60
-              }
-            }
-          }}
+          options={roomOptions}
           onDisconnected={() => {
             console.log('🔄 LiveKit onDisconnected triggered, calling onDisconnect...');
             onDisconnect();
@@ -125,4 +219,4 @@ export const VideoConferenceComponent = ({
       </div>
     </div>
   );
-}; 
+};
