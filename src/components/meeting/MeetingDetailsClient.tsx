@@ -41,6 +41,7 @@ import { MeetingLifecycleManager, useMeetingLifecycle } from "./MeetingLifecycle
 import { MeetingRatings } from "./MeetingRatings";
 import { MeetingCountdown } from "./MeetingCountdown";
 import { SessionRatingDialog } from '@/components/rating';
+import { ratingService } from '@/services/ratingService';
 
 
 interface MeetingDetailsClientProps {
@@ -367,8 +368,10 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
   }, [meetingId]);
 
   useEffect(() => {
-    fetchMeetingDetails();
-  }, [fetchMeetingDetails]);
+    if (meetingId) {
+      fetchMeetingDetails();
+    }
+  }, [meetingId, fetchMeetingDetails]);
 
   // Check if user should see rating dialog when entering the page
   useEffect(() => {
@@ -401,18 +404,19 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
     }
   }, [meeting, user]);
 
-  // Load rated sessions from localStorage when component mounts
+  // Load rated sessions from backend when component mounts
   useEffect(() => {
     if (user?._id) {
-      const savedRatedSessions = localStorage.getItem(`ratedSessions_${user._id}`);
-      if (savedRatedSessions) {
+      const loadRatedSessions = async () => {
         try {
-          const ratedSessionsArray = JSON.parse(savedRatedSessions);
-          setRatedSessions(new Set(ratedSessionsArray));
+          const response = await ratingService.getMySubmittedRatings(1, 1000); // Get all submitted ratings
+          const ratedSessionIds = response.ratings.map(rating => rating.sessionId);
+          setRatedSessions(new Set(ratedSessionIds));
         } catch (error) {
-          console.error('Failed to parse rated sessions from localStorage:', error);
+          console.error('Failed to fetch rated sessions:', error);
         }
-      }
+      };
+      loadRatedSessions();
     }
   }, [user?._id]);
 
@@ -1003,9 +1007,6 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
         const newRatedSessions = new Set([...ratedSessions, sessionId]);
         setRatedSessions(newRatedSessions);
         
-        // Save to localStorage
-        localStorage.setItem(`ratedSessions_${user._id}`, JSON.stringify([...newRatedSessions]));
-        
         // Refresh meeting details to show the updated rating
         fetchMeetingDetails();
       }
@@ -1516,4 +1517,5 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
     </MeetingLifecycleManager>
   );
 };
+
 

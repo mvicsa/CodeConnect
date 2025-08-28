@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Star, Search, Filter, Calendar, User, MessageSquare, ArrowLeft } from "lucide-react";
+import { Star, Search, Filter, ArrowLeft } from "lucide-react";
 import { ratingService } from "@/services/ratingService";
 import { RatingResponseDto } from "@/types/rating";
 import { toast } from "sonner";
@@ -16,7 +15,7 @@ import Link from "next/link";
 import Container from "@/components/Container";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { formatDate } from "date-fns";
+import { RatingCard, RatingStats } from "@/components/rating";
 
 export default function RatingsPage() {
   const t = useTranslations("ratings");
@@ -126,45 +125,7 @@ export default function RatingsPage() {
 
 
 
-  const renderStarRating = (rating: number, size: 'sm' | 'md' = 'md') => {
-    const starSize = size === 'sm' ? 'h-3 w-3' : 'h-4 w-4';
-    const stars = [];
-    
-    for (let i = 1; i <= 5; i++) {
-      if (i <= rating) {
-        stars.push(
-          <Star key={i} className={`${starSize} fill-yellow-400 text-yellow-400`} />
-        );
-      } else if (i - 0.5 <= rating) {
-        stars.push(
-          <div key={i} className="relative">
-            <Star className={`${starSize} text-gray-300`} />
-            <Star className={`${starSize} fill-yellow-400 text-yellow-400 absolute inset-0 overflow-hidden`} style={{ clipPath: 'inset(0 50% 0 0)' }} />
-          </div>
-        );
-      } else {
-        stars.push(
-          <Star key={i} className={`${starSize} text-gray-300`} />
-        );
-      }
-    }
-    
-    return (
-      <div className="flex items-center gap-1">
-        {stars}
-        <span className={`ml-1 text-xs ${size === 'sm' ? 'text-xs' : 'text-sm'} text-muted-foreground`}>
-          {rating.toFixed(1)}
-        </span>
-      </div>
-    );
-  };
-
-  const getRatingColor = (rating: number) => {
-    if (rating >= 4.5) return "text-green-600";
-    if (rating >= 3.5) return "text-yellow-600";
-    if (rating >= 2.5) return "text-orange-600";
-    return "text-red-600";
-  };
+  // Removed renderStarRating and getRatingColor functions as they are now imported from shared components
 
 
 
@@ -186,56 +147,15 @@ export default function RatingsPage() {
         </div>
 
         {/* My Stats Section */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">My Stats</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                   <Star className="h-5 w-5 text-yellow-500" />
-                   <span>My Session Ratings</span>
-                 </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                   <span className="text-sm text-muted-foreground">Average Rating</span>
-                   <div className="font-semibold text-lg">
-                     {receivedRatings.length > 0 
-                       ? renderStarRating(receivedRatings.reduce((sum, rating) => sum + rating.overallRating, 0) / receivedRatings.length, 'md')
-                       : "N/A"}
-                   </div>
-                 </div>
-                 <div className="text-center">
-                   <div className="text-2xl font-bold text-primary">
-                     {totalRatings}
-                   </div>
-                   <div className="text-sm text-muted-foreground">Total Ratings</div>
-                 </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <User className="h-5 w-5 text-primary" />
-                  <span>Session Info</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">
-                    {String(currentUser?.firstName || '')} {String(currentUser?.lastName || '')}
-                  </div>
-                </div>
-                  <div className="text-center">
-                   <div className="text-sm text-muted-foreground">
-                     Ratings for your sessions
-                   </div>
-                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+        <RatingStats
+          ratings={receivedRatings}
+          totalRatings={totalRatings}
+          userInfo={{
+            firstName: currentUser?.firstName?.toString(),
+            lastName: currentUser?.lastName?.toString()
+          }}
+          className="mb-8"
+        />
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "received" | "submitted")} className="mb-6">
@@ -304,94 +224,13 @@ export default function RatingsPage() {
           ) : (
             <>
               {ratings.map((rating) => (
-                <Card key={rating._id}>
-                  <CardContent>
-                    <div className="flex items-start justify-between mb-4 flex-wrap">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <Link href={`/meeting/${rating.sessionId}`} className="hover:underline hover:text-primary transition-colors">
-                            <h3 className="font-semibold text-lg">
-                              {rating.roomName || "Session"}
-                            </h3>
-                          </Link>
-                          <Badge variant="outline" className={getRatingColor(rating.overallRating)}>
-                            {rating.overallRating} Star{rating.overallRating !== 1 ? 's' : ''}
-                          </Badge>
-                          {rating.isAnonymous && (
-                            <Badge variant="secondary">Anonymous</Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center flex-wrap gap-4 text-sm text-muted-foreground mb-3">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4" />
-                            {formatDate(rating.createdAt, "MMM d, yyyy hh:mm a")}
-                          </span>
-                          {rating.raterUsername && (
-                            <span className="flex items-center gap-1">
-                              <User className="h-4 w-4" />
-                              {rating.isAnonymous ? 'Anonymous User' : <Link href={`/profile/${rating.raterUsername}`} className="hover:underline">{rating.raterFirstName} {rating.raterLastName}</Link>}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        {renderStarRating(rating.overallRating, 'md')}
-                      </div>
-                    </div>
-
-                    {/* Rating Details */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                      <div className="text-center p-3 bg-accent rounded-lg">
-                        <div className="text-muted-foreground mb-1 text-xs sm:text-sm">Technical</div>
-                        <div className="flex items-center justify-center gap-1 font-semibold">
-                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                          <span className="text-sm">{rating.technicalKnowledge}</span>
-                        </div>
-                      </div>
-                      <div className="text-center p-3 bg-accent rounded-lg">
-                        <div className="text-muted-foreground mb-1 text-xs sm:text-sm">Communication</div>
-                        <div className="flex items-center justify-center gap-1 font-semibold">
-                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                          <span className="text-sm">{rating.communication}</span>
-                        </div>
-                      </div>
-                      <div className="text-center p-3 bg-accent rounded-lg">
-                        <div className="text-muted-foreground mb-1 text-xs sm:text-sm">Organization</div>
-                        <div className="flex items-center justify-center gap-1 font-semibold">
-                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                          <span className="text-sm">{rating.organization}</span>
-                        </div>
-                      </div>
-                      <div className="text-center p-3 bg-accent rounded-lg">
-                        <div className="text-muted-foreground mb-1 text-xs sm:text-sm">Helpfulness</div>
-                        <div className="flex items-center justify-center gap-1 font-semibold">
-                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                          <span className="text-sm">{rating.helpfulness}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Comment */}
-                    {rating.comment && (
-                      <div className="bg-accent/50 p-4 rounded-lg">
-                        <div className="flex items-center gap-2 mb-2">
-                          <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium text-muted-foreground">Comment</span>
-                        </div>
-                        <p className="text-sm">{rating.comment}</p>
-                      </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex justify-end mt-4">
-                      <Link href={`/ratings/${rating._id}`}>
-                        <Button variant="outline" size="sm">
-                          {t("viewDetails")}
-                        </Button>
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
+                <RatingCard 
+                  key={rating._id} 
+                  rating={rating}
+                  showRoomName={true}
+                  showViewDetails={true}
+                  showRaterInfo={true}
+                />
               ))}
 
                              {/* Pagination */}
