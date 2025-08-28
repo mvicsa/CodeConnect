@@ -63,7 +63,7 @@ const UserRatingsStats: React.FC<UserRatingsStatsProps> = ({ userId }) => {
           </CardTitle>
         </CardHeader>
         <CardContent className='space-y-3'>
-          <div className='text-center bg-accent p-3 rounded-lg'>
+          <div className='text-center bg-accent/50 p-3 rounded-lg'>
             <span className='text-sm text-muted-foreground'>Average Rating</span>
             <div className='font-semibold text-lg'>
               {loading ? (
@@ -76,13 +76,13 @@ const UserRatingsStats: React.FC<UserRatingsStatsProps> = ({ userId }) => {
               )}
             </div>
           </div>
-          <div className='text-center bg-accent p-3 rounded-lg'>
+          <div className='text-center bg-accent/50 p-3 rounded-lg'>
             <div className='text-sm text-muted-foreground'>Total Ratings</div>
             <div className='text-2xl font-bold text-primary'>
               {loading ? '-' : totalRatings}
             </div>
           </div>
-          <div className='text-center bg-accent p-3 rounded-lg'>
+          <div className='text-center bg-accent/50 p-3 rounded-lg'>
             <div className='text-sm text-muted-foreground'>4+ Star Ratings</div>
             <div className='text-2xl font-bold text-green-600'>
               {loading ? '-' : fourStarRatings}

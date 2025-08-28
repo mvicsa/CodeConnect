@@ -32,7 +32,8 @@ import {
   type PublicSession,
   type CreateRoomData,
   type UpdateRoomData,
-  Room
+  Room,
+  SessionHistory
 } from '@/store/slices/meetingSlice';
 import { RoomDialog } from "./RoomDialog";
 import { VideoConferenceComponent } from "./VideoConference";
@@ -43,10 +44,9 @@ import { useContext } from 'react';
 import { SocketContext } from '@/store/Provider';
 import axiosInstance from '@/lib/axios';
 import axios, { AxiosError } from 'axios';
-import { Badge } from "@/components/ui/badge";
-import { formatTime } from "@/lib/utils";
 import { SessionRatingDialog } from '@/components/rating';
 import { ratingService } from '@/services/ratingService';
+import { SessionHistorySection } from './index';
 
 
 export const MeetingClient = () => {
@@ -108,6 +108,29 @@ export const MeetingClient = () => {
   const [sessionRatings, setSessionRatings] = useState<{[sessionId: string]: number}>({});
   const [sessionRatingCounts, setSessionRatingCounts] = useState<{[sessionId: string]: number}>({});
 
+  // Helper function to check if a session is rated
+  const isSessionRated = useCallback((sessionId: string): boolean => {
+    if (!sessionId) return false;
+    return ratedSessions.has(sessionId);
+  }, [ratedSessions]);
+
+  // Function to handle rating a session
+  const handleRateSession = useCallback((session: SessionHistory) => {
+    if (session.createdBy?._id && session.createdBy._id !== user?._id) {
+      const creatorName = session.createdBy.username || 
+                        session.createdBy.name || 
+                        session.createdBy.firstName || 
+                        'Unknown Creator';
+      
+      setRatingSessionData({
+        sessionId: session.roomId,
+        roomName: session.roomName,
+        creatorName,
+        creatorId: session.createdBy._id,
+      });
+      setShowRatingDialog(true);
+    }
+  }, [user?._id]);
 
   const t = useTranslations("meeting");
   const socket = useContext(SocketContext);
@@ -206,9 +229,9 @@ export const MeetingClient = () => {
     }
     
     return (
-      <div className="flex items-center gap-1">
+      <div className="flex items-center justify-center gap-1">
         {stars}
-        <span className={`ml-1 text-xs ${size === 'sm' ? 'text-xs' : 'text-sm'} text-muted-foreground`}>
+        <span className={`ms-1 text-xs ${size === 'sm' ? 'text-xs' : 'text-sm'} text-muted-foreground`}>
           {rating.toFixed(1)}
         </span>
       </div>
@@ -345,20 +368,17 @@ export const MeetingClient = () => {
         await dispatch(fetchRooms());
         await dispatch(fetchPublicSessions());
         await dispatch(fetchSessionHistory({ page: 1, limit: 10, loadMore: false }));
+        
+        // Load user's rated sessions from backend
+        try {
+          const response = await ratingService.getMySubmittedRatings(1, 1000); // Get all submitted ratings
+          const ratedSessionIds = response.ratings.map(rating => rating.sessionId);
+          setRatedSessions(new Set(ratedSessionIds));
+        } catch (error) {
+          console.error('Failed to fetch rated sessions:', error);
+        }
       };
       fetchData();
-      
-      // Check for already rated sessions (you can implement this API call)
-      // For now, we'll use localStorage to persist rated sessions
-      const savedRatedSessions = localStorage.getItem(`ratedSessions_${user._id}`);
-      if (savedRatedSessions) {
-        try {
-          const ratedSessionsArray = JSON.parse(savedRatedSessions);
-          setRatedSessions(new Set(ratedSessionsArray));
-        } catch (error) {
-          console.error('Failed to parse rated sessions from localStorage:', error);
-        }
-      }
     }
   }, [dispatch, user?._id]);
 
@@ -1106,7 +1126,7 @@ export const MeetingClient = () => {
                   <Card className="dark:border-transparent">
                     <CardContent className="p-3 sm:p-4 text-center">
                       <div className="text-2xl sm:text-3xl font-bold text-green-600">{activeRooms}</div>
-                      <div className="text-xs sm:text-sm text-muted-foreground">Active Sessions</div>
+                      <div className="text-xs sm:text-sm text-muted-foreground">Open Sessions</div>
                     </CardContent>
                   </Card>
                   <Card className="dark:border-transparent">
@@ -1127,171 +1147,33 @@ export const MeetingClient = () => {
                 </Card>
               ) : sessionHistory && sessionHistory.length > 0 ? (
                 <div className="space-y-4">
-                  {/* Active Sessions */}
-                  <div className="space-y-3">
-                    <h3 className="text-base font-medium text-muted-foreground">Active Sessions</h3>
-                    <div className="grid gap-3 sm:gap-4">
-                      {sessionHistory.filter(session => session.isActive).length === 0 ? (
-                        <Card className="dark:border-transparent">
-                          <CardContent className="flex flex-col items-center justify-center py-4 sm:py-6">
-                            <Video className="h-8 w-8 text-muted-foreground mb-2" />
-                            <p className="text-sm text-muted-foreground text-center">
-                              No active sessions
-                            </p>
-                          </CardContent>
-                        </Card>
-                      ) : (
-                        [...sessionHistory]
-                          .filter(session => session.isActive)
-                          .sort((a, b) => {
-                            // Handle null lastJoined values
-                            const aDate = a.lastJoined ? new Date(a.lastJoined).getTime() : 0;
-                            const bDate = b.lastJoined ? new Date(b.lastJoined).getTime() : 0;
-                            return bDate - aDate;
-                          })
-                          .map((session) => (
-                            <Card key={session.roomId} className="p-4 dark:border-transparent shadow-none">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center flex-wrap gap-2 mb-2">
-                                    <Link href={`/meeting/${session.roomId}`} className="hover:text-primary hover:underline transition-colors">
-                                      <h4 className="font-medium">{session.roomName}</h4>
-                                    </Link>
-                                    <Badge variant={session.isPrivate ? "secondary" : "default"}>
-                                      {session.isPrivate ? "Private" : "Public"}
-                                    </Badge>
-                                    <Badge variant="outline" className="text-green-600">
-                                      Active
-                                    </Badge>
-                                  </div>
-                                  <p className="text-sm text-muted-foreground">
-                                    Created by <Link href={`/profile/${session.createdBy?.username}`} className="text-primary hover:underline">{session.createdBy?.username || 'Unknown'}</Link>
-                                  </p>
-                                  {/* <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
-                                    <span>Joined {session.joinCount} time(s)</span>
-                                    <span>Last: {session.lastJoined ? formatTime(session.lastJoined) : 'Never'}</span>
-                                    <span>Total time: {totalTimeSpent(session.totalTimeSpent)}</span>
-                                  </div> */}
-                                </div>
-                              </div>
-                            </Card>
-                          ))
-                      )}
-                    </div>
-                  </div>
+                  {/* Open Sessions */}
+                  <SessionHistorySection
+                    title="Open Sessions"
+                    sessions={sessionHistory.filter(session => session.isActive)}
+                    emptyIcon={<Video className="h-8 w-8 text-muted-foreground mb-2" />}
+                    emptyMessage="No open sessions"
+                    sessionRatings={sessionRatings}
+                    sessionRatingCounts={sessionRatingCounts}
+                    isSessionRated={isSessionRated}
+                    onRateSession={handleRateSession}
+                    currentUser={user}
+                    renderStarRating={renderStarRating}
+                  />
 
                   {/* Ended Sessions */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-base font-medium text-muted-foreground">Ended Sessions</h3>
-                    </div>
-                    <div className="grid gap-3 sm:gap-4">
-                      {sessionHistory.filter(session => !session.isActive).length === 0 ? (
-                        <Card className="dark:border-transparent">
-                          <CardContent className="flex flex-col items-center justify-center py-4 sm:py-6">
-                            <Globe className="h-8 w-8 text-muted-foreground mb-2" />
-                            <p className="text-sm text-muted-foreground text-center">
-                              No ended sessions
-                            </p>
-                          </CardContent>
-                        </Card>
-                      ) : (
-                        [...sessionHistory]
-                          .filter(session => !session.isActive)
-                          .sort((a, b) => {
-                            // Handle null lastJoined values
-                            const aDate = a.lastJoined ? new Date(a.lastJoined).getTime() : 0;
-                            const bDate = b.lastJoined ? new Date(b.lastJoined).getTime() : 0;
-                            return bDate - aDate;
-                          })
-                          .map((session) => (
-                            <Card key={session.roomId} className="p-4 dark:border-transparent shadow-none">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center flex-wrap gap-2 mb-2">
-                                    <Link href={`/meeting/${session.roomId}`} className="hover:text-primary hover:underline transition-colors">
-                                      <h4 className="font-medium">{session.roomName}</h4>
-                                    </Link>
-                                    <Badge variant={session.isPrivate ? "secondary" : "default"}>
-                                      {session.isPrivate ? "Private" : "Public"}
-                                    </Badge>
-                                    <Badge variant="outline" className="text-red-600">
-                                      Ended
-                                    </Badge>
-                                  </div>
-                                  <p className="text-sm text-muted-foreground mb-2">
-                                    Created by <Link href={`/profile/${session.createdBy?.username}`} className="text-primary hover:underline">{session.createdBy?.username || 'Unknown'}</Link>
-                                  </p>
-                                  <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
-                                    {/* <span>Joined {session.joinCount} time(s)</span>
-                                    <span>Last: {session.lastJoined ? formatTime(session.lastJoined) : 'Never'}</span>
-                                    <span>Total time: {totalTimeSpent(session.totalTimeSpent)}</span> */}
-                                    {session.endedAt && (
-                                      <span>Ended: {formatTime(session.endedAt!)}</span>
-                                    )}
-                                    {ratedSessions.has(session.roomId) && (
-                                      <div className="flex items-center gap-1 text-green-600">
-                                        <Star className="h-3 w-3 fill-current" />
-                                        <span>Rated</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                  
-                                  {/* Average Rating Display */}
-                                  <div className="mt-3 flex items-center gap-2">
-                                    {sessionRatings[session.roomId] > 0 ? (
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs text-muted-foreground">Average Rating:</span>
-                                        {renderStarRating(sessionRatings[session.roomId], 'sm')}
-                                        <span className="text-xs text-muted-foreground">
-                                          ({sessionRatingCounts[session.roomId]} rating{sessionRatingCounts[session.roomId] !== 1 ? 's' : ''})
-                                        </span>
-                                      </div>
-                                    ) : (
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs text-muted-foreground">No ratings yet</span>
-                                        <div className="flex gap-1">
-                                          {[...Array(5)].map((_, i) => (
-                                            <Star key={i} className="h-3 w-3 text-gray-300" />
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="ml-4 flex-shrink-0">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      if (session.createdBy?._id && session.createdBy._id !== user?._id) {
-                                        const creatorName = session.createdBy.username || 
-                                                          session.createdBy.name || 
-                                                          session.createdBy.firstName || 
-                                                          'Unknown Creator';
-                                        
-                                        setRatingSessionData({
-                                          sessionId: session.roomId,
-                                          roomName: session.roomName,
-                                          creatorName,
-                                          creatorId: session.createdBy._id,
-                                        });
-                                        setShowRatingDialog(true);
-                                      }
-                                    }}
-                                    disabled={!session.createdBy?._id || session.createdBy._id === user?._id || ratedSessions.has(session.roomId)}
-                                    className="flex items-center gap-2"
-                                  >
-                                    <Star className="h-4 w-4" />
-                                    {ratedSessions.has(session.roomId) ? 'Already Rated' : 'Rate Session'}
-                                  </Button>
-                                </div>
-                              </div>
-                            </Card>
-                          ))
-                      )}
-                    </div>
-                  </div>
+                  <SessionHistorySection
+                    title="Ended Sessions"
+                    sessions={sessionHistory.filter(session => !session.isActive)}
+                    emptyIcon={<Globe className="h-8 w-8 text-muted-foreground mb-2" />}
+                    emptyMessage="No ended sessions"
+                    sessionRatings={sessionRatings}
+                    sessionRatingCounts={sessionRatingCounts}
+                    isSessionRated={isSessionRated}
+                    onRateSession={handleRateSession}
+                    currentUser={user}
+                    renderStarRating={renderStarRating}
+                  />
                   
                   {/* Load More Button */}
                   {hasMoreSessions && sessionHistory && sessionHistory.length > 0 && (
@@ -1323,16 +1205,7 @@ export const MeetingClient = () => {
                       </div>
                     </div>
                   )}
-                  
-                  {/* Loading Indicator for Load More */}
-                  {isLoadingMore && hasMoreSessions && (
-                    <div className="flex justify-center pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                        Loading more sessions...
-                      </div>
-                    </div>
-                  )}
+
                 </div>
               ) : (
                 <Card className="dark:border-transparent">
@@ -1498,11 +1371,9 @@ export const MeetingClient = () => {
             onRatingSubmitted={() => {
               setShowRatingDialog(false);
               if (ratingSessionData && user?._id) {
+                // Add the session to our rated sessions set
                 const newRatedSessions = new Set([...ratedSessions, ratingSessionData.sessionId]);
                 setRatedSessions(newRatedSessions);
-                
-                // Save to localStorage
-                localStorage.setItem(`ratedSessions_${user._id}`, JSON.stringify([...newRatedSessions]));
                 
                 // Refresh the rating for this session
                 if (ratingSessionData.sessionId) {
