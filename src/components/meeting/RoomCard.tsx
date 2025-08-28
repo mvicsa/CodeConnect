@@ -11,6 +11,7 @@ import { useTranslations } from "next-intl";
 import axiosInstance from "@/lib/axios";
 import Link from "next/link";
 import { AxiosError } from "axios";
+import Image from "next/image";
 
 interface RoomCardProps {
   room: ReduxRoom;
@@ -325,6 +326,12 @@ export const RoomCard = ({
                 {room.description}
               </p>
               <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-xs sm:text-sm text-muted-foreground">
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <Image src={room.createdBy.avatar || ""} alt={room.createdBy.firstName || ""} width={20} height={20} className="rounded-full" />
+                  <Link href={`/profile/${room.createdBy.username}`} className="text-muted-foreground hover:underline">
+                    {room.createdBy.firstName} {room.createdBy.lastName}
+                  </Link>
+                </div>
                 <span className="flex items-center gap-1 sm:gap-1.5">
                   <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                   <span className="truncate">{formatDate(room.createdAt)}</span>
@@ -375,6 +382,9 @@ export const RoomCard = ({
 
           {/* Action Buttons Section */}
           {showActions && (
+            <>
+
+            
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-1 border-t border-border/50 pt-4">
             <div className="flex flex-1 sm:flex-none items-center gap-1.5 sm:gap-2">
               <Link href={`/meeting/${room._id}`}>
@@ -470,6 +480,7 @@ export const RoomCard = ({
               </div>
             )}
           </div>
+            </>
           )}
         </div>
       </CardContent>

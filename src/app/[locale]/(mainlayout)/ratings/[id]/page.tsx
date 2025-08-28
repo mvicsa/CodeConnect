@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import Link from "next/link";
 import Container from "@/components/Container";
 import axiosInstance from "@/lib/axios";
+import { StarRating } from "@/components/rating";
+import { getRatingColor, getRatingLabel, formatSatisfactionRate } from "@/lib/ratingUtils";
 
 export default function RatingDetailPage() {
   const params = useParams();
@@ -122,53 +124,7 @@ export default function RatingDetailPage() {
     });
   };
 
-  const renderStarRating = (rating: number, size: 'sm' | 'md' | 'lg' = 'md') => {
-    const starSize = size === 'sm' ? 'h-3 w-3' : size === 'md' ? 'h-4 w-4' : 'h-6 w-6';
-    const stars = [];
-    
-    for (let i = 1; i <= 5; i++) {
-      if (i <= rating) {
-        stars.push(
-          <Star key={i} className={`${starSize} fill-yellow-400 text-yellow-400`} />
-        );
-      } else if (i - 0.5 <= rating) {
-        stars.push(
-          <div key={i} className="relative">
-            <Star className={`${starSize} text-gray-300`} />
-            <Star className={`${starSize} fill-yellow-400 text-yellow-400 absolute inset-0 overflow-hidden`} style={{ clipPath: 'inset(0 50% 0 0)' }} />
-          </div>
-        );
-      } else {
-        stars.push(
-          <Star key={i} className={`${starSize} text-gray-300`} />
-        );
-      }
-    }
-    
-    return (
-      <div className="flex items-center justify-center gap-1">
-        {stars}
-        <span className={`ml-2 ${size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : 'text-lg'} text-muted-foreground`}>
-          {rating.toFixed(1)}
-        </span>
-      </div>
-    );
-  };
-
-  const getRatingColor = (rating: number) => {
-    if (rating >= 4.5) return "text-green-600";
-    if (rating >= 3.5) return "text-yellow-600";
-    if (rating >= 2.5) return "text-orange-600";
-    return "text-red-600";
-  };
-
-  const getRatingLabel = (rating: number) => {
-    if (rating >= 4.5) return "Excellent";
-    if (rating >= 3.5) return "Good";
-    if (rating >= 2.5) return "Average";
-    if (rating >= 1.5) return "Below Average";
-    return "Poor";
-  };
+  // Removed duplicate functions - now using shared components and utilities
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -265,23 +221,23 @@ export default function RatingDetailPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Overall Rating Display */}
-                <div className="text-center p-6 bg-accent rounded-lg">
+                <div className="text-center p-6 bg-accent/50 rounded-lg">
                   <div className="mb-4">
-                    {renderStarRating(rating.overallRating, 'lg')}
+                    <StarRating rating={rating.overallRating} size="lg" />
                   </div>
                   <div className={`text-2xl font-bold ${getRatingColor(rating.overallRating)}`}>
                     {getRatingLabel(rating.overallRating)}
                   </div>
-                    <p className="text-sm text-muted-foreground mt-2">
-                    {t("overallRating")} for this session
-                   </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                  {t("overallRating")} for this session
+                  </p>
                 </div>
 
                 {/* Rating Categories Grid */}
                 <div>
                    <h3 className="text-lg font-semibold mb-4">{t("ratingCategories")}</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center p-4 bg-accent rounded-lg">
+                    <div className="text-center p-4 bg-accent/50 rounded-lg">
                       <div className="text-sm text-muted-foreground mb-2">
                         {t("technicalKnowledge")}
                       </div>
@@ -290,21 +246,21 @@ export default function RatingDetailPage() {
                         <span>{rating.technicalKnowledge}</span>
                       </div>
                     </div>
-                     <div className="text-center p-4 bg-accent rounded-lg">
+                     <div className="text-center p-4 bg-accent/50 rounded-lg">
                        <div className="text-sm text-muted-foreground mb-2">{t("communication")}</div>
                        <div className="flex items-center justify-center gap-1 text-2xl font-semibold">
                         <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
                         <span>{rating.communication}</span>
                       </div>
                      </div>
-                     <div className="text-center p-4 bg-accent rounded-lg">
+                     <div className="text-center p-4 bg-accent/50 rounded-lg">
                        <div className="text-sm text-muted-foreground mb-2">{t("organization")}</div>
                        <div className="flex items-center justify-center gap-1 text-2xl font-semibold">
                         <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
                         <span>{rating.organization}</span>
                       </div>
                      </div>
-                     <div className="text-center p-4 bg-accent rounded-lg">
+                     <div className="text-center p-4 bg-accent/50 rounded-lg">
                        <div className="text-sm text-muted-foreground mb-2">{t("helpfulness")}</div>
                        <div className="flex items-center justify-center gap-1 text-2xl font-semibold">
                         <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
@@ -321,7 +277,7 @@ export default function RatingDetailPage() {
                      <MessageSquare className="h-5 w-5" />
                      {t("comment")}
                    </h3>
-                    <div className="bg-accent p-4 rounded-lg">
+                    <div className="bg-accent/50 p-4 rounded-lg">
                       <p className="text-sm leading-relaxed">{rating.comment}</p>
                     </div>
                   </div>
@@ -334,19 +290,19 @@ export default function RatingDetailPage() {
                   {/* Session Name and Description */}
                   {sessionInfo && (
                     <div className="mb-3 space-y-3">
-                      <div className="p-3 bg-accent rounded-lg">
+                      <div className="p-3 bg-accent/50 rounded-lg">
                         <div className="text-sm text-muted-foreground mb-1">Session Name</div>
                         <div className="font-medium text-lg">{sessionInfo.name}</div>
                       </div>
                       {sessionInfo.description && (
-                        <div className="p-3 bg-accent rounded-lg">
+                        <div className="p-3 bg-accent/50 rounded-lg">
                           <div className="text-sm text-muted-foreground mb-1">Session Description</div>
                           <div className="font-medium">{sessionInfo.description}</div>
                         </div>
                       )}
                       {/* Show Session Creator if available */}
                       {(sessionInfo.creator || (rating.creatorFirstName && rating.creatorLastName)) && (
-                        <div className="p-3 bg-accent rounded-lg">
+                        <div className="p-3 bg-accent/50 rounded-lg">
                           <div className="text-sm text-muted-foreground mb-1">Session Creator</div>
                           <div className="font-medium">
                             {sessionInfo.creator ? (
@@ -379,14 +335,14 @@ export default function RatingDetailPage() {
                   )}
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="flex items-center gap-3 p-3 bg-accent rounded-lg">
+                    <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-lg">
                       <Calendar className="h-5 w-5 text-muted-foreground" />
                         <div>
                          <div className="text-sm text-muted-foreground">{t("ratedOn")}</div>
                          <div className="font-medium">{formatDate(rating.createdAt)}</div>
                        </div>
                      </div>
-                     <div className="flex items-center gap-3 p-3 bg-accent rounded-lg">
+                     <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-lg">
                        <User className="h-5 w-5 text-muted-foreground" />
                        <div>
                          <div className="text-sm text-muted-foreground">{t("ratedBy")}</div>
@@ -434,7 +390,7 @@ export default function RatingDetailPage() {
                     <Separator className="my-4" />
                     <div className="text-center">
                      <div className="text-2xl font-bold text-green-600">
-                       {((rating.overallRating / 5) * 100).toFixed(0)}%
+                       {formatSatisfactionRate(rating.overallRating)}
                      </div>
                      <div className="text-sm text-muted-foreground">{t("satisfactionRate")}</div>
                    </div>

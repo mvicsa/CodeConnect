@@ -79,18 +79,19 @@ export const MeetingLifecycleManager = ({ children, currentUser, onRatingSubmitt
     }
   }, [sessionRatings]);
 
-  // Check for already rated sessions when component mounts
+  // Load rated sessions from backend when component mounts
   useEffect(() => {
     if (currentUser?._id) {
-      const savedRatedSessions = localStorage.getItem(`ratedSessions_${currentUser._id}`);
-      if (savedRatedSessions) {
+      const loadRatedSessions = async () => {
         try {
-          const ratedSessionsArray = JSON.parse(savedRatedSessions);
-          setRatedSessions(new Set(ratedSessionsArray));
+          const response = await ratingService.getMySubmittedRatings(1, 1000); // Get all submitted ratings
+          const ratedSessionIds = response.ratings.map(rating => rating.sessionId);
+          setRatedSessions(new Set(ratedSessionIds));
         } catch (error) {
-          console.error('Failed to parse rated sessions from localStorage:', error);
+          console.error('Failed to fetch rated sessions:', error);
         }
-      }
+      };
+      loadRatedSessions();
     }
   }, [currentUser?._id]);
 
@@ -679,11 +680,9 @@ export const MeetingLifecycleManager = ({ children, currentUser, onRatingSubmitt
           onRatingSubmitted={() => {
             setShowRatingDialog(false);
             if (ratingSessionData && currentUser?._id) {
+              // Add the session to our rated sessions set
               const newRatedSessions = new Set([...ratedSessions, ratingSessionData.sessionId]);
               setRatedSessions(newRatedSessions);
-              
-              // Save to localStorage
-              localStorage.setItem(`ratedSessions_${currentUser._id}`, JSON.stringify([...newRatedSessions]));
               
               // Refresh the rating for this session
               if (ratingSessionData.sessionId) {
