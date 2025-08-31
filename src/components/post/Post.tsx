@@ -41,6 +41,7 @@ import { SocketContext } from '@/store/Provider';
 import ReadMore from '../ReadMore';
 import { useRouter } from 'next/navigation';
 import { getAuthToken } from '@/lib/cookies';
+import { formatDate } from 'date-fns';
 
 interface PostProps {
   post: PostType;
@@ -333,7 +334,9 @@ const Post = memo(function Post({
                     </Link>
                     <div className='w-1 h-1 bg-primary rounded-full' />
                     <Link href={`/posts/${_id}`} className="hover:underline text-primary">
-                      <p className='text-sm text-primary'>{createdAt ? new Date(createdAt).toLocaleString() : ''}</p>
+                      <p className='text-sm text-primary'>
+                        {createdAt ? formatDate(createdAt, 'MMM d, yyyy hh:mm a') : ''}
+                      </p>
                     </Link>
                   </div>
                 </div>
