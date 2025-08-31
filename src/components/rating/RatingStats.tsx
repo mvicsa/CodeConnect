@@ -84,7 +84,7 @@ export const RatingStats: React.FC<RatingStatsProps> = ({
                 <span>Session Info</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 flex flex-col items-center justify-center flex-grow">
               {userInfo && (
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">

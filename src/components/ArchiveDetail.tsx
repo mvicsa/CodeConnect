@@ -12,6 +12,7 @@ import Link from 'next/link';
 import CodeBlock from '@/components/code/CodeBlock';
 import MarkdownWithCode from '@/components/MarkdownWithCode';
 import Container from './Container';
+import { formatDate } from 'date-fns';
 
 interface ArchiveDetailProps {
   id: string;
@@ -71,7 +72,7 @@ export default function ArchiveDetail({ id }: ArchiveDetailProps) {
   if (isLoading) {
     return (
         <Container>
-            <div className="p-12 space-y-6">
+            <div className="space-y-6">
                 <div className="flex items-center gap-4">
                     <Skeleton className="h-8 w-8" />
                     <Skeleton className="h-6 w-32" />
@@ -116,7 +117,7 @@ export default function ArchiveDetail({ id }: ArchiveDetailProps) {
   if (!initialLoading && archiveNotFound) {
     return (
         <Container>
-            <div className="p-12 space-y-6">
+            <div className="space-y-6">
             <Card>
             <CardContent className="pt-6">
                 <div className="text-center">
@@ -136,7 +137,7 @@ export default function ArchiveDetail({ id }: ArchiveDetailProps) {
   if (!item) {
     return (
         <Container>
-            <div className="p-12 space-y-6">
+            <div className="space-y-6">
                 <div className="flex items-center gap-4">
                 <Skeleton className="h-8 w-8" />
                 <Skeleton className="h-6 w-32" />
@@ -161,27 +162,26 @@ export default function ArchiveDetail({ id }: ArchiveDetailProps) {
 
   return (
     <Container>
-        <div className="p-12 space-y-6">
+        <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center gap-4">
-                <Link href="/archive">
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
+            <div className="flex gap-4">
+              <Link href="/archive">
+                <Button variant="ghost" size="icon" className="rounded-full">
                     <ArrowLeft className="h-4 w-4" />
-                    Back to Archive
                 </Button>
-                </Link>
-                <div>
+              </Link>
+              <div>
                 <h1 className="text-3xl font-bold">Archive Item</h1>
                 <p className="text-muted-foreground">Detailed view of archived content</p>
-                </div>
+              </div>
             </div>
 
             {/* Main Content */}
             <Card className="shadow-none dark:border-transparent">
                 <CardHeader>
-                <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                    <Avatar className="h-12 w-12">
+                <div className="flex items-start justify-between flex-wrap gap-3">
+                    <div className="flex gap-3">
+                    <Avatar className="h-13 w-13">
                         <AvatarImage src={item.createdBy?.avatar} alt={item.createdBy?.firstName} />
                         <AvatarFallback>
                         {item.createdBy?.firstName ? item.createdBy.firstName.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'U'}
@@ -190,8 +190,8 @@ export default function ArchiveDetail({ id }: ArchiveDetailProps) {
                     <div>
                         <CardTitle className="text-xl">{item.text || 'No title'}</CardTitle>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                        <Calendar className="h-3 w-3" />
-                        <span>{new Date(item.createdAt).toLocaleDateString()}</span>
+                          <Calendar className="h-3 w-3" />
+                          <span>{formatDate(item.createdAt, 'MMM d, yyyy hh:mm a')}</span>
                         </div>
                     </div>
                     </div>
@@ -238,22 +238,34 @@ export default function ArchiveDetail({ id }: ArchiveDetailProps) {
                         <h3 className="text-lg font-semibold mb-3">Comments & AI Evaluations</h3>
                         <div className="space-y-4">
                             {item.comments.map((comment) => (
-                            <Card key={comment._id} className="bg-accent shadow-none dark:border-transparent">
+                            <Card key={comment._id} className="bg-background/50 shadow-none dark:border-transparent">
                                 <CardContent>
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Avatar className="h-8 w-8">
+                                <div className="flex items-center gap-2 mb-4">
+                                  <Avatar className="h-12 w-12">
                                     <AvatarImage src={comment.createdBy?.avatar} alt={comment.createdBy?.firstName} />
                                     <AvatarFallback>
                                         {comment.createdBy?.firstName ? comment.createdBy.firstName.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'U'}
                                     </AvatarFallback>
-                                    </Avatar>
-                                    <span className="font-medium">{comment.createdBy?.firstName} {comment.createdBy?.lastName}</span>
+                                  </Avatar>
+                                  <div>
+                                    <Link href={`/profile/${comment.createdBy?.username}`} className="hover:underline">
+                                      <span className="font-medium">
+                                        {comment.createdBy?.firstName} {comment.createdBy?.lastName}
+                                      </span>
+                                    </Link>
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                                      <Calendar className="h-3 w-3" />
+                                      <span>
+                                        {formatDate(comment.createdAt, 'MMM d, yyyy hh:mm a')}
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
                                 {comment.text && (
-                                    <p className="text-muted-foreground mb-3">{comment.text}</p>
+                                  <p className="text-muted-foreground mb-3">{comment.text}</p>
                                 )}
                                 {comment.code && (
-                                    <div className="mb-3">
+                                  <div className="mb-3">
                                     <h4 className="font-medium mb-2">Code</h4>
                                     <CodeBlock 
                                         code={comment.code} 
@@ -262,13 +274,13 @@ export default function ArchiveDetail({ id }: ArchiveDetailProps) {
                                         maxHeight="200px"
                                         showExpandButton={true}
                                     />
-                                    </div>
+                                  </div>
                                 )}
                                 {comment.aiComment && (
-                                    <div className="border-l-4 border-primary pl-4 bg-primary/5 p-3 rounded">
+                                  <div className="border-l-4 border-primary pl-4 bg-primary/5 p-3 rounded-lg">
                                     <h4 className="font-medium mb-2 text-primary">AI Evaluation</h4>
                                     <p className="text-sm text-muted-foreground">{comment.aiComment.evaluation}</p>
-                                    </div>
+                                  </div>
                                 )}
                                 </CardContent>
                             </Card>

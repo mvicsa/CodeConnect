@@ -778,7 +778,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
             />
             {/* Edit Profile Dialog */}
             <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-              <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+              <DialogContent className="max-h-[80vh] flex flex-col">
                 {/* Fixed Header */}
                 <div className="flex-shrink-0 border-b pb-4">
                   <DialogTitle>Edit Profile</DialogTitle>

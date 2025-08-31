@@ -53,6 +53,7 @@ import CommentAI from './CommentAI'
 import { AIEvaluation } from '@/types/ai'
 import { Skeleton } from '../ui/skeleton'
 import { getAuthToken } from '@/lib/cookies';
+import { formatDate } from 'date-fns'
 
 
 // Define CommentContent type
@@ -669,7 +670,7 @@ export default function CommentItem({
               </button>
             )}
             <Link href={`/posts/${comment.postId}/${commentId}`} className='hover:underline'>
-              <span>{new Date(comment.createdAt || '').toLocaleString()}</span>
+              <span>{formatDate(comment.createdAt || '', 'MMM d, yyyy hh:mm a')}</span>
             </Link>
           </div>
         )}

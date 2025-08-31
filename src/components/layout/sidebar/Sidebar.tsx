@@ -56,8 +56,8 @@ export function Sidebar() {
                   href={localeAwareHref}
                   className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                     isActive
-                      ? "bg-accent text-accent-foreground"
-                      : "hover:bg-accent/50"
+                      ? "bg-accent dark:bg-card text-accent-foreground"
+                      : "hover:bg-accent dark:hover:bg-card"
                   }`}
                 >
                   {link.icon}

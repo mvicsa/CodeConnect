@@ -7,6 +7,7 @@ import AIBadge from '../AiBadge'
 import MarkdownWithCode from '../MarkdownWithCode'
 import { useTheme } from 'next-themes';
 import { AIEvaluation, AISuggestion } from '@/types/ai'
+import { formatDate } from 'date-fns'
 
 export default function CommentAI({
   suggestion,
@@ -67,8 +68,8 @@ export default function CommentAI({
         </div>
         <div className="flex gap-3 text-xs text-muted-foreground mt-2 items-center">
           <span>
-            {suggestion?.createdAt ? new Date(suggestion.createdAt).toLocaleString() : ''}
-            {evaluation?.createdAt ? new Date(evaluation.createdAt).toLocaleString() : ''}
+            {suggestion?.createdAt ? formatDate(suggestion.createdAt, 'MMM d, yyyy hh:mm a') : ''}
+            {evaluation?.createdAt ? formatDate(evaluation.createdAt, 'MMM d, yyyy hh:mm a') : ''}
           </span>
         </div>
       </div>
