@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import UserInfoForm from './UserInfoForm';
 import PasswordChangeForm from './PasswordChangeForm';
-import { User, Settings, Ban, UserX } from 'lucide-react';
+import { User, Settings, UserX } from 'lucide-react';
 import { BlockedUsersList } from '@/components/block/BlockedUsersList';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';

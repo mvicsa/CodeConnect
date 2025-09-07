@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X } from 'lucide-react';
 import { PLATFORM_COLORS, SOCIAL_PLATFORMS, SocialLink } from './socialPlatforms';
 
 interface SocialLinksFormProps {
@@ -16,8 +15,7 @@ interface SocialLinksFormProps {
 
 const SocialLinksForm: React.FC<SocialLinksFormProps> = ({
   socialLinks,
-  onSocialLinksChange,
-  error
+  onSocialLinksChange
 }) => {
   // URL validation function
   const isValidUrl = (url: string): boolean => {
@@ -27,7 +25,7 @@ const SocialLinksForm: React.FC<SocialLinksFormProps> = ({
       }
       new URL(url);
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   };
@@ -77,17 +75,15 @@ const SocialLinksForm: React.FC<SocialLinksFormProps> = ({
       <p className="text-sm text-muted-foreground mb-3">
         Add your social media profiles to help others connect with you.
       </p>
-      <div className="space-y-3">
+      <div className="space-y-4">
         {socialLinks.map((link, index) => {
-          // Debug logging
-          console.log(`Social Link ${index}:`, { platform: link.platform, title: link.title, url: link.url });
           
           // Find the matching platform for this link
           const platformMatch = SOCIAL_PLATFORMS.find(p => p.value === link.platform);
           const platformColor = PLATFORM_COLORS[link.platform as keyof typeof PLATFORM_COLORS] || '#6E6E6E';
           
           return (
-            <div key={`${link.platform || 'empty'}-${link.url || 'nourl'}-${index}`} className="flex gap-2">
+            <div key={`${link.platform || 'empty'}-${link.url || 'nourl'}-${index}`} className="flex flex-col sm:flex-row gap-2">
               <div className="flex-1">
                 <Select
                   value={link.platform || ''}
@@ -167,7 +163,7 @@ const SocialLinksForm: React.FC<SocialLinksFormProps> = ({
           type="button"
           variant="outline"
           onClick={addSocialLink}
-          className="w-full mt-2"
+          className="w-full mt-1"
           disabled={socialLinks.length >= SOCIAL_PLATFORMS.length}
         >
           Add Social Link
