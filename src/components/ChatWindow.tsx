@@ -155,10 +155,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Update oldest message ID when messages change
   useEffect(() => {
     if (messages.length > 0) {
-      const oldestMessage = messages[0]; // Assuming messages are sorted newest to oldest
+      const oldestMessage = messages[0]; // Messages are sorted chronologically (oldest first)
       setOldestMessageId(oldestMessage._id);
     }
   }, [messages]);
+
+  // Reset shouldAutoScroll when active room changes
+  useEffect(() => {
+    setShouldAutoScroll(true);
+  }, [activeRoomId]);
 
   // Track user activity (mouse movement, clicks, keyboard input)
   useEffect(() => {
@@ -744,6 +749,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
     // eslint-disable-next-line
   }, [messages, typing]);
+
+  // Force scroll to bottom when active room changes and messages are loaded
+  useEffect(() => {
+    if (activeRoomId && messages.length > 0) {
+      // Use a small delay to ensure messages are rendered
+      const timeoutId = setTimeout(() => {
+        scrollToBottom();
+        // Also force scroll to bottom to ensure it happens
+        forceScrollToBottom();
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [activeRoomId, messages.length]);
 
   return (
     <div className="flex flex-col h-full bg-card border">
