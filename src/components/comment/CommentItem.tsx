@@ -7,8 +7,7 @@ import {
   TrashIcon,
   FlagIcon,
   XIcon,
-  ChevronDown,
-  UserX,
+  ChevronDown
 } from 'lucide-react'
 import ReplyForm from './ReplyForm'
 import CommentEditor from './CommentEditor'
@@ -43,7 +42,6 @@ import {
 } from '@/store/slices/commentsSlice'
 import { removeNotificationsByCriteria } from '@/store/slices/notificationsSlice'
 import { useBlock } from '@/hooks/useBlock'
-import { BlockButton } from '@/components/block'
 import { useState, useMemo, useEffect, useContext, useRef } from 'react'
 import { Comment, CommentUser, Reply, User } from '@/types/comments'
 import Link from 'next/link'
@@ -571,7 +569,7 @@ export default function CommentItem({
                     <FlagIcon className="size-4" />
                     {t('report')}
                   </DropdownMenuItem>
-                  {user?._id !== comment.createdBy._id && (
+                  {/* {user?._id !== comment.createdBy._id && (
                     <DropdownMenuItem asChild className='cursor-pointer'>
                       <div className='flex items-center gap-2'>
                         <UserX className="size-4" />
@@ -586,7 +584,7 @@ export default function CommentItem({
                         />
                       </div>
                     </DropdownMenuItem>
-                  )}
+                  )} */}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

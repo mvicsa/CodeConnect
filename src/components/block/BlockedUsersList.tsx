@@ -123,22 +123,20 @@ export const BlockedUsersList: React.FC = () => {
       <CardContent>
         <div className="space-y-4">
           {blockedUsers.map((user) => {
-            // actualUser هو المستخدم المحظور (من blockedId أو blockerId أو user نفسه)
             const actualUser = user.blockedId || user.blockerId || user;
-            // السبب وتاريخ الحظر قد يكونان في user نفسه أو في user.block
             const reason = user.reason || (user.block && user.block.reason) || '';
             const createdAt = user.createdAt || (user.block && user.block.createdAt) || '';
             return (
-              <div key={user._id} className="flex items-center justify-between p-4 bg-accent rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
+              <div key={user._id} className="flex items-center justify-between flex-wrap gap-4 p-4 bg-background/50 rounded-lg">
+                <div className="flex gap-3">
+                  <Avatar className="h-11 w-11">
                     <AvatarImage src={getAvatar(actualUser)} alt={getDisplayName(actualUser)} />
                     <AvatarFallback>
                       {getAvatarFallback(actualUser)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center flex-wrap gap-2">
                       <h4 className="font-medium">{getDisplayName(actualUser)}</h4>
                       <Badge variant="outline">@{getUsername(actualUser)}</Badge>
                     </div>
@@ -147,7 +145,7 @@ export const BlockedUsersList: React.FC = () => {
                         Reason: {reason}
                       </p>
                     )}
-                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         Blocked {formatBlockDate(createdAt)}

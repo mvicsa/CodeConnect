@@ -1,4 +1,4 @@
-import { Home, MessageCircleMore, Hash, UserX } from "lucide-react";
+import { Home, MessageCircleMore, Hash } from "lucide-react";
 
 const navItems = [
   {
@@ -19,12 +19,12 @@ const navItems = [
     iconFilled: <Hash fill="currentColor" className="w-6 h-6" />,
     iconOutline: <Hash  className="w-6 h-6" />,
   },
-  {
-    name: "Block Management",
-    href: "/blocks",
-    iconFilled: <UserX fill="currentColor" className="w-6 h-6" />,
-    iconOutline: <UserX className="w-6 h-6" />,
-  },
+  // {
+  //   name: "Block Management",
+  //   href: "/blocks",
+  //   iconFilled: <UserX fill="currentColor" className="w-6 h-6" />,
+  //   iconOutline: <UserX className="w-6 h-6" />,
+  // },
 ];
 
 export default navItems;
