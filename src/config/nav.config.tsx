@@ -1,4 +1,4 @@
-import { Home, MessageCircleMore, Hash, UserX } from "lucide-react";
+import { Home, MessageCircleMore, Hash } from "lucide-react";
 
 const navItems = [
   {

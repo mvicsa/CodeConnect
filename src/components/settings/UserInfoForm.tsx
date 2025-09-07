@@ -105,7 +105,7 @@ const UserInfoForm = () => {
     if (user && user.gender && !editForm.gender) {
       setEditForm(prev => ({ ...prev, gender: typeof user.gender === 'string' ? user.gender : null }));
     }
-  }, [user?.gender, editForm.gender]);
+  }, [user, user?.gender, editForm.gender]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -154,7 +154,7 @@ const UserInfoForm = () => {
       }
       new URL(url);
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   };
@@ -341,7 +341,7 @@ const UserInfoForm = () => {
             value={editForm.gender || ""}
             onValueChange={(value) => setEditForm(prev => ({ ...prev, gender: value }))}
           >
-            <SelectTrigger id="gender" className="w-100">
+            <SelectTrigger id="gender" className="w-full mb-0">
               <SelectValue placeholder="Select gender" />
             </SelectTrigger>
             <SelectContent>
