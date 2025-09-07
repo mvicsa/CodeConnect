@@ -121,6 +121,32 @@ export const handleGitHubCallback = createAsyncThunk(
   }
 );
 
+export const changePassword = createAsyncThunk(
+  'auth/changePassword',
+  async (
+    data: { currentPassword: string; newPassword: string },
+    { getState, rejectWithValue }
+  ) => {
+    try {
+      const state = getState() as { auth: AuthState };
+      const token = state.auth.token || getAuthToken();
+      if (!token) throw new Error('No token');
+      const response = await axios.post(
+        `${API_URL}/auth/change-password`,
+        data,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (err: unknown) {
+      const error = err as AxiosError;
+      return rejectWithValue(
+        (error.response?.data as { message?: string })?.message ||
+          'Failed to change password'
+      );
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -225,6 +251,18 @@ const authSlice = createSlice({
         state.user = action.payload;
       })
       .addCase(updateProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(changePassword.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(changePassword.fulfilled, (state) => {
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(changePassword.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });
