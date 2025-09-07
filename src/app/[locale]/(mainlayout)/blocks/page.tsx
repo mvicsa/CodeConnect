@@ -66,9 +66,9 @@ export default function BlocksPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="container mx-auto px-5 max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Block Management</h1>
+        <h1 className="text-3xl font-bold mb-1">Block Management</h1>
         <p className="text-muted-foreground">
           Manage your blocked users and view users who have blocked you.
         </p>
@@ -147,11 +147,6 @@ export default function BlocksPage() {
               <CardContent>
                 <div className="space-y-4">
                   {blockedByUsers.map((user) => {
-                    // Debug: Log each user object
-                    console.log('Processing blockedBy user:', user);
-                    
-                    // في حالة "Users Who Blocked You"، المستخدم الذي حظرك هو blockerId
-                    // لأن blockerId هو من قام بالحظر، وblockedId هو من تم حظره (أنت)
                     const actualUser = user.blockerId || user.blockedId || user;
                     console.log('actualUser extracted:', actualUser);
                     

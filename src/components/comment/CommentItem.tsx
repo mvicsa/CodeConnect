@@ -571,7 +571,7 @@ export default function CommentItem({
                     <FlagIcon className="size-4" />
                     {t('report')}
                   </DropdownMenuItem>
-                  {user?._id !== comment.createdBy._id && (
+                  {/* {user?._id !== comment.createdBy._id && (
                     <DropdownMenuItem asChild className='cursor-pointer'>
                       <div className='flex items-center gap-2'>
                         <UserX className="size-4" />
@@ -586,7 +586,7 @@ export default function CommentItem({
                         />
                       </div>
                     </DropdownMenuItem>
-                  )}
+                  )} */}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

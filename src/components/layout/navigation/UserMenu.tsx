@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, LogOutIcon, UserIcon } from "lucide-react";
+import { ChevronDown, LogOutIcon, UserIcon, Settings } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState, AppDispatch } from "@/store/store";
@@ -60,6 +60,12 @@ export default function UserMenu() {
               <Link href={`/${locale}/profile`} className="flex items-center gap-2 w-full px-2 py-1.5">
                 <UserIcon className="w-4 h-4" />
                 <span>Profile</span>
+              </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer p-0">
+              <Link href={`/${locale}/settings`} className="flex items-center gap-2 w-full px-2 py-1.5">
+                <Settings className="w-4 h-4" />
+                <span>Settings</span>
               </Link>
           </DropdownMenuItem>
         <DropdownMenuItem className="cursor-pointer p-0">
