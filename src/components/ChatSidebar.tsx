@@ -36,6 +36,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   const myUserId = useSelector((state: RootState) => state.auth.user?._id);
   const socket = useContext(SocketContext);
   const messages = useSelector((state: RootState) => state.chat.messages);
+  const chatRooms = useSelector((state: RootState) => state.chat.rooms);
   const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
   const dispatch = useDispatch();
   const { checkBlockStatus } = useBlock();
@@ -93,7 +94,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         }
       });
     }
-  }, [chatPreviews, myUserId]);
+  }, [chatPreviews, myUserId, messages, chatRooms]); // Added chatRooms dependency
 
   const renderLastMessagePreview = (lastMessage: Message | undefined | null) => {
     if (!lastMessage) return 'No messages yet';

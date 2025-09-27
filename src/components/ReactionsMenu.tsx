@@ -30,6 +30,7 @@ interface ReactionsMenuProps {
   size?: "sm" | "md";
   postId?: string;
   commentId?: string;
+  messageId?: string; // For chat messages
   parentCommentId?: number | string; // For replies
   replyId?: number | string; // For replies
   reactions?: {
@@ -48,6 +49,7 @@ export default function ReactionsMenu({
   size = "md",
   postId,
   commentId,
+  messageId,
   parentCommentId,
   replyId,
   reactions = { like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 },
@@ -58,11 +60,12 @@ export default function ReactionsMenu({
     handlePostReaction, 
     handleCommentReaction,
     handleReplyReaction,
+    handleMessageReaction,
   } = useReactions();
   
   const [open, setOpen] = useState(false);
   const [isReactionLoading, setIsReactionLoading] = useState(false);
-  const lastReactionRef = useRef<{ postId?: string; commentId?: string; replyId?: string | number; reaction: string; timestamp: number } | null>(null);
+  const lastReactionRef = useRef<{ postId?: string; commentId?: string; messageId?: string; replyId?: string | number; reaction: string; timestamp: number } | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const { user } = useSelector((state: RootState) => state.auth);
@@ -123,12 +126,13 @@ export default function ReactionsMenu({
     const isDuplicate = lastReaction && 
       lastReaction.postId === postId &&
       lastReaction.commentId === commentId &&
+      lastReaction.messageId === messageId &&
       lastReaction.replyId === replyId &&
       lastReaction.reaction === reactionName &&
       (now - lastReaction.timestamp) < 1000; // 1 second debounce
 
     if (isDuplicate) {
-      console.log('🚫 Duplicate reaction prevented:', { reactionName, postId, commentId, replyId });
+      console.log('🚫 Duplicate reaction prevented:', { reactionName, postId, commentId, messageId, replyId });
       return;
     }
 
@@ -136,6 +140,7 @@ export default function ReactionsMenu({
     lastReactionRef.current = {
       postId,
       commentId,
+      messageId,
       replyId,
       reaction: reactionName,
       timestamp: now
@@ -168,6 +173,11 @@ export default function ReactionsMenu({
           // استدعاء الدالة القديمة أيضًا للتوافق
           handleDeleteReactionNotification(postId, 'POST_REACTION', currentUserId, reactionName);
         }
+      } else if (messageId) {
+        console.log('🎯 Handling message reaction:', { messageId, reactionName });
+        result = await handleMessageReaction(messageId, reactionName);
+        console.log('🎯 Message reaction result:', result);
+        // Message reactions don't have notifications for now
       } else if (commentId && !replyId) {
         result = await handleCommentReaction(commentId, reactionName);
         if (isRemoving && result?.success) {

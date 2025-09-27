@@ -5,13 +5,13 @@ import { ChatInput } from "@/components/ui/chat-input";
 import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
 import {Message, TypingIndicator, MessageType, ChatRoomType, User } from "@/types/chat";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Send, Paperclip, Check, CheckCheck, MoreVertical, X, File, Camera, Users, ImageIcon, UserX } from "lucide-react";
+import { ArrowLeft, Send, Paperclip, Check, CheckCheck, MoreVertical, X, File, Camera, Users, ImageIcon, UserX, Code } from "lucide-react";
 import { useTranslations } from "next-intl";
 import MessageActions from "./MessageActions";
 import { useSelector, useDispatch, shallowEqual } from 'react-redux';
 import { RootState, AppDispatch } from '@/store/store';
 import { SocketContext } from '@/store/Provider';
-import { setError, setSeen } from '@/store/slices/chatSlice';
+import { setError, setSeen, updateMessageReactions } from '@/store/slices/chatSlice';
 import { useBlock } from '@/hooks/useBlock';
 import { blockUser, unblockUser } from '@/store/slices/blockSlice';
 import EmojiMenu from '@/components/ui/emoji-menu';
@@ -30,6 +30,10 @@ import Img from "next/image";
 import MarkdownWithCode from "./MarkdownWithCode";
 import { useTheme } from 'next-themes';
 import { formatDate, isToday } from "date-fns";
+import { uploadToImageKit } from '@/lib/imagekitUpload';
+import CodeInputModal from "./chat/CodeInputModal";
+import CodeMessage from "./chat/CodeMessage";
+import MessageReactions from "./MessageReactions";
 
 interface ChatWindowProps {
   onBackToList: () => void;
@@ -47,6 +51,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [isFileMenuOpen, setIsFileMenuOpen] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<{ src: string; alt: string; name?: string } | null>(null);
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<{ src: string; name?: string } | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -62,10 +73,85 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
   const [blockReason, setBlockReason] = useState('');
   const [isBlocking, setIsBlocking] = useState(false);
+  const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
+  const [codeModalData, setCodeModalData] = useState<{
+    code: string;
+    language: string;
+    originalMessage: Message | null;
+  } | null>(null);
 
   // Handle emoji selection
   const handleEmojiSelect = (emoji: string) => {
     setMessage(prev => prev + emoji);
+  };
+
+  // Handle code message
+  const handleCodeMessage = (text: string, code: string, language: string) => {
+    if (!activeRoom || !socket) return;
+    
+    // Check if this is an edit scenario
+    if (codeModalData?.originalMessage) {
+      const isCurrentUserEditing = codeModalData.originalMessage.sender._id === myUserId;
+      
+      if (isCurrentUserEditing) {
+        // Current user editing their own message - use edit functionality
+        socket.emit('chat:edit_message', {
+          roomId: activeRoom._id,
+          messageId: codeModalData.originalMessage._id,
+          updates: {
+            codeData: {
+              code,
+              language
+            },
+            content: text || `Code in ${language}`
+          }
+        });
+      } else {
+        // Other user editing and sending back - create new message
+        const messageData = {
+          roomId: activeRoom._id,
+          type: MessageType.CODE,
+          content: text || `Edited code from ${codeModalData.originalMessage.sender.firstName} ${codeModalData.originalMessage.sender.lastName}:`,
+          codeData: {
+            code,
+            language
+          },
+          replyTo: codeModalData.originalMessage._id
+        };
+
+        socket.emit('chat:send_message', messageData);
+      }
+      
+      // Reset modal data
+      setCodeModalData(null);
+    } else {
+      // Regular new code message
+      const messageData = {
+        roomId: activeRoom._id,
+        type: MessageType.CODE,
+        content: text || `Code in ${language}`, // Provide default content if text is empty
+        codeData: {
+          code,
+          language
+        },
+        replyTo: replyTo?._id || null
+      };
+
+      socket.emit('chat:send_message', messageData);
+    }
+
+    setReplyTo(null);
+  };
+
+
+  // Handle opening code modal for editing and sending back
+  const handleOpenCodeModal = (code: string, language: string, originalMessage: Message) => {
+    setCodeModalData({
+      code,
+      language,
+      originalMessage
+    });
+    setIsCodeModalOpen(true);
   };
 
   // Access chat state
@@ -77,8 +163,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     (state: RootState) => state.chat.messages[activeRoomId || ''] || [],
     shallowEqual
   );
-  const typing = useSelector((state: RootState) => state.chat.typing[activeRoomId || ''] || []);
-  const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
+  const typing = useSelector(
+    (state: RootState) => state.chat.typing[activeRoomId || ''] || [],
+    shallowEqual
+  );
+  const userStatuses = useSelector(
+    (state: RootState) => state.chat.userStatuses || {},
+    shallowEqual
+  );
 
   // Get socket from context
   const socket = useContext(SocketContext);
@@ -232,6 +324,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     return () => clearTimeout(timeoutId);
   }, [activeRoomId, messages, socket, myUserId, dispatch, isUserActive]);
 
+  // Message reaction events are now handled in the Provider
+
   // Track scroll position to update shouldAutoScroll
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const element = event.currentTarget;
@@ -324,6 +418,30 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     };
   }, [isFileMenuOpen]);
 
+     // Keyboard shortcuts for image and video modals
+   useEffect(() => {
+     const handleKeyDown = (event: KeyboardEvent) => {
+       if (imageModalOpen) {
+         if (event.key === 'Escape') {
+           closeImageModal();
+         } else if (event.key === 'd' || event.key === 'D') {
+           downloadImage();
+         }
+       } else if (videoModalOpen) {
+         if (event.key === 'Escape') {
+           closeVideoModal();
+         } else if (event.key === 'd' || event.key === 'D') {
+           downloadVideo();
+         }
+       }
+     };
+
+     document.addEventListener('keydown', handleKeyDown);
+     return () => {
+       document.removeEventListener('keydown', handleKeyDown);
+     };
+   }, [imageModalOpen, videoModalOpen]);
+
   const handleSendMessage = () => {
     if (!activeRoom || !socket) return;
 
@@ -334,7 +452,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         const msg = {
           roomId: activeRoom._id,
           content: message.trim(),
-          type: 'text',
+          type: MessageType.TEXT,
           replyTo: replyTo?._id,
         };
         try {
@@ -390,10 +508,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // File handling functions
   const handleFileSelect = (file: File) => {
+    // Validate file size (max 50MB like WhatsApp)
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (file.size > maxSize) {
+      toast.error('File size too large. Maximum size is 50MB.');
+      return;
+    }
+
     setSelectedFile(file);
     
-    // Create preview for images
-    if (file.type.startsWith('image/')) {
+    // Create preview for images and videos
+    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
       const reader = new FileReader();
       reader.onload = (e) => {
         setFilePreview(e.target?.result as string);
@@ -425,26 +550,61 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
-  const sendFile = () => {
+  const sendFile = async () => {
     if (!activeRoom || !selectedFile || !socket) return;
-    const messageType = selectedFile.type.startsWith('image/') ? 'image' : 'file';
-    const fileData = {
-      name: selectedFile.name,
-      size: selectedFile.size,
-      type: selectedFile.type,
-      url: filePreview || null,
-    };
-    const msg = {
-      roomId: activeRoom._id,
-      content: messageType === 'image' ? `📷 ${selectedFile.name}` : `📎 ${selectedFile.name}`,
-      type: messageType,
-      fileUrl: filePreview,
-      replyTo: replyTo?._id,
-      fileData,
-    };
-    socket.emit('chat:send_message', msg);
-    removeSelectedFile();
-    setReplyTo(null);
+    
+    try {
+      // Show uploading state
+      setIsUploading(true);
+      toast.info('Uploading file...');
+      
+      let messageType = MessageType.FILE;
+      let content = `📎 ${selectedFile.name}`;
+      
+      if (selectedFile.type.startsWith('image/')) {
+        messageType = MessageType.IMAGE;
+        content = `📷 ${selectedFile.name}`;
+      } else if (selectedFile.type.startsWith('video/')) {
+        messageType = MessageType.VIDEO;
+        content = `🎥 ${selectedFile.name}`;
+      } else if (selectedFile.type.startsWith('audio/')) {
+        messageType = MessageType.AUDIO;
+        content = `🎵 ${selectedFile.name}`;
+      }
+      
+             // Upload file to ImageKit first
+       const fileUrl = await uploadToImageKit(selectedFile, '/chat', (percent: number) => {
+         setUploadProgress(percent);
+       });
+      
+      const fileData = {
+        name: selectedFile.name,
+        size: selectedFile.size,
+        type: selectedFile.type,
+        url: fileUrl,
+      };
+      
+      const msg = {
+        roomId: activeRoom._id,
+        content,
+        type: messageType,
+        fileUrl: fileUrl, // Use the real uploaded file URL
+        replyTo: replyTo?._id,
+        fileData,
+      };
+      
+      socket.emit('chat:send_message', msg);
+      removeSelectedFile();
+      setReplyTo(null);
+      toast.success('File sent successfully!');
+      
+    } catch (error) {
+      console.error('Failed to upload file:', error);
+      toast.error('Failed to upload file. Please try again.');
+         } finally {
+       setIsUploading(false);
+       setUploadProgress(0);
+     }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -454,6 +614,68 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
+
+  // Image modal functions
+  const openImageModal = (src: string, alt: string, name?: string) => {
+    setSelectedImage({ src, alt, name });
+    setImageModalOpen(true);
+  };
+
+  const closeImageModal = () => {
+    setImageModalOpen(false);
+    setSelectedImage(null);
+  };
+
+     const downloadImage = async () => {
+     if (!selectedImage) return;
+     
+     try {
+       const response = await fetch(selectedImage.src);
+       const blob = await response.blob();
+       const url = window.URL.createObjectURL(blob);
+       const a = document.createElement('a');
+       a.href = url;
+       a.download = selectedImage.name || 'image.jpg';
+       document.body.appendChild(a);
+       a.click();
+       window.URL.revokeObjectURL(url);
+       document.body.removeChild(a);
+       toast.success('Image downloaded successfully!');
+     } catch (error) {
+       toast.error('Failed to download image');
+     }
+   };
+
+   // Video modal functions
+   const openVideoModal = (src: string, name?: string) => {
+     setSelectedVideo({ src, name });
+     setVideoModalOpen(true);
+   };
+
+   const closeVideoModal = () => {
+     setVideoModalOpen(false);
+     setSelectedVideo(null);
+   };
+
+   const downloadVideo = async () => {
+     if (!selectedVideo) return;
+     
+     try {
+       const response = await fetch(selectedVideo.src);
+       const blob = await response.blob();
+       const url = window.URL.createObjectURL(blob);
+       const a = document.createElement('a');
+       a.href = url;
+       a.download = selectedVideo.name || 'video.mp4';
+       document.body.appendChild(a);
+       a.click();
+       window.URL.revokeObjectURL(url);
+       document.body.removeChild(a);
+       toast.success('Video downloaded successfully!');
+     } catch (error) {
+       toast.error('Failed to download video');
+     }
+   };
 
   // const formatTime = (date: Date) => {
   //   return new Intl.DateTimeFormat("en-US", {
@@ -568,7 +790,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           </Avatar>
         )}
         
-        <div className="flex flex-col max-w-xs lg:max-w-md relative">
+        <div className={`flex flex-col max-w-xs ${msg.type === MessageType.IMAGE || msg.type === MessageType.VIDEO || msg.type === MessageType.CODE ? 'lg:min-w-[320px]' : 'lg:max-w-md'} relative`}>
           {activeRoom.type === ChatRoomType.GROUP && !isCurrentUser && (
             <p className="text-xs text-muted-foreground mb-1 px-1">
               {senderName}
@@ -605,8 +827,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               </div>
             )}
             
-            <div className="px-4 py-2 relative">
-              <div className="absolute top-1 right-1">
+            <div className={`${msg.type === MessageType.VIDEO ? 'px-1 py-1' : 'px-4 py-2'} relative`}>
+              <div className={`absolute ${msg.type === MessageType.VIDEO ? 'top-2 right-2' : 'top-1 right-1'} z-10`}>
                 <MessageActions
                   message={msg}
                   onReply={(message) => setReplyTo(message)}
@@ -618,56 +840,176 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               
               {/* File/Image Content */}
               {msg.type === MessageType.IMAGE && msg.fileUrl && (
-                <div className="mb-2">
+                <div className="">
                   <Img 
                     alt="Image"
                     src={msg.fileUrl || 'image'} 
+                    width={400}
+                    height={300}
                     className="max-w-full max-h-64 rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={() => {
                       if (msg.fileUrl) {
-                        window.open(msg.fileUrl, '_blank');
+                        openImageModal(msg.fileUrl, 'Image', msg.fileData?.name);
                       }
                     }}
                   />
                 </div>
               )}
               
-              {/* File Content */}
-              {msg.type === MessageType.FILE && msg.fileUrl && (
-                <div className="mb-2 p-3 bg-muted/50 rounded-lg border">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                      <File className="h-6 w-6 text-primary" />
+                                            {/* Video Content - Fixed and Simplified */}
+                {msg.type === MessageType.VIDEO && msg.fileUrl && (
+                  <div className="mb-2 mt-6">
+                    <div className="relative max-w-full max-h-64 rounded-lg overflow-hidden bg-black cursor-pointer group shadow-lg hover:shadow-xl transition-all duration-300">
+                     <video 
+                       src={msg.fileUrl} 
+                       className="w-full h-64 object-cover custom-video-controls group-hover:scale-[1.02] transition-transform duration-300"
+                       preload="metadata"
+                       muted
+                       controls
+                       style={{ minHeight: '256px' }}
+                       onError={(e) => {
+                         console.error('Video error:', e);
+                         // Show fallback content if video fails to load
+                         const videoElement = e.currentTarget;
+                         videoElement.style.display = 'none';
+                         const fallback = videoElement.parentElement?.querySelector('.video-fallback');
+                         if (fallback) {
+                           (fallback as HTMLElement).style.display = 'flex';
+                         }
+                       }}
+                     />
+                    
+                    {/* Fallback content if video fails to load */}
+                    <div className="video-fallback hidden absolute inset-0 flex items-center justify-center bg-gray-800 text-white">
+                      <div className="text-center">
+                        <svg className="w-16 h-16 mx-auto mb-2" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                        </svg>
+                        <p className="text-sm">Video failed to load</p>
+                        <p className="text-xs text-gray-300 mt-1">Click to open in modal</p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">File Attachment</p>
+                    
+                    {/* Play overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="w-16 h-16 bg-black/50 rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z"/>
+                        </svg>
+                      </div>
                     </div>
-                    <ChatButton
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => {
-                        if (msg.fileUrl) {
-                          window.open(msg.fileUrl, '_blank');
-                        }
-                      }}
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </ChatButton>
+                    {/* Click to open modal */}
+                    <div 
+                      className="absolute inset-0 cursor-pointer"
+                      onClick={() => openVideoModal(msg.fileUrl!, msg.fileData?.name)}
+                    />
                   </div>
                 </div>
               )}
               
-              {/* Text Content */}
-              <div className="text-sm">
-                <MarkdownWithCode 
-                  content={msg.content} 
-                  maxLength={10000}
-                  theme={theme === 'dark' ? 'dark' : 'light'} 
-                />
-              </div>
+
+              
+
+              
+
+              
+
+
+               {/* Audio Content */}
+               {msg.type === MessageType.AUDIO && msg.fileUrl && (
+                 <div className="mb-2 p-3 bg-muted/50 rounded-lg border">
+                   <div className="flex items-center space-x-3">
+                     <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                       <svg className="h-6 w-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                         <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                       </svg>
+                     </div>
+                     <div className="flex-1 min-w-0">
+                       <p className="text-sm font-medium truncate">Audio Message</p>
+                       <p className="text-xs text-muted-foreground">
+                         {msg.fileData?.name || 'Audio file'}
+                       </p>
+                     </div>
+                     <audio 
+                       src={msg.fileUrl} 
+                       controls 
+                       className="h-8"
+                       preload="metadata"
+                     />
+                   </div>
+                 </div>
+               )}
+               
+               {/* File Content */}
+               {msg.type === MessageType.FILE && msg.fileUrl && (
+                 <div className="mb-2 p-3 bg-muted/50 rounded-lg border">
+                   <div className="flex items-center space-x-3">
+                     <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                       <File className="h-6 w-6 text-green-600" />
+                     </div>
+                     <div className="flex-1 min-w-0">
+                                               <p className="text-sm font-medium truncate">
+                          {msg.fileData?.name || msg.content || 'File Attachment'}
+                        </p>
+                       {msg.fileData?.size && (
+                         <p className="text-xs text-muted-foreground">
+                           {formatFileSize(msg.fileData.size)}
+                         </p>
+                       )}
+                     </div>
+                     <ChatButton
+                       variant="ghost"
+                       size="icon"
+                       className="h-8 w-8"
+                       onClick={() => {
+                         if (msg.fileUrl) {
+                           window.open(msg.fileUrl, '_blank');
+                         }
+                       }}
+                     >
+                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                       </svg>
+                     </ChatButton>
+                   </div>
+                 </div>
+               )}
+              
+                             {/* Text Content */}
+               {msg.type === MessageType.TEXT && (
+                 <div className="text-sm">
+                   <MarkdownWithCode 
+                     content={msg.content} 
+                     maxLength={10000}
+                     theme={theme === 'dark' ? 'dark' : 'light'} 
+                   />
+                 </div>
+               )}
+
+               {/* Code Content */}
+               {msg.type === MessageType.CODE && (
+                 <div className="text-sm">
+                   <CodeMessage
+                     message={msg}
+                     isCurrentUser={isCurrentUser}
+                     onOpenCodeModal={handleOpenCodeModal}
+                   />
+                 </div>
+               )}
+               
+               {/* Message Reactions */}
+               <div className="flex items-center gap-2 mt-2 px-1 group">
+                 <MessageReactions
+                   messageId={msg._id}
+                   roomId={activeRoom?._id || ''}
+                   reactions={msg.reactions || { like: 0, love: 0, laugh: 0, wow: 0, sad: 0, angry: 0, clap: 0, fire: 0, star: 0 }}
+                   userReactions={msg.userReactions || []}
+                   currentUserId={myUserId}
+                   isCurrentUser={isCurrentUser}
+                   size="sm"
+                 />
+               </div>
+               
               <div className="flex items-center justify-between mt-1">
                 <p
                   className={cn(
@@ -968,52 +1310,93 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         </div>
       )}
 
-      {/* File Preview */}
-      {selectedFile && (
-        <div className="p-4 bg-muted border-t">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              {filePreview ? (
-                <div className="relative">
-                  <Img 
-                    src={filePreview} 
-                    alt="Preview" 
-                    className="w-16 h-16 object-cover rounded-lg border"
-                    width={64}
-                    height={64}
-                  />
-                  <ChatButton
-                    variant="ghost"
-                    size="icon"
-                    onClick={removeSelectedFile}
-                    className="absolute -top-2 -right-2 h-6 w-6 bg-background border rounded-full hover:bg-destructive hover:text-destructive-foreground"
-                  >
-                    <X className="h-3 w-3" />
-                  </ChatButton>
+             {/* File Preview - WhatsApp Style */}
+       {selectedFile && (
+         <div className="p-4 bg-muted/50 border-t">
+           <div className="flex items-center justify-between">
+             <div className="flex items-center space-x-3">
+               {filePreview ? (
+                 <div className="relative">
+                   {selectedFile.type.startsWith('video/') ? (
+                     <div className="w-16 h-16 bg-black rounded-lg border overflow-hidden relative">
+                       <video 
+                         src={filePreview} 
+                         className="w-full h-full object-cover"
+                         muted
+                         preload="metadata"
+                       />
+                       <div className="absolute inset-0 flex items-center justify-center">
+                         <div className="w-8 h-8 bg-black/50 rounded-full flex items-center justify-center">
+                           <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                             <path d="M8 5v14l11-7z"/>
+                           </svg>
+                         </div>
+                       </div>
+                     </div>
+                   ) : (
+                     <Img 
+                       src={filePreview} 
+                       alt="Preview" 
+                       className="w-16 h-16 object-cover rounded-lg border"
+                       width={64}
+                       height={64}
+                     />
+                   )}
+                   <ChatButton
+                     variant="ghost"
+                     size="icon"
+                     onClick={removeSelectedFile}
+                     className="absolute -top-2 -right-2 h-6 w-6 bg-background border rounded-full hover:bg-destructive hover:text-destructive-foreground"
+                   >
+                     <X className="h-3 w-3" />
+                   </ChatButton>
+                 </div>
+               ) : (
+                 <div className="relative">
+                   <div className="w-16 h-16 bg-primary/10 rounded-lg border-2 border-dashed border-primary/30 flex items-center justify-center">
+                     {selectedFile.type.startsWith('video/') ? (
+                       <svg className="h-8 w-8 text-primary" fill="currentColor" viewBox="0 0 24 24">
+                         <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                       </svg>
+                     ) : selectedFile.type.startsWith('audio/') ? (
+                       <svg className="h-8 w-8 text-primary" fill="currentColor" viewBox="0 0 24 24">
+                         <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                       </svg>
+                     ) : (
+                       <File className="h-8 w-8 text-primary" />
+                     )}
+                   </div>
+                   <ChatButton
+                     variant="ghost"
+                     size="icon"
+                     onClick={removeSelectedFile}
+                     className="absolute -top-2 -right-2 h-6 w-6 bg-background border rounded-full hover:bg-destructive hover:text-destructive-foreground"
+                   >
+                     <X className="h-3 w-3" />
+                   </ChatButton>
+                 </div>
+               )}
+                               <div className="flex-1">
+                  <p className="text-sm font-medium text-foreground truncate">{selectedFile.name}</p>
+                  <p className="text-xs text-muted-foreground">{formatFileSize(selectedFile.size)}</p>
+                  <p className="text-xs text-muted-foreground capitalize">
+                    {selectedFile.type.split('/')[0]} file
+                  </p>
+                                     {isUploading && (
+                     <div className="mt-2">
+                       <div className="w-full bg-gray-200 rounded-full h-2">
+                         <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                       </div>
+                       <p className="text-xs text-muted-foreground mt-1">
+                         Uploading... {uploadProgress}%
+                       </p>
+                     </div>
+                   )}
                 </div>
-              ) : (
-                <div className="relative">
-                  <div className="w-16 h-16 bg-primary/10 rounded-lg border-2 border-dashed border-primary/30 flex items-center justify-center">
-                    <File className="h-8 w-8 text-primary" />
-                  </div>
-                  <ChatButton
-                    variant="ghost"
-                    size="icon"
-                    onClick={removeSelectedFile}
-                    className="absolute -top-2 -right-2 h-6 w-6 bg-background border rounded-full hover:bg-destructive hover:text-destructive-foreground"
-                  >
-                    <X className="h-3 w-3" />
-                  </ChatButton>
-                </div>
-              )}
-              <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">{selectedFile.name}</p>
-                <p className="text-xs text-muted-foreground">{formatFileSize(selectedFile.size)}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+             </div>
+           </div>
+         </div>
+       )}
 
       {/* Message Input */}
       {(() => {
@@ -1059,53 +1442,73 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   <Paperclip className="h-5 w-5" />
                 </ChatButton>
             
-            {/* File Upload Menu */}
-            {isFileMenuOpen && (
-              <div data-file-menu className="absolute bottom-full left-0 mb-2 bg-background border rounded-lg shadow-lg p-2 z-50 min-w-[200px]">
-                <div className="space-y-1">
-                  <button
-                    onClick={() => {
-                      fileInputRef.current?.click();
-                      setIsFileMenuOpen(false);
-                    }}
-                    className="w-full flex items-center space-x-3 p-2 rounded-md hover:bg-muted transition-colors"
-                  >
-                    <ImageIcon className="h-5 w-5 text-blue-500" />
-                    <span className="text-sm">Photo & Video</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      fileInputRef.current?.click();
-                      setIsFileMenuOpen(false);
-                    }}
-                    className="w-full flex items-center space-x-3 p-2 rounded-md hover:bg-muted transition-colors"
-                  >
-                    <File className="h-5 w-5 text-green-500" />
-                    <span className="text-sm">Document</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      cameraInputRef.current?.click();
-                      setIsFileMenuOpen(false);
-                    }}
-                    className="w-full flex items-center space-x-3 p-2 rounded-md hover:bg-muted transition-colors"
-                  >
-                    <Camera className="h-5 w-5 text-purple-500" />
-                    <span className="text-sm">Camera</span>
-                  </button>
-                </div>
-              </div>
-            )}
+                         {/* File Upload Menu - WhatsApp Style */}
+             {isFileMenuOpen && (
+               <div data-file-menu className="absolute bottom-full left-0 mb-2 bg-background border rounded-xl shadow-xl p-3 z-50 min-w-[220px]">
+                 <div className="space-y-2">
+                   {/* Photo & Video */}
+                   <button
+                     onClick={() => {
+                       fileInputRef.current?.click();
+                       setIsFileMenuOpen(false);
+                     }}
+                     className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-muted transition-colors text-left"
+                   >
+                     <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                       <ImageIcon className="h-5 w-5 text-blue-600" />
+                     </div>
+                     <div>
+                       <p className="text-sm font-medium">Photo & Video</p>
+                       <p className="text-xs text-muted-foreground">Share photos and videos</p>
+                     </div>
+                   </button>
+
+                   {/* Document */}
+                   <button
+                     onClick={() => {
+                       fileInputRef.current?.click();
+                       setIsFileMenuOpen(false);
+                     }}
+                     className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-muted transition-colors text-left"
+                   >
+                     <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                       <File className="h-5 w-5 text-green-600" />
+                     </div>
+                     <div>
+                       <p className="text-sm font-medium">Document</p>
+                       <p className="text-xs text-muted-foreground">Share files and documents</p>
+                     </div>
+                   </button>
+
+                   {/* Camera */}
+                   <button
+                     onClick={() => {
+                       cameraInputRef.current?.click();
+                       setIsFileMenuOpen(false);
+                     }}
+                     className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-muted transition-colors text-left"
+                   >
+                     <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
+                       <Camera className="h-5 w-5 text-purple-600" />
+                     </div>
+                     <div>
+                       <p className="text-sm font-medium">Camera</p>
+                       <p className="text-xs text-muted-foreground">Take a photo</p>
+                     </div>
+                   </button>
+                 </div>
+               </div>
+             )}
           </div>
 
           {/* Hidden File Inputs */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,video/*,.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
+                     <input
+             ref={fileInputRef}
+             type="file"
+             accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.mp3,.mp4,.avi,.mov,.wav,.ogg"
+             onChange={handleFileUpload}
+             className="hidden"
+           />
           <input
             ref={cameraInputRef}
             type="file"
@@ -1129,19 +1532,158 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             align="end"
           />
 
+          {/* Code Button */}
           <ChatButton
-            onClick={handleSendMessage}
-            disabled={!message.trim() && !selectedFile}
-            className="bg-primary hover:bg-primary/90 cursor-pointer"
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsCodeModalOpen(true)}
+            className="h-8 w-8 hover:bg-accent"
+            title="Send Code"
           >
-            <Send className="h-4 w-4" />
+            <Code className="h-4 w-4" />
           </ChatButton>
+
+                     <ChatButton
+             onClick={handleSendMessage}
+             disabled={(!message.trim() && !selectedFile) || isUploading}
+             className="bg-primary hover:bg-primary/90 cursor-pointer"
+           >
+             {isUploading ? (
+               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+             ) : (
+               <Send className="h-4 w-4" />
+             )}
+           </ChatButton>
         </div>
       </div>
-        );
-      })()}
-    </div>
-  );
-};
+                 );
+       })()}
+
+             {/* Image Modal - WhatsApp Style */}
+       <AlertDialog open={imageModalOpen} onOpenChange={setImageModalOpen}>
+         <AlertDialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+           {/* Hidden title for accessibility */}
+           <AlertDialogTitle className="sr-only">
+             {selectedImage?.name || 'Image Viewer'}
+           </AlertDialogTitle>
+           
+           <div className="relative">
+             {/* Header with close button and download */}
+             <div className="absolute top-4 right-4 z-10 flex items-center space-x-2">
+               <ChatButton
+                 variant="outline"
+                 size="icon"
+                 onClick={downloadImage}
+                 className="h-10 w-10 bg-black/20 hover:bg-black/40 text-white border-white/20 cursor-pointer text-primary"
+                 title="Download Image"
+                 aria-label="Download image"
+               >
+                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                 </svg>
+               </ChatButton>
+               <ChatButton
+                 variant="outline"
+                 size="icon"
+                 onClick={closeImageModal}
+                 className="h-10 w-10 bg-black/20 hover:bg-black/40 text-white border-white/20 cursor-pointer text-red-500"
+                 title="Close"
+                 aria-label="Close image viewer"
+               >
+                 <X className="h-5 w-5" />
+               </ChatButton>
+             </div>
+
+             {/* Image */}
+             {selectedImage && (
+               <div className="relative w-full h-full min-h-[60vh] bg-black">
+                 <Img
+                   src={selectedImage.src}
+                   alt={selectedImage.alt}
+                   className="w-full h-full object-contain"
+                   width={1200}
+                   height={800}
+                   priority
+                 />
+               </div>
+             )}
+           </div>
+         </AlertDialogContent>
+       </AlertDialog>
+
+       {/* Video Modal - WhatsApp Style */}
+       <AlertDialog open={videoModalOpen} onOpenChange={setVideoModalOpen}>
+         <AlertDialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden">
+           {/* Hidden title for accessibility */}
+           <AlertDialogTitle className="sr-only">
+             {selectedVideo?.name || 'Video Viewer'}
+           </AlertDialogTitle>
+           
+           <div className="relative">
+             {/* Header with close button and download */}
+             <div className="absolute top-4 right-4 z-10 flex items-center space-x-2">
+               <ChatButton
+                 variant="outline"
+                 size="icon"
+                 onClick={downloadVideo}
+                 className="h-10 w-10 bg-black/20 hover:bg-black/40 text-white border-white/20 cursor-pointer text-primary"
+                 title="Download Video"
+                 aria-label="Download video"
+               >
+                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                 </svg>
+               </ChatButton>
+               <ChatButton
+                 variant="outline"
+                 size="icon"
+                 onClick={closeVideoModal}
+                 className="h-10 w-10 bg-black/20 hover:bg-black/40 text-white border-white/20 cursor-pointer text-red-500"
+                 title="Close"
+                 aria-label="Close video viewer"
+               >
+                 <X className="h-5 w-5" />
+               </ChatButton>
+             </div>
+
+             {/* Video */}
+             {selectedVideo && (
+               <div className="relative w-full h-full min-h-[60vh] bg-black">
+                 <video
+                   src={selectedVideo.src}
+                   className="w-full h-full object-contain custom-video-controls rounded-lg shadow-2xl"
+                   controls
+                   autoPlay
+                   preload="metadata"
+                   controlsList="nodownload"
+                 />
+                 
+              
+               </div>
+             )}
+           </div>
+         </AlertDialogContent>
+       </AlertDialog>
+
+       {/* Code Input Modal */}
+       <CodeInputModal
+         isOpen={isCodeModalOpen}
+         onClose={() => {
+           setIsCodeModalOpen(false)
+           setCodeModalData(null)
+         }}
+         onSend={handleCodeMessage}
+         replyTo={replyTo}
+         initialCode={codeModalData?.code}
+         initialLanguage={codeModalData?.language}
+         initialText={codeModalData?.originalMessage ? 
+           (codeModalData.originalMessage.sender._id === myUserId 
+             ? 'Edit your code:' 
+             : `Editing code from ${codeModalData.originalMessage.sender.firstName} ${codeModalData.originalMessage.sender.lastName}:`) 
+           : ''}
+       />
+     </div>
+   );
+ };
 
 export default ChatWindow;
