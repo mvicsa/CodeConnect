@@ -15,6 +15,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { removeNotificationsByCriteria } from '@/store/slices/notificationsSlice';
 import { SocketContext } from '@/store/Provider';
 import { useBlock } from '@/hooks/useBlock';
+import Link from "next/link";
 
 // Map your existing reaction images to the database structure
 const reactionImageMap = {
@@ -112,13 +113,6 @@ export default function ReactionsMenu({
     // Debug: Check if user already has this reaction
     const currentReaction = userReactions.find(ur => ur.userId._id === currentUserId);
     const isRemoving = currentReaction?.reaction === reactionName;
-    console.log('🎯 Reaction Toggle Debug:', {
-      reactionName,
-      currentUserId,
-      currentReaction: currentReaction?.reaction,
-      willToggle: isRemoving,
-      userReactions: userReactions.map(ur => ({ userId: ur.userId._id, reaction: ur.reaction }))
-    });
 
     // Prevent duplicate rapid clicks
     const now = Date.now();
@@ -152,7 +146,6 @@ export default function ReactionsMenu({
       if (postId) {
         result = await handlePostReaction(postId, reactionName);
         if (isRemoving && result?.success) {
-          // تحديث حالة الإشعارات مباشرة في الفرونت إند
           dispatch(removeNotificationsByCriteria({
             type: 'POST_REACTION',
             postId: postId,
@@ -332,12 +325,18 @@ export default function ReactionsMenu({
                     <div className="flex flex-col gap-2">
                       {allUsers.map((u, idx) => (
                         <div key={u.userId._id + u.reaction + idx} className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={u.userId.avatar} alt={u.userId._id} />
-                            <AvatarFallback className="text-xs">{u.userId.firstName?.charAt(0).toUpperCase() || ''}</AvatarFallback>
-                          </Avatar>
+                          <Link href={`/profile/${u.userId.username}`}>
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={u.userId.avatar} alt={u.userId._id} />
+                              <AvatarFallback className="text-xs">{u.userId.firstName?.charAt(0).toUpperCase() || ''}</AvatarFallback>
+                            </Avatar>
+                          </Link>
                           <Image src={reactionImageMap[u.reaction as keyof typeof reactionImageMap]} alt={u.reaction} width={20} height={20} />
-                          <span className="text-sm">{u.userId?.firstName || ''} {u.userId?.lastName || ''}</span>
+                          <Link href={`/profile/${u.userId.username}`}>
+                            <span className="text-sm">
+                              {u.userId?.firstName || ''} {u.userId?.lastName || ''}
+                            </span>
+                          </Link>
                           <span className="text-xs text-muted-foreground">({u.reaction})</span>
                         </div>
                       ))}
@@ -353,12 +352,18 @@ export default function ReactionsMenu({
                     <div className="flex flex-col gap-2">
                       {usersByReaction[reactionType].map((u, idx) => (
                         <div key={u.userId._id + u.reaction + idx} className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={u.userId.avatar} alt={u.userId._id} />
-                            <AvatarFallback className="text-xs">{u.userId.firstName?.charAt(0).toUpperCase() || ''}</AvatarFallback>
-                          </Avatar>
+                          <Link href={`/profile/${u.userId.username}`}>
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={u.userId.avatar} alt={u.userId._id} />
+                              <AvatarFallback className="text-xs">{u.userId.firstName?.charAt(0).toUpperCase() || ''}</AvatarFallback>
+                            </Avatar>
+                          </Link>
                           <Image src={reactionImageMap[u.reaction as keyof typeof reactionImageMap]} alt={u.reaction} width={20} height={20} />
-                          <span className="text-sm">{u.userId?.firstName || ''} {u.userId?.lastName || ''}</span>
+                          <Link href={`/profile/${u.userId.username}`}>
+                            <span className="text-sm">
+                              {u.userId?.firstName || ''} {u.userId?.lastName || ''}
+                            </span>
+                          </Link>
                           <span className="text-xs text-muted-foreground">({u.reaction})</span>
                         </div>
                       ))}

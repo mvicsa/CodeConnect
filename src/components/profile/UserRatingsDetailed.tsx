@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Star, Calendar, User, MessageSquare } from 'lucide-react';
+import { Star } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { ratingService } from '@/services/ratingService';
 import { RatingResponseDto } from '@/types/rating';
-import { formatDate } from 'date-fns';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { RatingCard } from '@/components/rating';
+import { calculateAverageRating } from '@/lib/ratingUtils';
 
 interface UserRatingsDetailedProps {
   userId: string;
@@ -38,11 +37,11 @@ const UserRatingsDetailed: React.FC<UserRatingsDetailedProps> = ({ userId }) => 
           if (total <= 100) { // If total is small enough, fetch all to get accurate average
             const allRatingsResponse = await ratingService.getUserReceivedRatings(userId, 1, total);
             if (allRatingsResponse.ratings && allRatingsResponse.ratings.length > 0) {
-              average = allRatingsResponse.ratings.reduce((sum, rating) => sum + rating.overallRating, 0) / allRatingsResponse.ratings.length;
+              average = calculateAverageRating(allRatingsResponse.ratings);
             }
           } else {
             // For large numbers, calculate from first 3 as fallback
-            average = response.ratings.reduce((sum, rating) => sum + rating.overallRating, 0) / response.ratings.length;
+            average = calculateAverageRating(response.ratings);
           }
           
           setRatings(response.ratings);
@@ -107,45 +106,7 @@ const UserRatingsDetailed: React.FC<UserRatingsDetailedProps> = ({ userId }) => 
     }
   };
 
-  const getRatingColor = (rating: number) => {
-    if (rating >= 4.5) return "text-green-600";
-    if (rating >= 3.5) return "text-yellow-600";
-    if (rating >= 2.5) return "text-orange-600";
-    return "text-red-600";
-  };
-
-  const renderStarRating = (rating: number, size: 'sm' | 'md' = 'md') => {
-    const starSize = size === 'sm' ? 'h-3 w-3' : 'h-4 w-4';
-    const stars = [];
-    
-    for (let i = 1; i <= 5; i++) {
-      if (i <= rating) {
-        stars.push(
-          <Star key={i} className={`${starSize} fill-yellow-400 text-yellow-400`} />
-        );
-      } else if (i - 0.5 <= rating) {
-        stars.push(
-          <div key={i} className="relative">
-            <Star className={`${starSize} text-gray-300`} />
-            <Star className={`${starSize} fill-yellow-400 text-yellow-400 absolute inset-0 overflow-hidden`} style={{ clipPath: 'inset(0 50% 0 0)' }} />
-          </div>
-        );
-      } else {
-        stars.push(
-          <Star key={i} className={`${starSize} text-gray-300`} />
-        );
-      }
-    }
-    
-    return (
-      <div className="flex items-center gap-1">
-        {stars}
-        <span className={`ml-1 text-xs ${size === 'sm' ? 'text-xs' : 'text-sm'} text-muted-foreground`}>
-          {rating.toFixed(1)}
-        </span>
-      </div>
-    );
-  };
+  // Removed duplicate functions - now using shared components and utilities
 
   if (loading) {
     return (
@@ -236,112 +197,26 @@ const UserRatingsDetailed: React.FC<UserRatingsDetailedProps> = ({ userId }) => 
         <h5 className="text-lg font-semibold mb-3">All Ratings</h5>
         <div className="space-y-3">
           {ratings.map((rating) => (
-            <Card key={rating._id}>
-              <CardContent >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Link href={`/meeting/${rating.sessionId}`} className="hover:underline hover:text-primary transition-colors">
-                        <h6 className="font-semibold">
-                          {rating.roomName || "Session"}
-                        </h6>
-                      </Link>
-                      <Badge variant="outline" className={getRatingColor(rating.overallRating)}>
-                        {rating.overallRating} Star{rating.overallRating !== 1 ? 's' : ''}
-                      </Badge>
-                      {rating.isAnonymous && (
-                        <Badge variant="secondary">Anonymous</Badge>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {formatDate(rating.createdAt, "MMM d, yyyy")}
-                      </span>
-                      {rating.raterUsername && (
-                        <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          <Link href={`/profile/${rating.raterUsername}`} className="hover:underline">
-                            {rating.isAnonymous ? 'Anonymous User' : `${rating.raterFirstName} ${rating.raterLastName}`}
-                          </Link>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="text-right">
-                    {renderStarRating(rating.overallRating, 'sm')}
-                  </div>
-                </div>
-
-                {/* Rating Details */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-                  <div className="text-center p-2 bg-accent rounded text-sm">
-                    <div className="text-muted-foreground">Technical</div>
-                    <div className="font-semibold flex items-center justify-center gap-1">
-                      <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
-                      {rating.technicalKnowledge}
-                    </div>
-                  </div>
-                  <div className="text-center p-2 bg-accent rounded text-sm">
-                    <div className="text-muted-foreground">Communication</div>
-                    <div className="font-semibold flex items-center justify-center gap-1">
-                      <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
-                      {rating.communication}
-                    </div>
-                  </div>
-                  <div className="text-center p-2 bg-accent rounded text-sm">
-                    <div className="text-muted-foreground">Organization</div>
-                    <div className="font-semibold flex items-center justify-center gap-1">
-                      <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
-                      {rating.organization}
-                    </div>
-                  </div>
-                  <div className="text-center p-2 bg-accent rounded text-sm">
-                    <div className="text-muted-foreground">Helpfulness</div>
-                    <div className="font-semibold flex items-center justify-center gap-1">
-                      <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
-                      {rating.helpfulness}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Comment */}
-                {rating.comment && (
-                  <div className="bg-accent/50 p-3 rounded">
-                    <div className="flex items-center gap-2 mb-1">
-                      <MessageSquare className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs font-medium text-muted-foreground">Comment</span>
-                    </div>
-                    <p className="text-sm">{rating.comment}</p>
-                  </div>
-                )}
-
-                {/* View Details Button */}
-                <div className="mt-3 flex justify-end">
-                  <Link 
-                    href={`/ratings/${rating._id}`}
-                  >
-                    <Button variant="outline" size="sm" className="text-sm">
-                      View Details
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+            <RatingCard
+              key={rating._id}
+              rating={rating}
+              showRoomName={true}
+              showViewDetails={true}
+              showRaterInfo={true}
+              compact={true}
+            />
           ))}
         </div>
         
         {hasMore && (
           <div className="text-center mt-4">
-            <button
+            <Button
               onClick={loadMoreRatings}
+              variant="outline"
               disabled={loadingMore}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loadingMore ? 'Loading...' : 'Load More Ratings'}
-            </button>
+            </Button>
           </div>
         )}
       </div>

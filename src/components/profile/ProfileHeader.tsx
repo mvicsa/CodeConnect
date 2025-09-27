@@ -151,11 +151,11 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     <>
       <Card className='pt-0 relative gap-0 dark:border-0 shadow-none'>
         <CardHeader className='p-0 gap-0'>
-          <div className="relative w-full h-[300px]">
+          <div className="relative w-full h-48 lg:h-[300px]">
             <Image 
               src={user?.cover || "https://images.unsplash.com/photo-1503264116251-35a269479413"} 
               alt="Cover" 
-              className='w-full h-[300px] object-cover rounded-t-xl' 
+              className='w-full h-full object-cover rounded-t-xl' 
               width={1000} 
               height={1000} 
             />
@@ -197,15 +197,15 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           </div>
         </CardHeader>
         <CardContent className='text-center'>
-                      <div className='flex items-end justify-center gap-4 -mt-15'>
-              <div className='flex flex-col items-center justify-center order-1'>
-                <span className='text-2xl font-bold'>{followersCount || 0}</span>
-                <span className='text-sm text-muted-foreground cursor-pointer hover:underline' onClick={onFollowersClick}>Followers</span>
-              </div>
-              <div className='flex flex-col items-center justify-center order-3'>
-                <span className='text-2xl font-bold'>{followingCount || 0}</span>
-                <span className='text-sm text-muted-foreground cursor-pointer hover:underline' onClick={onFollowingClick}>Following</span>
-              </div>
+          <div className='flex items-end justify-center gap-4 -mt-15'>
+            <div className='flex flex-col items-center justify-center order-1'>
+              <span className='text-2xl font-bold'>{followersCount || 0}</span>
+              <span className='text-sm text-muted-foreground cursor-pointer hover:underline' onClick={onFollowersClick}>Followers</span>
+            </div>
+            <div className='flex flex-col items-center justify-center order-3'>
+              <span className='text-2xl font-bold'>{followingCount || 0}</span>
+              <span className='text-sm text-muted-foreground cursor-pointer hover:underline' onClick={onFollowingClick}>Following</span>
+            </div>
             <div className='order-2 relative'>
               <Avatar className='w-35 h-35 border-6 border-card'>
                 <AvatarImage src={user?.avatar || "/user.png"} />

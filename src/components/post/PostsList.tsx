@@ -20,7 +20,7 @@ interface PostsListProps {
 }
 
 export const PostSkeleton = () => (
-  <div className="rounded-lg border dark:border-0 bg-card p-6 shadow-none">
+  <div className="rounded-lg bg-card p-6 shadow-none">
     <div className="flex items-center gap-3 mb-4">
       <Skeleton className="h-10 w-10 rounded-full" />
       <div className="space-y-2">
@@ -105,7 +105,13 @@ const PostsList = React.memo(function PostsList({
       <h2 className="text-2xl font-bold mb-4">{title}</h2>
       
       {/* Show skeleton only during initial loading when no posts are available */}
-      {initialLoading && localPosts.length === 0 && <PostSkeleton />}
+      {initialLoading && localPosts.length === 0 && (
+        <div className="space-y-6">
+          <PostSkeleton />
+          <PostSkeleton />
+          <PostSkeleton />
+        </div>
+      )}
       
       {/* Show "No posts" message only when not in any loading state and no posts */}
       {!loading && !initialLoading && localPosts.length === 0 && (

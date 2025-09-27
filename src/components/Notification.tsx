@@ -456,7 +456,7 @@ const NotificationPage = () => {
                                         }}
                                     >
                                         <Card
-                                            className={`relative group transition-all duration-200 hover:shadow-md cursor-pointer py-7 ${!notification.isRead ? 'bg-primary/20 border-primary' : 'dark:border-transparent hover:!border-primary'}`}
+                                            className={`relative group transition-all duration-200 hover:shadow-md cursor-pointer py-7 border border-transparent ${!notification.isRead ? 'bg-primary/20 border-primary' : 'dark:border-transparent hover:!border-primary'}`}
                                             // onClick={() => handleNotificationClick(notification)} // Remove this, handled above
                                         >
                                             <CardContent className='px-5'>

@@ -41,7 +41,7 @@ const UserSearchResultCard: React.FC<{ user: User }> = ({ user }) => (
         {user._id && (
           <BlockStatusIndicator 
             userId={user._id} 
-            className="ml-1"
+            className="me-1"
           />
         )}
       </CardTitle>

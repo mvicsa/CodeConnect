@@ -8,11 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, X, Calendar, User, Tag, ArrowLeft } from 'lucide-react';
+import { Search, X, Calendar, User, Tag, Eye } from 'lucide-react';
 import Link from 'next/link';
 import CodeBlock from '@/components/code/CodeBlock';
 import MarkdownWithCode from '@/components/MarkdownWithCode';
 import Container from './Container';
+import { formatDate } from 'date-fns';
 
 export default function ArchiveSearch() {
   const {
@@ -52,7 +53,7 @@ export default function ArchiveSearch() {
   if (error) {
     return (
         <Container>
-            <div className="p-12 space-y-6">
+            <div className="space-y-6">
                 <Card className="border-red-200 bg-red-50">
                     <CardContent className="pt-6">
                         <div className="text-center">
@@ -70,15 +71,10 @@ export default function ArchiveSearch() {
 
   return (
     <Container>
-        <div className="p-12 space-y-6">
+        <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex gap-4">
-                    <Link href="/">
-                        <Button variant="ghost" size="icon" className="rounded-full">
-                            <ArrowLeft className="h-4 w-4" />
-                        </Button>
-                    </Link>
                     <div>
                         <h1 className="text-3xl font-bold">Archive</h1>
                         <p className="text-muted-foreground">
@@ -253,27 +249,36 @@ export default function ArchiveSearch() {
                     <CardContent>
                         <div className="space-y-4">
                         {/* Header */}
-                        <div className="flex items-start justify-between">
-                                                <div className="flex items-center gap-3">
-                                                                            <Avatar className="h-10 w-10">
-                                <AvatarImage src={item.createdBy?.avatar} alt={item.createdBy?.firstName} />
-                                <AvatarFallback>
-                                    {item.createdBy?.firstName ? item.createdBy.firstName.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
-                                </AvatarFallback>
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="flex gap-3">
+                                <Avatar className="h-12 w-12">
+                                    <AvatarImage src={item.createdBy?.avatar} alt={item.createdBy?.firstName} />
+                                    <AvatarFallback>
+                                        {item.createdBy?.firstName ? item.createdBy.firstName.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
+                                    </AvatarFallback>
                                 </Avatar>
                                 <div>
-                                <h3 className="font-semibold">{item.text || 'No title'}</h3>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <User className="h-3 w-3" />
-                                    <span>{item.createdBy?.firstName} {item.createdBy?.lastName}</span>
-                                    <Calendar className="h-3 w-3" />
-                                    <span>{new Date(item.createdAt).toLocaleDateString()}</span>
-                                </div>
+                                    <Link href={`/archive/${item._id}`} className="hover:underline">
+                                        <h3 className="font-semibold mb-1">
+                                            {item.text || 'No title'}
+                                        </h3>
+                                    </Link>
+                                    <div className="flex items-center flex-wrap gap-2 text-sm text-muted-foreground">
+                                        <User className="h-3 w-3" />
+                                        <Link href={`/profile/${item.createdBy?.username}`} className="hover:underline">
+                                            <span>
+                                                {item.createdBy?.firstName} {item.createdBy?.lastName}
+                                            </span>
+                                        </Link>
+                                        <Calendar className="h-3 w-3" />
+                                        <span>{formatDate(item.createdAt, 'MMM d, yyyy hh:mm a')}</span>
+                                    </div>
                                 </div>
                             </div>
                             <Link href={`/archive/${item._id}`}>
-                            <Button variant="outline" size="sm">
-                                View Details
+                            <Button variant="outline" size="sm" className="hidden sm:flex">
+                                <Eye className="h-3 w-3" />
+                                <span>View Details</span>
                             </Button>
                             </Link>
                         </div>

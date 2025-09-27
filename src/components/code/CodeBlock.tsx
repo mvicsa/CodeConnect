@@ -133,7 +133,7 @@ const CodeBlock = memo(function CodeBlock({
 
   return (
     // get color background from themes code-dark.json and code-light.json
-    <div ref={containerRef} className={`relative rounded-lg overflow-hidden bg-[#f8f8f8] dark:bg-background ${className}`} dir="ltr">
+    <div ref={containerRef} className={`relative rounded-lg overflow-hidden bg-[#f4f4f5] dark:bg-background ${className}`} dir="ltr">
       {/* Code content */}
       {/* show copy button on container hover */}
       <div className="relative pt-4 group">
@@ -146,7 +146,7 @@ const CodeBlock = memo(function CodeBlock({
             size="sm"
             variant="ghost"
             onClick={handleCopy}
-            className="h-6 w-6 p-0 hover:bg-background absolute top-2 right-2 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+            className="h-6 w-6 p-0 hover:bg-background absolute top-2 right-2 cursor-pointer lg:opacity-0 group-hover:opacity-100 transition-opacity"
           >
             {copied ? (
               <Check className="size-3 text-primary" />
