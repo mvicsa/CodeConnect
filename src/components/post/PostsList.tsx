@@ -96,7 +96,7 @@ const PostsList = function PostsList({
       
       {/* Show "No posts" message when not loading, no posts, and we've fetched at least once */}
       {!isLoading && posts.length === 0 && hasFetchedOnce && (
-        <p className="text-center py-8">No posts yet. Be the first to create one!</p>
+        <p className="text-center py-8">No posts yet!</p>
       )}
       
       {/* Show posts when not loading and have posts */}
