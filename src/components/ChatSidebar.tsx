@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useRef } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Image from "next/image";
 import { ChatInput } from "@/components/ui/chat-input";
 import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
 import { ChatPreview, ChatRoomType, Message } from "@/types/chat";
@@ -96,12 +97,80 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     }
   }, [chatPreviews, myUserId, messages, chatRooms]); // Added chatRooms dependency
 
-  const renderLastMessagePreview = (lastMessage: Message | undefined | null) => {
-    if (!lastMessage) return 'No messages yet';
-    if (lastMessage.deleted) return 'Message deleted';
-    if (lastMessage.type === 'image') return <span className="inline-flex items-center gap-1"><ImageIcon className="inline w-4 h-4" /> Image</span>;
-    if (lastMessage.type === 'file') return <span className="inline-flex items-center gap-1"><FileIcon className="inline w-4 h-4" /> File</span>;
-    return lastMessage.content || 'No messages yet';
+  // Reaction preview support (use same images as ReactionsMenu)
+  const reactionImageMap: Record<string, string> = {
+    like: "/reactions/like.png",
+    love: "/reactions/love.png",
+    wow: "/reactions/wow.png",
+    happy: "/reactions/happy.png",
+    funny: "/reactions/funny.png",
+    dislike: "/reactions/dislike.png",
+  };
+
+  const resolveReactionUserMeta = (userId: any, members: ChatPreview['members']) => {
+    if (!userId) return { firstName: '', lastName: '', _id: '' } as any;
+    if (typeof userId === 'string') return members.find(m => m._id === userId) || { firstName: '', lastName: '', _id: userId } as any;
+    return userId;
+  };
+
+  type LastActivity = {
+    latestType: 'message' | 'reaction' | null;
+    latestTime: number;
+    latestMessage: Message | null;
+    latestReaction: { userName: string; reaction: string } | null;
+  };
+
+  const getLastActivity = (roomId: string, members: ChatPreview['members']): LastActivity => {
+    const roomMessages = messages[roomId] || [];
+    let latestType: 'message' | 'reaction' | null = null;
+    let latestTime = 0;
+    let latestMessage: Message | null = null;
+  let latestReaction: { userName: string; reaction: string; userId?: string; firstName?: string } | null = null;
+
+    roomMessages.forEach((m) => {
+      const msgTime = new Date(m.createdAt).getTime();
+      if (msgTime >= latestTime) {
+        latestTime = msgTime;
+        latestType = 'message';
+        latestMessage = m;
+      }
+      if (Array.isArray((m as any).userReactions)) {
+        (m as any).userReactions.forEach((ur: any) => {
+          const rt = new Date(ur.createdAt).getTime();
+          if (rt >= latestTime) {
+            latestTime = rt;
+            latestType = 'reaction';
+            const userMeta = resolveReactionUserMeta(ur.userId, members);
+            const fullName = `${userMeta.firstName || ''} ${userMeta.lastName || ''}`.trim() || 'Someone';
+            latestReaction = { userName: fullName, reaction: ur.reaction, userId: userMeta._id, firstName: userMeta.firstName };
+          }
+        });
+      }
+    });
+
+    return { latestType, latestTime, latestMessage, latestReaction };
+  };
+
+  const renderLastPreview = (preview: ChatPreview) => {
+    const { latestType, latestMessage, latestReaction } = getLastActivity(preview._id, preview.members);
+    if (!latestType) return 'No messages yet';
+    if (latestType === 'reaction' && latestReaction) {
+      const imageSrc = reactionImageMap[latestReaction.reaction] || "/reactions/like.png";
+      const isMe = (latestReaction as any).userId === myUserId;
+      const firstName = (latestReaction as any).firstName || latestReaction.userName?.split(" ")[0] || 'Someone';
+      return (
+        <span className="inline-flex items-center gap-1">
+          {isMe ? 'You reacted' : `${firstName} reacted`}
+          <Image src={imageSrc} alt={latestReaction.reaction} width={16} height={16} className="ms-1" />
+        </span>
+      );
+    }
+    const m = latestMessage;
+    if (!m) return 'No messages yet';
+    if (m.deleted) return 'Message deleted';
+    if (m.type === 'image') return <span className="inline-flex items-center gap-1"><ImageIcon className="inline w-4 h-4" /> Image</span>;
+    if (m.type === 'file') return <span className="inline-flex items-center gap-1"><FileIcon className="inline w-4 h-4" /> File</span>;
+    return m.content || m.codeData?.code || 'No messages yet';
   };
 
   const renderChatItem = (preview: ChatPreview) => {
@@ -146,15 +215,16 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 {preview.members.length} members
               </span>
             </div>
-            {preview.lastMessage && (
-              <p className="text-xs text-muted-foreground">
-                {preview.lastMessage.createdAt ? formatTime(new Date(preview.lastMessage.createdAt)) : ""}
-              </p>
-            )}
+            {(() => {
+              const activity = getLastActivity(preview._id, preview.members);
+              return activity.latestTime ? (
+                <p className="text-xs text-muted-foreground">{formatTime(new Date(activity.latestTime))}</p>
+              ) : null;
+            })()}
           </div>
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground truncate">
-              {renderLastMessagePreview(preview.lastMessage)}
+              {renderLastPreview(preview)}
             </p>
             {preview.unreadCount > 0 && (
               <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-primary rounded-full">
@@ -228,7 +298,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
             </div>
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground truncate">
-                {(isBlocked || isBlockedBy) ? 'Messages blocked' : renderLastMessagePreview(preview.lastMessage)}
+                {(isBlocked || isBlockedBy) ? 'Messages blocked' : renderLastPreview(preview)}
               </p>
               {preview.unreadCount > 0 && !isBlocked && !isBlockedBy && (
                 <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-primary rounded-full">

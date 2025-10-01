@@ -50,13 +50,10 @@ export interface Message {
   reactions: {
     like: number;
     love: number;
-    laugh: number;
     wow: number;
-    sad: number;
-    angry: number;
-    clap: number;
-    fire: number;
-    star: number;
+    funny: number;
+    dislike: number;
+    happy: number;
   };
   seenBy: string[];
   deleted: boolean;
@@ -65,6 +62,7 @@ export interface Message {
   deletedBy?: string;
   pinned: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface ChatRoom {

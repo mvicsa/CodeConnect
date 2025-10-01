@@ -39,7 +39,7 @@ export default function CodeMessage({
           />
           
           {/* Edit button for current user, Send Back button for others */}
-          <div className="mt-2 flex items-center gap-2">
+          {/* <div className="mt-2 flex items-center gap-2">
             <Button
               size="sm"
               variant="outline"
@@ -49,7 +49,7 @@ export default function CodeMessage({
               <Edit className="h-4 w-4" />
               {isCurrentUser ? 'Edit' : 'Edit & Send Back'}
             </Button>
-          </div>
+          </div> */}
         </div>
       )}
     </div>

@@ -5,13 +5,13 @@ import { ChatInput } from "@/components/ui/chat-input";
 import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
 import {Message, TypingIndicator, MessageType, ChatRoomType, User } from "@/types/chat";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Send, Paperclip, Check, CheckCheck, MoreVertical, X, File, Camera, Users, ImageIcon, UserX, Code } from "lucide-react";
+import { ArrowLeft, Send, Paperclip, Check, CheckCheck, MoreVertical, X, File, Camera, Users, ImageIcon, UserX, Code, Save } from "lucide-react";
 import { useTranslations } from "next-intl";
 import MessageActions from "./MessageActions";
 import { useSelector, useDispatch, shallowEqual } from 'react-redux';
 import { RootState, AppDispatch } from '@/store/store';
 import { SocketContext } from '@/store/Provider';
-import { setError, setSeen, updateMessageReactions } from '@/store/slices/chatSlice';
+import { setError, setSeen } from '@/store/slices/chatSlice';
 import { useBlock } from '@/hooks/useBlock';
 import { blockUser, unblockUser } from '@/store/slices/blockSlice';
 import EmojiMenu from '@/components/ui/emoji-menu';
@@ -33,7 +33,8 @@ import { formatDate, isToday } from "date-fns";
 import { uploadToImageKit } from '@/lib/imagekitUpload';
 import CodeInputModal from "./chat/CodeInputModal";
 import CodeMessage from "./chat/CodeMessage";
-import MessageReactions from "./MessageReactions";
+import ReactionsMenu from "./ReactionsMenu";
+import EditMessageModal from "./chat/EditMessageModal";
 
 interface ChatWindowProps {
   onBackToList: () => void;
@@ -59,6 +60,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const messageBubbleRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
@@ -79,6 +82,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     language: string;
     originalMessage: Message | null;
   } | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
 
   // Handle emoji selection
   const handleEmojiSelect = (emoji: string) => {
@@ -95,16 +100,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       
       if (isCurrentUserEditing) {
         // Current user editing their own message - use edit functionality
+        const updates: any = {
+          codeData: {
+            code,
+            language
+          },
+          // Include content even if empty to allow clearing message text
+          content: (text || '').trim()
+        };
         socket.emit('chat:edit_message', {
           roomId: activeRoom._id,
           messageId: codeModalData.originalMessage._id,
-          updates: {
-            codeData: {
-              code,
-              language
-            },
-            content: text || `Code in ${language}`
-          }
+          updates
         });
       } else {
         // Other user editing and sending back - create new message
@@ -126,16 +133,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       setCodeModalData(null);
     } else {
       // Regular new code message
-      const messageData = {
+      const messageData: any = {
         roomId: activeRoom._id,
         type: MessageType.CODE,
-        content: text || `Code in ${language}`, // Provide default content if text is empty
         codeData: {
           code,
           language
         },
         replyTo: replyTo?._id || null
       };
+
+      // Only include content when non-empty, so backend accepts code-only messages
+      if (text && text.trim().length > 0) {
+        messageData.content = text.trim();
+      }
 
       socket.emit('chat:send_message', messageData);
     }
@@ -152,6 +163,32 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       originalMessage
     });
     setIsCodeModalOpen(true);
+  };
+
+  // Handle edit message
+  const handleEditMessage = (message: Message) => {
+    setEditingMessage(message);
+    setIsEditModalOpen(true);
+  };
+
+  // Handle save edit from modal
+  const handleSaveEdit = (updates: { content?: string; codeData?: { code: string; language: string } | null; type?: MessageType }) => {
+    if (!editingMessage || !socket || !activeRoom) return;
+
+    socket.emit('chat:edit_message', {
+      roomId: activeRoom._id,
+      messageId: editingMessage._id,
+      updates
+    });
+
+    setEditingMessage(null);
+    setIsEditModalOpen(false);
+  };
+
+  // Handle close edit modal
+  const handleCloseEditModal = () => {
+    setEditingMessage(null);
+    setIsEditModalOpen(false);
   };
 
   // Access chat state
@@ -398,6 +435,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     const { scrollHeight, clientHeight } = scrollElement;
     const maxScroll = scrollHeight - clientHeight;
     scrollElement.scrollTo({ top: maxScroll, behavior: 'smooth' });
+  };
+
+  // Smoothly scroll to a message by id and highlight its bubble briefly
+  const scrollToMessageById = (messageId: string) => {
+    const containerEl = messageRefs.current[messageId];
+    const bubbleEl = messageBubbleRefs.current[messageId];
+    if (containerEl) {
+      containerEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    if (bubbleEl) {
+      bubbleEl.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background', 'bg-primary/10');
+      setTimeout(() => {
+        bubbleEl.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background', 'bg-primary/10');
+      }, 1400);
+    }
   };
 
   // Close file menu when clicking outside
@@ -760,7 +812,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               </p>
             )}
             <div className={cn(
-              "rounded-lg relative group px-4 py-2",
+              "rounded-lg relative group p-3",
               "bg-accent text-muted-foreground italic"
             )}>
               <p className="text-sm">Message deleted</p>
@@ -777,6 +829,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           "flex items-start space-x-2 group relative",
           isCurrentUser ? "justify-end" : "justify-start"
         )}
+        ref={(el) => { messageRefs.current[msg._id] = el; }}
       >
         {!isCurrentUser && activeRoom.type === ChatRoomType.GROUP && (
           <Avatar className="h-8 w-8">
@@ -799,27 +852,33 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           
           <div
             className={cn(
-              "rounded-lg relative group",
+              "rounded-lg rounded-ee-none relative group mb-1",
               isCurrentUser
-                ? "bg-primary text-white"
-                : "bg-accent dark:bg-card text-accent-foreground"
+                ? "bg-primary/70 text-white"
+                : "bg-accent dark:bg-card text-accent-foreground rounded-ee-lg rounded-es-none"
             )}
+            ref={(el) => { messageBubbleRefs.current[msg._id] = el; }}
           >
             {msg.replyTo && (
-              <div className={cn(
-                "text-xs p-3 bg-accent dark:bg-card rounded-t-md"
-              )}>
+              <div
+                className={cn(
+                  "text-xs p-3.5 bg-accent rounded-t-md cursor-pointer hover:bg-accent/80 transition-colors"
+                )}
+                onClick={() => msg.replyTo && scrollToMessageById(msg.replyTo._id)}
+                title="Go to original message"
+                role="button"
+              >
                 <p className="font-medium text-accent-foreground">
                   Replying to <span className="text-primary">
                     {msg.replyTo.sender._id === myUserId ? "you" : `${msg.replyTo.sender.firstName} ${msg.replyTo.sender.lastName}`}
                   </span>
                 </p>
                 <div className={cn(
-                  "opacity-70 truncate",
+                  "opacity-70 truncate mt-2",
                   isCurrentUser ? "text-secondary-foreground mt-1" : "text-gray-400"
                 )}>
                   <MarkdownWithCode 
-                    content={msg.replyTo.content} 
+                    content={msg.replyTo.content || msg.replyTo.codeData?.code || ''} 
                     maxLength={10000}
                     theme={theme === 'dark' ? 'dark' : 'light'} 
                   />
@@ -827,13 +886,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               </div>
             )}
             
-            <div className={`${msg.type === MessageType.VIDEO ? 'px-1 py-1' : 'px-4 py-2'} relative`}>
+            <div className={`${msg.type === MessageType.VIDEO ? 'px-1 py-1' : 'p-3.5 pb-4.5'} relative`}>
               <div className={`absolute ${msg.type === MessageType.VIDEO ? 'top-2 right-2' : 'top-1 right-1'} z-10`}>
                 <MessageActions
                   message={msg}
                   onReply={(message) => setReplyTo(message)}
                   onCopy={() => {}}
                   onDelete={isCurrentUser ? handleDeleteMessage : undefined}
+                  onEdit={isCurrentUser ? handleEditMessage : undefined}
                   isCurrentUser={isCurrentUser}
                 />
               </div>
@@ -856,7 +916,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 </div>
               )}
               
-                                            {/* Video Content - Fixed and Simplified */}
+                {/* Video Content - Fixed and Simplified */}
                 {msg.type === MessageType.VIDEO && msg.fileUrl && (
                   <div className="mb-2 mt-6">
                     <div className="relative max-w-full max-h-64 rounded-lg overflow-hidden bg-black cursor-pointer group shadow-lg hover:shadow-xl transition-all duration-300">
@@ -906,14 +966,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   </div>
                 </div>
               )}
-              
-
-              
-
-              
-
-              
-
 
                {/* Audio Content */}
                {msg.type === MessageType.AUDIO && msg.fileUrl && (
@@ -975,7 +1027,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                  </div>
                )}
               
-                             {/* Text Content */}
+               {/* Text Content */}
                {msg.type === MessageType.TEXT && (
                  <div className="text-sm">
                    <MarkdownWithCode 
@@ -997,28 +1049,37 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                  </div>
                )}
                
-               {/* Message Reactions */}
-               <div className="flex items-center gap-2 mt-2 px-1 group">
-                 <MessageReactions
-                   messageId={msg._id}
-                   roomId={activeRoom?._id || ''}
-                   reactions={msg.reactions || { like: 0, love: 0, laugh: 0, wow: 0, sad: 0, angry: 0, clap: 0, fire: 0, star: 0 }}
-                   userReactions={msg.userReactions || []}
-                   currentUserId={myUserId}
-                   isCurrentUser={isCurrentUser}
-                   size="sm"
-                 />
-               </div>
+              {/* Message Reactions (ReactionsMenu) */}
+              <div className={`flex items-center gap-2 mt-2 px-1 group absolute -bottom-3 start-2 bg-accent rounded-lg ${msg.userReactions?.length === 0 && "p-1"}`}>
+                <ReactionsMenu
+                  size="sm"
+                  messageId={msg._id}
+                  roomId={activeRoom?._id || ''}
+                  roomMembers={activeRoom?.members || []}
+                  reactions={{
+                    like: msg.reactions?.like || 0,
+                    love: msg.reactions?.love || 0,
+                    wow: msg.reactions?.wow || 0,
+                    funny: msg.reactions?.funny || 0,
+                    dislike: msg.reactions?.dislike || 0,
+                    happy: msg.reactions?.happy || 0,
+                  }}
+                  userReactions={msg.userReactions || []}
+                  currentUserId={myUserId}
+                />
+              </div>
                
               <div className="flex items-center justify-between mt-1">
-                <p
-                  className={cn(
-                    "text-xs",
-                    isCurrentUser ? "text-primary-foreground" : "text-muted-foreground"
-                  )}
-                >
-                  {isToday(msg.createdAt) ? formatDate(new Date(msg.createdAt), 'hh:mm a') : formatDate(new Date(msg.createdAt), 'E, MMM d, yyyy - hh:mm a')}
-                </p>
+                <div className="flex items-center gap-1">
+                  <p
+                    className={cn(
+                      "text-xs",
+                      isCurrentUser ? "text-primary-foreground" : "text-muted-foreground"
+                    )}
+                  >
+                    {isToday(msg.createdAt) ? formatDate(new Date(msg.createdAt), 'hh:mm a') : formatDate(new Date(msg.createdAt), 'E, MMM d, yyyy - hh:mm a')}  { msg.createdAt !== msg.updatedAt && '- Edited'}
+                  </p>
+                </div>
                 {isCurrentUser && (
                   <div className="flex items-center space-x-1 ms-2">
                     {isSeenByOther ? (
@@ -1052,7 +1113,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             {getInitials(`${member.firstName} ${member.lastName}`)}
           </AvatarFallback>
         </Avatar>
-        <div className="bg-accent rounded-lg px-4 py-2">
+        <div className="bg-accent rounded-lg p-3">
           <div className="flex space-x-1">
             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
             <div
@@ -1260,7 +1321,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       <ChatScrollArea 
         ref={scrollRef} 
         onScroll={handleScroll}
-        className="flex-1 p-4 bg-background"
+        className="flex-1 p-4 pb-5 bg-background"
         style={{ 
           overflowY: 'auto'
         }}
@@ -1382,7 +1443,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   <p className="text-xs text-muted-foreground capitalize">
                     {selectedFile.type.split('/')[0]} file
                   </p>
-                                     {isUploading && (
+                    {isUploading && (
                      <div className="mt-2">
                        <div className="w-full bg-gray-200 rounded-full h-2">
                          <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
@@ -1442,7 +1503,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   <Paperclip className="h-5 w-5" />
                 </ChatButton>
             
-                         {/* File Upload Menu - WhatsApp Style */}
+            {/* File Upload Menu - WhatsApp Style */}
              {isFileMenuOpen && (
                <div data-file-menu className="absolute bottom-full left-0 mb-2 bg-background border rounded-xl shadow-xl p-3 z-50 min-w-[220px]">
                  <div className="space-y-2">
@@ -1543,7 +1604,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <Code className="h-4 w-4" />
           </ChatButton>
 
-                     <ChatButton
+          <ChatButton
              onClick={handleSendMessage}
              disabled={(!message.trim() && !selectedFile) || isUploading}
              className="bg-primary hover:bg-primary/90 cursor-pointer"
@@ -1676,11 +1737,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
          replyTo={replyTo}
          initialCode={codeModalData?.code}
          initialLanguage={codeModalData?.language}
-         initialText={codeModalData?.originalMessage ? 
-           (codeModalData.originalMessage.sender._id === myUserId 
-             ? 'Edit your code:' 
-             : `Editing code from ${codeModalData.originalMessage.sender.firstName} ${codeModalData.originalMessage.sender.lastName}:`) 
-           : ''}
+         initialText={codeModalData?.originalMessage?.content || ''}
+       />
+
+       {/* Edit Message Modal */}
+       <EditMessageModal
+         isOpen={isEditModalOpen}
+         onClose={handleCloseEditModal}
+         onSave={handleSaveEdit}
+         message={editingMessage}
        />
      </div>
    );
