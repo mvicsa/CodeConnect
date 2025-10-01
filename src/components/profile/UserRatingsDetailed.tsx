@@ -8,6 +8,7 @@ import { RatingResponseDto } from '@/types/rating';
 import { Button } from '@/components/ui/button';
 import { RatingCard } from '@/components/rating';
 import { calculateAverageRating } from '@/lib/ratingUtils';
+import { RatingsSkeleton, RatingCardSkeleton } from '@/components/rating/RatingSkeleton';
 
 interface UserRatingsDetailedProps {
   userId: string;
@@ -109,11 +110,7 @@ const UserRatingsDetailed: React.FC<UserRatingsDetailedProps> = ({ userId }) => 
   // Removed duplicate functions - now using shared components and utilities
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-t-transparent" />
-      </div>
-    );
+    return <RatingsSkeleton />;
   }
 
   // Show empty state if no ratings, but still display the tab
@@ -208,14 +205,22 @@ const UserRatingsDetailed: React.FC<UserRatingsDetailedProps> = ({ userId }) => 
           ))}
         </div>
         
-        {hasMore && (
+        {/* Loading More Skeleton */}
+        {loadingMore && (
+          <div className="space-y-3 mt-4">
+            <RatingCardSkeleton />
+            <RatingCardSkeleton />
+            <RatingCardSkeleton />
+          </div>
+        )}
+        
+        {hasMore && !loadingMore && (
           <div className="text-center mt-4">
             <Button
               onClick={loadMoreRatings}
               variant="outline"
-              disabled={loadingMore}
             >
-              {loadingMore ? 'Loading...' : 'Load More Ratings'}
+              Load More Ratings
             </Button>
           </div>
         )}

@@ -6,7 +6,7 @@ import { AppDispatch, RootState } from '../../store/store'
 import { fetchPosts, fetchPostsByUser } from '../../store/slices/postsSlice'
 import PostsList from './PostsList'
 import { Button } from '../ui/button'
-import { PostSkeleton } from '../ui/PostSkeleton'
+import { PostSkeleton } from './PostSkeleton'
 import { Loader2 } from 'lucide-react'
 
 interface PostsContainerProps {

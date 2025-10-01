@@ -16,6 +16,7 @@ import Container from "@/components/Container";
 import axiosInstance from "@/lib/axios";
 import { StarRating } from "@/components/rating";
 import { getRatingColor, getRatingLabel, formatSatisfactionRate } from "@/lib/ratingUtils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function RatingDetailPage() {
   const params = useParams();
@@ -138,10 +139,133 @@ export default function RatingDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background p-3 sm:p-6">
+      <div className="bg-background">
         <Container>
-          <div className="flex justify-center items-center py-20">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          {/* Header Skeleton */}
+          <div className="mb-6 sm:mb-8">
+            <div className="flex flex-wrap justify-between gap-3 mb-4">
+              <div className="flex gap-3">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div>
+                  <Skeleton className="h-8 w-64 mb-2" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+              </div>
+              <Skeleton className="h-10 w-32" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* Main Rating Card Skeleton */}
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-6 w-32" />
+                    <div className="flex gap-2">
+                      <Skeleton className="h-6 w-16 rounded-full" />
+                      <Skeleton className="h-6 w-20 rounded-full" />
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Overall Rating Skeleton */}
+                  <div className="text-center p-6 bg-accent/50 rounded-lg">
+                    <div className="mb-4 flex justify-center gap-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Skeleton key={i} className="h-8 w-8 rounded-full" />
+                      ))}
+                    </div>
+                    <Skeleton className="h-8 w-24 mx-auto mb-2" />
+                    <Skeleton className="h-4 w-40 mx-auto" />
+                  </div>
+
+                  {/* Rating Categories Skeleton */}
+                  <div>
+                    <Skeleton className="h-6 w-32 mb-4" />
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {[...Array(4)].map((_, i) => (
+                        <div key={i} className="text-center p-4 bg-accent/50 rounded-lg">
+                          <Skeleton className="h-4 w-20 mx-auto mb-2" />
+                          <div className="flex items-center justify-center gap-1">
+                            <Skeleton className="h-5 w-5 rounded-full" />
+                            <Skeleton className="h-6 w-4" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Comment Skeleton */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Skeleton className="h-5 w-5" />
+                      <Skeleton className="h-6 w-20" />
+                    </div>
+                    <div className="bg-accent/50 p-4 rounded-lg">
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-3/4 mb-2" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </div>
+                  </div>
+
+                  {/* Session Information Skeleton */}
+                  <div>
+                    <Skeleton className="h-6 w-40 mb-3" />
+                    <div className="space-y-3 mb-3">
+                      <div className="p-3 bg-accent/50 rounded-lg">
+                        <Skeleton className="h-3 w-20 mb-1" />
+                        <Skeleton className="h-5 w-48" />
+                      </div>
+                      <div className="p-3 bg-accent/50 rounded-lg">
+                        <Skeleton className="h-3 w-32 mb-1" />
+                        <Skeleton className="h-4 w-full" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-lg">
+                        <Skeleton className="h-5 w-5" />
+                        <div>
+                          <Skeleton className="h-3 w-16 mb-1" />
+                          <Skeleton className="h-4 w-32" />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-lg">
+                        <Skeleton className="h-5 w-5" />
+                        <div>
+                          <Skeleton className="h-3 w-16 mb-1" />
+                          <Skeleton className="h-4 w-24" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Sidebar Skeleton */}
+            <div className="space-y-5">
+              <Card>
+                <CardHeader>
+                  <Skeleton className="h-6 w-32" />
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-4 w-8" />
+                    </div>
+                  ))}
+                  <div className="my-4">
+                    <Skeleton className="h-px w-full" />
+                  </div>
+                  <div className="text-center">
+                    <Skeleton className="h-8 w-16 mx-auto mb-1" />
+                    <Skeleton className="h-4 w-24 mx-auto" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </Container>
       </div>

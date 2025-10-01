@@ -8,7 +8,7 @@ import { PostType } from '../../types/post'
 import { Button } from '../ui/button'
 import { RefreshCw } from 'lucide-react'
 import { useBlock } from '@/hooks/useBlock'
-import { PostSkeleton } from '../ui/PostSkeleton'
+import { PostSkeleton } from './PostSkeleton'
 
 interface PostsListProps {
   posts?: PostType[]

@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ratingService } from '@/services/ratingService';
+import { SessionRatingsSkeleton } from './ProfileSkeleton';
 
 interface UserRatingsStatsProps {
   userId: string;
+  forceLoading?: boolean;
 }
 
-const UserRatingsStats: React.FC<UserRatingsStatsProps> = ({ userId }) => {
+const UserRatingsStats: React.FC<UserRatingsStatsProps> = ({ userId, forceLoading = false }) => {
   const [averageRating, setAverageRating] = useState<number | null>(null);
   const [totalRatings, setTotalRatings] = useState<number>(0);
   const [fourStarRatings, setFourStarRatings] = useState<number>(0);
@@ -49,6 +51,11 @@ const UserRatingsStats: React.FC<UserRatingsStatsProps> = ({ userId }) => {
     }
   }, [userId]);
 
+  // Show skeleton while loading or forced loading
+  if (loading || forceLoading) {
+    return <SessionRatingsSkeleton />;
+  }
+
   // Don't show anything if no ratings
   if (totalRatings === 0) {
     return null;
@@ -66,26 +73,22 @@ const UserRatingsStats: React.FC<UserRatingsStatsProps> = ({ userId }) => {
           <div className='text-center bg-accent/50 p-3 rounded-lg'>
             <span className='text-sm text-muted-foreground'>Average Rating</span>
             <div className='font-semibold text-lg'>
-              {loading ? (
-                <span className='text-muted-foreground'>-</span>
-              ) : (
-                <div className='flex items-center justify-center gap-1'>
-                  <Star className='h-4 w-4 text-yellow-500 fill-yellow-500' />
-                  <span>{averageRating?.toFixed(1) || '0.0'}</span>
-                </div>
-              )}
+              <div className='flex items-center justify-center gap-1'>
+                <Star className='h-4 w-4 text-yellow-500 fill-yellow-500' />
+                <span>{averageRating?.toFixed(1) || '0.0'}</span>
+              </div>
             </div>
           </div>
           <div className='text-center bg-accent/50 p-3 rounded-lg'>
             <div className='text-sm text-muted-foreground'>Total Ratings</div>
             <div className='text-2xl font-bold text-primary'>
-              {loading ? '-' : totalRatings}
+              {totalRatings}
             </div>
           </div>
           <div className='text-center bg-accent/50 p-3 rounded-lg'>
             <div className='text-sm text-muted-foreground'>4+ Star Ratings</div>
             <div className='text-2xl font-bold text-green-600'>
-              {loading ? '-' : fourStarRatings}
+              {fourStarRatings}
             </div>
           </div>
         </CardContent>

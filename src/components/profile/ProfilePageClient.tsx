@@ -16,6 +16,7 @@ import { fetchProfile, updateProfile, updateFollowing } from '@/store/slices/aut
 import { toast } from 'sonner';
 import ProfileHeader from './ProfileHeader';
 import UserListDialog from './UserListDialog';
+import { ProfileSidebarSkeleton } from './ProfileSkeleton';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -140,6 +141,8 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [sidebarLoading, setSidebarLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const hasFetchedProfile = React.useRef(false);
 
   // Force re-render when followers count changes
@@ -165,6 +168,24 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
   useEffect(() => {
     setFollowingCount((user?.following as object[])?.length || 0);
   }, [user?.following]);
+
+  // Update sidebar loading when user data is available
+  useEffect(() => {
+    if (user && !authLoading) {
+      setSidebarLoading(false);
+      setInitialLoading(false);
+    } else {
+      setSidebarLoading(true);
+      setInitialLoading(true);
+    }
+  }, [user, authLoading]);
+
+  // Set initial loading to false if no user data
+  useEffect(() => {
+    if (!user && !authLoading) {
+      setInitialLoading(false);
+    }
+  }, [user, authLoading]);
 
   // Profile edit form state
   const [editForm, setEditForm] = useState<EditForm>({
@@ -750,338 +771,333 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
   return (
     <div className='max-w-screen-lg mx-auto px-4'>
       <div className='space-y-4 w-full'>
-        {authLoading ? (
-          <div className="flex items-center justify-center h-[500px]">
-            <div className="flex flex-col items-center gap-4">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-              <p className="text-muted-foreground">Loading profile...</p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <ProfileHeader
-              user={user as ProfileUser}
-              followersCount={followersCount}
-              followingCount={followingCount}
-              onFollowersClick={handleOpenFollowers}
-              onFollowingClick={handleOpenFollowing}
-              isFollowing={isSelf ? false : isFollowing}
-              onFollow={handleFollow}
-              onUnfollow={handleUnfollow}
-              loading={followActionLoading}
-              disabled={isSelf}
-              isOwnProfile={isSelf}
-              onUpdateAvatar={handleUpdateAvatar}
-              onUpdateCover={handleUpdateCover}
-              onEditProfile={handleOpenEditDialog}
-              onBlockStatusChange={refetchUser}
-            />
-            {/* Edit Profile Dialog */}
-            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-              <DialogContent className="max-h-[80vh] flex flex-col">
-                {/* Fixed Header */}
-                <div className="flex-shrink-0 border-b pb-4">
-                  <DialogTitle>Edit Profile</DialogTitle>
+        <>
+          <ProfileHeader
+            user={user as ProfileUser}
+            followersCount={followersCount}
+            followingCount={followingCount}
+            onFollowersClick={handleOpenFollowers}
+            onFollowingClick={handleOpenFollowing}
+            isFollowing={isSelf ? false : isFollowing}
+            onFollow={handleFollow}
+            onUnfollow={handleUnfollow}
+            loading={followActionLoading}
+            disabled={isSelf}
+            isOwnProfile={isSelf}
+            onUpdateAvatar={handleUpdateAvatar}
+            onUpdateCover={handleUpdateCover}
+            onEditProfile={handleOpenEditDialog}
+            onBlockStatusChange={refetchUser}
+          />
+          {/* Edit Profile Dialog */}
+          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+            <DialogContent className="max-h-[80vh] flex flex-col">
+              {/* Fixed Header */}
+              <div className="flex-shrink-0 border-b pb-4">
+                <DialogTitle>Edit Profile</DialogTitle>
+              </div>
+              
+              {/* Scrollable Form Content */}
+              <div className="flex-1 overflow-y-auto py-3 px-6 -mx-6">
+                <form onSubmit={handleEditSubmit} className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input
+                      id="firstName"
+                      name="firstName"
+                      value={editForm.firstName}
+                      onChange={handleEditChange}
+                      placeholder="Enter your first name"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input
+                      id="lastName"
+                      name="lastName"
+                      value={editForm.lastName}
+                      onChange={handleEditChange}
+                      placeholder="Enter your last name"
+                      required
+                    />
+                  </div>
                 </div>
-                
-                {/* Scrollable Form Content */}
-                <div className="flex-1 overflow-y-auto py-3 px-6 -mx-6">
-                  <form onSubmit={handleEditSubmit} className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name</Label>
-                      <Input
-                        id="firstName"
-                        name="firstName"
-                        value={editForm.firstName}
-                        onChange={handleEditChange}
-                        placeholder="Enter your first name"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        name="lastName"
-                        value={editForm.lastName}
-                        onChange={handleEditChange}
-                        placeholder="Enter your last name"
-                        required
-                      />
-                    </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="bio">Bio</Label>
-                    <Textarea
-                      id="bio"
-                      name="bio"
-                      value={editForm.bio}
-                      onChange={handleEditChange}
-                      placeholder="Tell us about yourself"
-                      rows={3}
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio</Label>
+                  <Textarea
+                    id="bio"
+                    name="bio"
+                    value={editForm.bio}
+                    onChange={handleEditChange}
+                    placeholder="Tell us about yourself"
+                    rows={3}
+                  />
+                </div>
 
-                  {/* Avatar and Cover fields removed - now managed through image cropper */}
+                {/* Avatar and Cover fields removed - now managed through image cropper */}
 
-                  <div className="space-y-2">
-                    <Label>Skills</Label>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {editForm.skills.map((skill) => (
-                        <div
-                          key={skill}
-                          className="flex items-center gap-1 bg-primary/10 text-primary rounded-md px-2 py-1 text-sm"
-                        >
-                          {skill}
-                          <button
-                            type="button"
-                            onClick={() => removeSkill(skill)}
-                            className="text-primary hover:text-primary/80"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <Input
-                        value={skillInput}
-                        onChange={(e) => setSkillInput(e.target.value)}
-                        onKeyDown={handleAddSkill}
-                        placeholder="Type a skill and press Enter"
-                      />
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Press Enter to add a skill
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="birthdate">Birthdate</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            id="birthdate"
-                            variant={"outline"}
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !editForm.birthdate && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {editForm.birthdate && !isNaN(editForm.birthdate.getTime()) ? format(editForm.birthdate, "PPP") : <span>Pick a date</span>}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            captionLayout="dropdown"
-                            selected={editForm.birthdate || undefined}
-                            month={editForm.birthdate || undefined}
-                            onSelect={(date) => setEditForm(prev => ({ 
-                              ...prev, 
-                              birthdate: date || null 
-                            }))}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="gender">Gender</Label>
-                      <Select
-                        value={editForm.gender || ""}
-                        onValueChange={(value) => setEditForm(prev => ({ ...prev, gender: value }))}
+                <div className="space-y-2">
+                  <Label>Skills</Label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {editForm.skills.map((skill) => (
+                      <div
+                        key={skill}
+                        className="flex items-center gap-1 bg-primary/10 text-primary rounded-md px-2 py-1 text-sm"
                       >
-                        <SelectTrigger id="gender" className='w-full'>
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="male">Male</SelectItem>
-                          <SelectItem value="female">Female</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                        {skill}
+                        <button
+                          type="button"
+                          onClick={() => removeSkill(skill)}
+                          className="text-primary hover:text-primary/80"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="city">City</Label>
+                  <div className="flex gap-2">
                     <Input
-                      id="city"
-                      name="city"
-                      value={editForm.city}
-                      onChange={handleEditChange}
-                      placeholder="Enter your city"
+                      value={skillInput}
+                      onChange={(e) => setSkillInput(e.target.value)}
+                      onKeyDown={handleAddSkill}
+                      placeholder="Type a skill and press Enter"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="country">Country</Label>
-                    <Input
-                      id="country"
-                      name="country"
-                      value={editForm.country}
-                      onChange={handleEditChange}
-                      placeholder="Enter your country"
-                    />
-                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Press Enter to add a skill
+                  </p>
+                </div>
 
-                  {/* Update the social links section in the edit form to show platform colors */}
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Social Links</Label>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Add your social media profiles to help others connect with you.
-                    </p>
-                    <div className="space-y-3">
-                      {editForm.socialLinks.map((link, index) => {
-                        // Find the matching platform for this link
-                        const platformMatch = SOCIAL_PLATFORMS.find(p => p.value === link.platform);
-                        const platformColor = PLATFORM_COLORS[link.platform as keyof typeof PLATFORM_COLORS] || '#6E6E6E';
-                        
-                        return (
-                          <div key={index} className="flex gap-2">
-                            <div className="flex-1">
-                              <Select
-                                value={link.platform || ''}
-                                onValueChange={(value) => handleSocialLinkChange(index, 'platform', value)}
-                              >
-                                <SelectTrigger className='w-full'>
-                                  <SelectValue>
-                                    {platformMatch ? (
+                    <Label htmlFor="birthdate">Birthdate</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          id="birthdate"
+                          variant={"outline"}
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !editForm.birthdate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {editForm.birthdate && !isNaN(editForm.birthdate.getTime()) ? format(editForm.birthdate, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          captionLayout="dropdown"
+                          selected={editForm.birthdate || undefined}
+                          month={editForm.birthdate || undefined}
+                          onSelect={(date) => setEditForm(prev => ({ 
+                            ...prev, 
+                            birthdate: date || null 
+                          }))}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gender</Label>
+                    <Select
+                      value={editForm.gender || ""}
+                      onValueChange={(value) => setEditForm(prev => ({ ...prev, gender: value }))}
+                    >
+                      <SelectTrigger id="gender" className='w-full'>
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    name="city"
+                    value={editForm.city}
+                    onChange={handleEditChange}
+                    placeholder="Enter your city"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="country">Country</Label>
+                  <Input
+                    id="country"
+                    name="country"
+                    value={editForm.country}
+                    onChange={handleEditChange}
+                    placeholder="Enter your country"
+                  />
+                </div>
+
+                {/* Update the social links section in the edit form to show platform colors */}
+                <div className="space-y-2">
+                  <Label>Social Links</Label>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Add your social media profiles to help others connect with you.
+                  </p>
+                  <div className="space-y-3">
+                    {editForm.socialLinks.map((link, index) => {
+                      // Find the matching platform for this link
+                      const platformMatch = SOCIAL_PLATFORMS.find(p => p.value === link.platform);
+                      const platformColor = PLATFORM_COLORS[link.platform as keyof typeof PLATFORM_COLORS] || '#6E6E6E';
+                      
+                      return (
+                        <div key={index} className="flex gap-2">
+                          <div className="flex-1">
+                            <Select
+                              value={link.platform || ''}
+                              onValueChange={(value) => handleSocialLinkChange(index, 'platform', value)}
+                            >
+                              <SelectTrigger className='w-full'>
+                                <SelectValue>
+                                  {platformMatch ? (
+                                    <div className="flex items-center gap-2">
+                                      <div 
+                                        className="flex items-center justify-center rounded-sm p-1"
+                                        style={{ backgroundColor: platformColor }}
+                                      >
+                                        {platformMatch.icon && React.createElement(platformMatch.icon, { 
+                                          className: "h-3.5 w-3.5", 
+                                          color: "white" 
+                                        })}
+                                      </div>
+                                      <span>{platformMatch.label}</span>
+                                    </div>
+                                  ) : (
+                                    <span>{link.title || 'Select platform'}</span>
+                                  )}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {SOCIAL_PLATFORMS.map(platform => {
+                                  const Icon = platform.icon;
+                                  const color = PLATFORM_COLORS[platform.value as keyof typeof PLATFORM_COLORS] || '#6E6E6E';
+                                  
+                                  return (
+                                    <SelectItem 
+                                      key={platform.value} 
+                                      value={platform.value}
+                                      disabled={editForm.socialLinks.some(
+                                        (l, i) => i !== index && l.platform === platform.value
+                                      )}
+                                    >
                                       <div className="flex items-center gap-2">
                                         <div 
                                           className="flex items-center justify-center rounded-sm p-1"
-                                          style={{ backgroundColor: platformColor }}
+                                          style={{ backgroundColor: color }}
                                         >
-                                          {platformMatch.icon && React.createElement(platformMatch.icon, { 
-                                            className: "h-3.5 w-3.5", 
-                                            color: "white" 
-                                          })}
+                                          <Icon className="h-3.5 w-3.5" color="white" />
                                         </div>
-                                        <span>{platformMatch.label}</span>
+                                        <span>{platform.label}</span>
                                       </div>
-                                    ) : (
-                                      <span>{link.title || 'Select platform'}</span>
-                                    )}
-                                  </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {SOCIAL_PLATFORMS.map(platform => {
-                                    const Icon = platform.icon;
-                                    const color = PLATFORM_COLORS[platform.value as keyof typeof PLATFORM_COLORS] || '#6E6E6E';
-                                    
-                                    return (
-                                      <SelectItem 
-                                        key={platform.value} 
-                                        value={platform.value}
-                                        disabled={editForm.socialLinks.some(
-                                          (l, i) => i !== index && l.platform === platform.value
-                                        )}
-                                      >
-                                        <div className="flex items-center gap-2">
-                                          <div 
-                                            className="flex items-center justify-center rounded-sm p-1"
-                                            style={{ backgroundColor: color }}
-                                          >
-                                            <Icon className="h-3.5 w-3.5" color="white" />
-                                          </div>
-                                          <span>{platform.label}</span>
-                                        </div>
-                                      </SelectItem>
-                                    );
-                                  })}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="flex-1">
-                              <Input
-                                placeholder="https://example.com"
-                                value={link.url}
-                                onChange={(e) => handleSocialLinkChange(index, 'url', e.target.value)}
-                                className={link.url && !isValidUrl(link.url) ? "border-red-500" : ""}
-                              />
-                              {link.url && !isValidUrl(link.url) && (
-                                <p className="text-xs text-red-500 mt-1">URL must start with http:// or https://</p>
-                              )}
-                            </div>
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              onClick={() => removeSocialLink(index)}
-                              className="shrink-0"
-                            >
-                              Remove
-                            </Button>
+                                    </SelectItem>
+                                  );
+                                })}
+                              </SelectContent>
+                            </Select>
                           </div>
-                        );
-                      })}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={addSocialLink}
-                        className="w-full mt-2"
-                        disabled={editForm.socialLinks.length >= SOCIAL_PLATFORMS.length}
-                      >
-                        Add Social Link
-                      </Button>
-                      {editForm.socialLinks.length >= SOCIAL_PLATFORMS.length && (
-                        <p className="text-xs text-muted-foreground text-center">
-                          Maximum number of social links reached.
-                        </p>
-                      )}
-                    </div>
+                          <div className="flex-1">
+                            <Input
+                              placeholder="https://example.com"
+                              value={link.url}
+                              onChange={(e) => handleSocialLinkChange(index, 'url', e.target.value)}
+                              className={link.url && !isValidUrl(link.url) ? "border-red-500" : ""}
+                            />
+                            {link.url && !isValidUrl(link.url) && (
+                              <p className="text-xs text-red-500 mt-1">URL must start with http:// or https://</p>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() => removeSocialLink(index)}
+                            className="shrink-0"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      );
+                    })}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={addSocialLink}
+                      className="w-full mt-2"
+                      disabled={editForm.socialLinks.length >= SOCIAL_PLATFORMS.length}
+                    >
+                      Add Social Link
+                    </Button>
+                    {editForm.socialLinks.length >= SOCIAL_PLATFORMS.length && (
+                      <p className="text-xs text-muted-foreground text-center">
+                        Maximum number of social links reached.
+                      </p>
+                    )}
                   </div>
+                </div>
 
-                  {editError && <div className="text-red-500 text-sm">{editError}</div>}
-                </form>
+                {editError && <div className="text-red-500 text-sm">{editError}</div>}
+              </form>
+              </div>
+              
+              {/* Fixed Footer */}
+              <div className="flex-shrink-0 border-t pt-4">
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)} disabled={editLoading}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" variant="default" disabled={editLoading} onClick={handleEditSubmit}>
+                    {editLoading ? 'Saving...' : 'Save'}
+                  </Button>
                 </div>
-                
-                {/* Fixed Footer */}
-                <div className="flex-shrink-0 border-t pt-4">
-                  <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)} disabled={editLoading}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" variant="default" disabled={editLoading} onClick={handleEditSubmit}>
-                      {editLoading ? 'Saving...' : 'Save'}
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-            {/* Followers Dialog */}
-            <UserListDialog
-              open={followersOpen}
-              onOpenChange={setFollowersOpen}
-              title='Followers'
-              users={followers.items as ProfileUser[]}
-              loading={followers.loading}
-              hasMore={followers.hasMore}
-              onLoadMore={handleLoadMoreFollowers}
-              onFollowToggle={handleDialogFollowToggle}
-              followingIds={followingIds as string[]}
-              currentUserId={currentUserId as string}
-              loadingButton={dialogFollowLoading}
-              emptyText='No followers yet.'
-            />
-            {/* Following Dialog */}
-            <UserListDialog
-              open={followingOpen}
-              onOpenChange={setFollowingOpen}
-              title='Following'
-              users={following.items as ProfileUser[]}
-              loading={following.loading}
-              hasMore={following.hasMore}
-              onLoadMore={handleLoadMoreFollowing}
-              onFollowToggle={handleDialogFollowToggle}
-              followingIds={followingIds as string[]}
-              currentUserId={currentUserId as string}
-              loadingButton={dialogFollowLoading}
-              emptyText='Not following anyone yet.'
-            />
-            <div className='grid grid-cols-16 gap-4'>
+              </div>
+            </DialogContent>
+          </Dialog>
+          {/* Followers Dialog */}
+          <UserListDialog
+            open={followersOpen}
+            onOpenChange={setFollowersOpen}
+            title='Followers'
+            users={followers.items as ProfileUser[]}
+            loading={followers.loading}
+            hasMore={followers.hasMore}
+            onLoadMore={handleLoadMoreFollowers}
+            onFollowToggle={handleDialogFollowToggle}
+            followingIds={followingIds as string[]}
+            currentUserId={currentUserId as string}
+            loadingButton={dialogFollowLoading}
+            emptyText='No followers yet.'
+          />
+          {/* Following Dialog */}
+          <UserListDialog
+            open={followingOpen}
+            onOpenChange={setFollowingOpen}
+            title='Following'
+            users={following.items as ProfileUser[]}
+            loading={following.loading}
+            hasMore={following.hasMore}
+            onLoadMore={handleLoadMoreFollowing}
+            onFollowToggle={handleDialogFollowToggle}
+            followingIds={followingIds as string[]}
+            currentUserId={currentUserId as string}
+            loadingButton={dialogFollowLoading}
+            emptyText='Not following anyone yet.'
+          />
+          <div className='grid grid-cols-16 gap-4'>
+              {sidebarLoading ? (
+              <ProfileSidebarSkeleton />
+            ) : (
               <div className='hidden md:block col-span-5'>
                 <Card className='w-full dark:border-0 shadow-none'>
                   <CardHeader>
@@ -1158,8 +1174,8 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
                   </CardHeader>
                 </Card>
 
-                {/* User Ratings Stats */}
-                <UserRatingsStats userId={user?._id as string} />
+                  {/* User Ratings Stats */}
+                  <UserRatingsStats userId={user?._id as string} forceLoading={sidebarLoading} />
 
                 {(user?.skills as string[])?.length > 0 && (
                   <div className='mt-4'>
@@ -1174,12 +1190,12 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
                 )}
 
               </div>
+            )}
               <div className='col-span-16 md:col-span-11'>
-                <ProfileTabs userId={user?._id as string} />
+                <ProfileTabs userId={user?._id as string} forceLoading={initialLoading} />
               </div>
-            </div>
-          </>
-        )}
+          </div>
+        </>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
-import { Skeleton } from './skeleton'
+import { Skeleton } from '../ui/skeleton'
 
 export const PostSkeleton = () => (
-  <div className="rounded-lg border dark:border-0 bg-card p-6 shadow-none">
+  <div className="rounded-lg bg-card p-6 shadow-none">
     <div className="flex items-center gap-3 mb-4">
       <Skeleton className="h-10 w-10 rounded-full" />
       <div className="space-y-2">

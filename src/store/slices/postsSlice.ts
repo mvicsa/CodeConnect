@@ -42,7 +42,7 @@ const initialState: PostsState = {
   // Profile posts
   profilePosts: [],
   profileAllPosts: [],
-  profileLoading: false,
+  profileLoading: true,
   profilePaginationLoading: false,
   profileError: null,
   profileHasMore: true,
@@ -68,7 +68,7 @@ export const fetchPosts = createAsyncThunk<PostType[], { page?: number; limit?: 
 // Fetch posts by user
 export const fetchPostsByUser = createAsyncThunk<PostType[], { userId: string; page?: number; limit?: number; refresh?: boolean }>(
   'posts/fetchPostsByUser',
-  async ({ userId, page = 1, limit = 10 }) => {
+  async ({ userId, page = 1 }) => {
     // Only fetch from API on first page, for pagination we use client-side slicing
     if (page > 1) {
       // Add small delay to show skeleton for pagination
