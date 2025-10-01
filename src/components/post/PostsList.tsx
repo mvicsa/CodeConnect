@@ -1,14 +1,14 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { RootState } from '../../store/store'
 import Post from './Post'
 import { PostType } from '../../types/post'
 import { Button } from '../ui/button'
 import { RefreshCw } from 'lucide-react'
-import { Skeleton } from '../ui/skeleton'
 import { useBlock } from '@/hooks/useBlock'
+import { PostSkeleton } from '../ui/PostSkeleton'
 
 interface PostsListProps {
   posts?: PostType[]
@@ -19,56 +19,37 @@ interface PostsListProps {
   title?: string
 }
 
-export const PostSkeleton = () => (
-  <div className="rounded-lg border dark:border-0 bg-card p-6 shadow-none">
-    <div className="flex items-center gap-3 mb-4">
-      <Skeleton className="h-10 w-10 rounded-full" />
-      <div className="space-y-2">
-        <Skeleton className="h-4 w-[120px]" />
-        <Skeleton className="h-3 w-[80px]" />
-      </div>
-    </div>
-    <Skeleton className="h-4 w-full mb-2" />
-    <Skeleton className="h-4 w-3/4 mb-4" />
-    <Skeleton className="h-[180px] w-full mb-4" />
-    <div className="flex justify-between">
-      <Skeleton className="h-8 w-20" />
-      <Skeleton className="h-8 w-20" />
-    </div>
-  </div>
-)
 
-const PostsList = React.memo(function PostsList({
+const PostsList = function PostsList({
   posts: propPosts,
-  loading = false,
+  loading,
   error = null,
   onRefresh,
   className = '',
-  title = 'Timeline',
+  title
 }: PostsListProps) {
-  const [localPosts, setLocalPosts] = useState<PostType[]>([])
-  const [initialLoading, setInitialLoading] = useState(true)
   const { checkBlockStatus } = useBlock()
   const checkBlockStatusRef = useRef(checkBlockStatus)
+  const [hasFetchedOnce, setHasFetchedOnce] = useState(false)
 
   // Update ref when checkBlockStatus changes
   useEffect(() => {
     checkBlockStatusRef.current = checkBlockStatus
   }, [checkBlockStatus])
 
-  // Use Redux posts if no props provided
+  // Use Redux posts/loading if not provided via props
   const reduxPosts = useSelector((state: RootState) => state.posts.posts)
-  const posts = propPosts || reduxPosts
+  const reduxLoading = useSelector((state: RootState) => state.posts.loading)
+  const isLoading = (typeof loading === 'boolean') ? loading : reduxLoading
+  const posts = (propPosts !== undefined) ? propPosts : reduxPosts
 
+  // Track when we've fetched posts at least once
   useEffect(() => {
-    // Update local posts whenever posts prop changes
-    setLocalPosts(posts)
-    
-    // If we have posts or loading is done, we're no longer in initial loading state
-    if (posts.length > 0 || !loading) {
-      setInitialLoading(false)
+    // If we have posts or we're not loading (meaning a fetch completed), mark as fetched
+    if (posts.length > 0 || (!isLoading && hasFetchedOnce === false)) {
+      setHasFetchedOnce(true)
     }
-  }, [posts, loading])
+  }, [posts.length, isLoading, hasFetchedOnce])
 
   // Check block status for all post authors when posts change
   useEffect(() => {
@@ -101,27 +82,33 @@ const PostsList = React.memo(function PostsList({
   }
 
   return (
-    <div className={`${className} mb-10`}>
-      <h2 className="text-2xl font-bold mb-4">{title}</h2>
+    <div className={`${className} mb-6`}>
+      { title && <h2 className="text-2xl font-bold mb-4">{title}</h2>}
       
-      {/* Show skeleton only during initial loading when no posts are available */}
-      {initialLoading && localPosts.length === 0 && <PostSkeleton />}
+      {/* Show skeleton while loading */}
+      {isLoading && (
+        <div className="space-y-5">
+          <PostSkeleton />
+          <PostSkeleton />
+          <PostSkeleton />
+        </div>)
+      }
       
-      {/* Show "No posts" message only when not in any loading state and no posts */}
-      {!loading && !initialLoading && localPosts.length === 0 && (
+      {/* Show "No posts" message when not loading, no posts, and we've fetched at least once */}
+      {!isLoading && posts.length === 0 && hasFetchedOnce && (
         <p className="text-center py-8">No posts yet. Be the first to create one!</p>
       )}
       
-      {/* Always show posts if we have them */}
-      {localPosts.length > 0 && (
-        <div className="space-y-6">
-          {localPosts.map((post) => (
+      {/* Show posts when not loading and have posts */}
+      {!isLoading && posts.length > 0 && (
+        <div className="space-y-5">
+          {posts.map((post) => (
             <Post key={post._id} post={post} />
           ))}
         </div>
       )}
     </div>
   )
-});
+}
 
 export default PostsList;

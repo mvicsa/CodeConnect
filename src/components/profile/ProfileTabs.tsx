@@ -2,7 +2,7 @@
 
   import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import PostsProfile from '@/components/post/PostsProfile';
+import ProfilePosts from '@/components/post/ProfilePosts';
 import UserRatingsDetailed from './UserRatingsDetailed';
 import { ratingService } from '@/services/ratingService';
 
@@ -43,7 +43,7 @@ const ProfileTabs: React.FC<ProfileTabsProps> = ({ userId }) => {
         )}
         
         <TabsContent value="posts" className="space-y-4">
-          <PostsProfile userId={userId} />
+          <ProfilePosts userId={userId} />
         </TabsContent>
         
         <TabsContent value="ratings" className="space-y-4">

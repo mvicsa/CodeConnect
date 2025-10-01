@@ -1,8 +1,8 @@
-import PostsListContainer from "@/components/post/PostsListContainer";
+import TimelinePosts from "@/components/post/TimelinePosts";
 
 export default function CodingPage() {
 
   return (
-    <PostsListContainer type="code" title="Coding" />
+    <TimelinePosts type="code" title="Coding" />
   );
 }
