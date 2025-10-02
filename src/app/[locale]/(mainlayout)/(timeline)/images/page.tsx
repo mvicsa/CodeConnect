@@ -1,8 +1,8 @@
-import PostsListContainer from "@/components/post/PostsListContainer";
+import TimelinePosts from "@/components/post/TimelinePosts";
 
 export default function ImagesPage() {
 
   return (
-    <PostsListContainer type="image" title="Images" />
+    <TimelinePosts type="image" title="Images" />
   );
 }

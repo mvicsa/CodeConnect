@@ -37,7 +37,7 @@ const ReadMore: React.FC<ReadMoreProps> = ({
         components={{
           code: ({children}) => {
             return (
-              <span className="px-1 py-0.5 my-0.5 rounded bg-background border border-border dark:border-transparent text-xs inline-block">
+              <span className="px-1 py-0.5 my-0.5 rounded bg-background border border-border dark:border-transparent text-xs inline-block text-foreground">
                 {children}
               </span>
             )

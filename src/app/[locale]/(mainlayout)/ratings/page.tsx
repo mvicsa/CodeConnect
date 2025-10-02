@@ -16,6 +16,7 @@ import Container from "@/components/Container";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { RatingCard, RatingStats } from "@/components/rating";
+import { RatingCardSkeleton, MyRatingStatsSkeleton } from "@/components/rating/RatingSkeleton";
 
 export default function RatingsPage() {
   const t = useTranslations("ratings");
@@ -26,6 +27,7 @@ export default function RatingsPage() {
   const [totalRatings, setTotalRatings] = useState(0);
 
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [filterRating, setFilterRating] = useState<string>("all");
@@ -36,11 +38,14 @@ export default function RatingsPage() {
 
   const fetchReceivedRatingsForStats = async () => {
     try {
+      setStatsLoading(true);
       const response = await ratingService.getMyReceivedRatings(1, 100); // Get more ratings for accurate stats
       setReceivedRatings(response.ratings || []);
       setTotalRatings(response.pagination.total || 0);
     } catch (error) {
       console.error("Failed to fetch received ratings for stats:", error);
+    } finally {
+      setStatsLoading(false);
     }
   };
 
@@ -147,15 +152,19 @@ export default function RatingsPage() {
         </div>
 
         {/* My Stats Section */}
-        <RatingStats
-          ratings={receivedRatings}
-          totalRatings={totalRatings}
-          userInfo={{
-            firstName: currentUser?.firstName?.toString(),
-            lastName: currentUser?.lastName?.toString()
-          }}
-          className="mb-8"
-        />
+        {statsLoading ? (
+          <MyRatingStatsSkeleton className="mb-8" />
+        ) : (
+          <RatingStats
+            ratings={receivedRatings}
+            totalRatings={totalRatings}
+            userInfo={{
+              firstName: currentUser?.firstName?.toString(),
+              lastName: currentUser?.lastName?.toString()
+            }}
+            className="mb-8"
+          />
+        )}
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "received" | "submitted")} className="mb-6">
@@ -209,8 +218,12 @@ export default function RatingsPage() {
            {/* Ratings List */}
         <div className="space-y-4">
           {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            <div className="space-y-4">
+              <RatingCardSkeleton />
+              <RatingCardSkeleton />
+              <RatingCardSkeleton />
+              <RatingCardSkeleton />
+              <RatingCardSkeleton />
             </div>
           ) : ratings.length === 0 ? (
             <Card>

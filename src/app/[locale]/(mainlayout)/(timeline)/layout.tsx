@@ -23,8 +23,8 @@ export default async function RootLayout({
         {/* Main Content */}
         <div className="col-span-12 md:col-span-8 xl:col-span-6">
             <main className="w-full space-y-6">
-                <CreatePostWrapper />
-                {children}
+              <CreatePostWrapper />
+              {children}
             </main>
         </div>
 

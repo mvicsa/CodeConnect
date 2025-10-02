@@ -5,12 +5,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/store/store';
 import { fetchPostById } from '@/store/slices/postsSlice';
 import Post from './Post';
-import { Skeleton } from '../ui/skeleton';
 import { useTranslations } from 'next-intl';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { useBlock } from '@/hooks/useBlock';
 import PostBlockStatusChecker from './PostBlockStatusChecker';
+import PostSkeleton from './PostSkeleton';
 
 interface SinglePostViewProps {
   postId: string;
@@ -43,11 +43,7 @@ export default function SinglePostView({ postId }: SinglePostViewProps) {
   // Show skeleton while loading post or block data
   if (loading || blockLoading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-64 w-full" />
-        <Skeleton className="h-8 w-full" />
-      </div>
+      <PostSkeleton />
     );
   }
 
