@@ -12,7 +12,7 @@ import type { UserReaction } from '@/types/post';
 import type { User } from '@/types/chat';
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store/store";
-// import { updateMessageReactions as updateChatMessageReactions } from '@/store/slices/chatSlice';
+import { updateMessageReactions as updateChatMessageReactions } from '@/store/slices/chatSlice';
 import { useNotifications } from '@/hooks/useNotifications';
 import { removeNotificationsByCriteria } from '@/store/slices/notificationsSlice';
 import { SocketContext } from '@/store/Provider';
@@ -231,6 +231,34 @@ export default function ReactionsMenu({
         // For chat messages, use WebSocket only to avoid double-toggle (add then remove)
         if (socket && roomId) {
           socket.emit('chat:react_message', { roomId, messageId, reaction: reactionName });
+        }
+        // Optimistic UI update to reflect reaction immediately
+        try {
+          if (roomId) {
+            const currentCounts = { ...reactions };
+            const existing = userReactions.find(ur => getReactionUserId(ur) === actingUserId);
+            const nextUserReactions = [...userReactions];
+
+            if (existing) {
+              if (existing.reaction === reactionName) {
+                currentCounts[reactionName as keyof typeof currentCounts] = Math.max(0, (currentCounts[reactionName as keyof typeof currentCounts] || 0) - 1);
+                const idx = nextUserReactions.findIndex(ur => getReactionUserId(ur) === actingUserId);
+                if (idx !== -1) nextUserReactions.splice(idx, 1);
+              } else {
+                currentCounts[existing.reaction as keyof typeof currentCounts] = Math.max(0, (currentCounts[existing.reaction as keyof typeof currentCounts] || 0) - 1);
+                currentCounts[reactionName as keyof typeof currentCounts] = (currentCounts[reactionName as keyof typeof currentCounts] || 0) + 1;
+                const idx = nextUserReactions.findIndex(ur => getReactionUserId(ur) === actingUserId);
+                if (idx !== -1) nextUserReactions[idx] = { ...nextUserReactions[idx], userId: actingUserId as any, reaction: reactionName } as any;
+              }
+            } else {
+              currentCounts[reactionName as keyof typeof currentCounts] = (currentCounts[reactionName as keyof typeof currentCounts] || 0) + 1;
+              nextUserReactions.push({ userId: actingUserId as any, reaction: reactionName } as any);
+            }
+
+            dispatch(updateChatMessageReactions({ roomId, messageId, reactions: currentCounts as any, userReactions: nextUserReactions as any }));
+          }
+        } catch (e) {
+          console.warn('Optimistic reaction update failed:', e);
         }
         // No REST call here; Provider listens to socket and updates Redux/state
         result = { success: true } as { success: boolean };
