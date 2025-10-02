@@ -301,18 +301,53 @@ const postsSlice = createSlice({
       })
       // Update Post
       .addCase(updatePost.fulfilled, (state, action) => {
-        const index = state.posts.findIndex(p => p._id === action.payload._id)
+        const updatedPost = action.payload
+        
+        // Update in timeline posts
+        const index = state.posts.findIndex(p => p._id === updatedPost._id)
         if (index !== -1) {
           state.posts[index] = {
             ...state.posts[index],
-            ...action.payload,
-            createdBy: action.payload.createdBy || state.posts[index].createdBy
+            ...updatedPost,
+            createdBy: updatedPost.createdBy || state.posts[index].createdBy
+          }
+        }
+        
+        // Update in profile posts
+        const profileIndex = state.profilePosts.findIndex(p => p._id === updatedPost._id)
+        if (profileIndex !== -1) {
+          state.profilePosts[profileIndex] = {
+            ...state.profilePosts[profileIndex],
+            ...updatedPost,
+            createdBy: updatedPost.createdBy || state.profilePosts[profileIndex].createdBy
+          }
+        }
+        
+        // Update in profile all posts
+        const profileAllIndex = state.profileAllPosts.findIndex(p => p._id === updatedPost._id)
+        if (profileAllIndex !== -1) {
+          state.profileAllPosts[profileAllIndex] = {
+            ...state.profileAllPosts[profileAllIndex],
+            ...updatedPost,
+            createdBy: updatedPost.createdBy || state.profileAllPosts[profileAllIndex].createdBy
           }
         }
       })
       // Delete Post
       .addCase(deletePost.fulfilled, (state, action) => {
-        state.posts = state.posts.filter(p => p._id !== action.payload)
+        const deletedPostId = action.payload
+        
+        // Remove from timeline posts
+        state.posts = state.posts.filter(p => p._id !== deletedPostId)
+        
+        // Remove from profile posts
+        state.profilePosts = state.profilePosts.filter(p => p._id !== deletedPostId)
+        
+        // Remove from profile all posts
+        state.profileAllPosts = state.profileAllPosts.filter(p => p._id !== deletedPostId)
+        
+        // Update profile displayed count
+        state.profileDisplayedCount = Math.min(state.profileDisplayedCount, state.profileAllPosts.length)
       })
       // Fetch Post by ID
       .addCase(fetchPostById.pending, (state) => {

@@ -217,8 +217,12 @@ const Post = memo(function Post({
       
       toast.success('Post deleted successfully!');
       setShowDeleteDialog(false);
-      // Redirect to timeline
-      router.push('/');
+      
+      // Only redirect to timeline if we're viewing a single post (not in profile or timeline)
+      const currentPath = window.location.pathname;
+      if (currentPath.includes('/posts/')) {
+        router.push('/');
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to delete post');
     } finally {
