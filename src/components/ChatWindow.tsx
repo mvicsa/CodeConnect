@@ -580,12 +580,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               "rounded-lg relative group",
               isCurrentUser
                 ? "bg-primary text-white"
-                : "bg-accent dark:bg-card text-accent-foreground"
+                : "bg-card text-accent-foreground"
             )}
           >
             {msg.replyTo && (
               <div className={cn(
-                "text-xs p-3 bg-accent dark:bg-card rounded-t-md"
+                "text-xs p-3 bg-card rounded-t-md"
               )}>
                 <p className="font-medium text-accent-foreground">
                   Replying to <span className="text-primary">
