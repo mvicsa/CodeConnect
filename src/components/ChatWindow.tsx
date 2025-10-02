@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect, useContext } from "react";
+import React, { useState, useRef, useEffect, useContext, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChatButton } from "@/components/ui/chat-button";
 import { ChatInput } from "@/components/ui/chat-input";
 import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
 import {Message, TypingIndicator, MessageType, ChatRoomType, User } from "@/types/chat";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Send, Paperclip, Check, CheckCheck, MoreVertical, X, File, Camera, Users, ImageIcon, UserX, Code, Save } from "lucide-react";
+import { ArrowLeft, Send, Paperclip, Check, CheckCheck, MoreVertical, X, File, Camera, Users, ImageIcon, UserX, Code } from "lucide-react";
 import { useTranslations } from "next-intl";
 import MessageActions from "./MessageActions";
 import { useSelector, useDispatch, shallowEqual } from 'react-redux';
@@ -52,7 +52,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [isFileMenuOpen, setIsFileMenuOpen] = useState(false);
-  const [isDragOver, setIsDragOver] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ src: string; alt: string; name?: string } | null>(null);
   const [videoModalOpen, setVideoModalOpen] = useState(false);
@@ -100,7 +99,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       
       if (isCurrentUserEditing) {
         // Current user editing their own message - use edit functionality
-        const updates: any = {
+        const updates: { codeData?: { code: string; language: string }; content?: string } = {
           codeData: {
             code,
             language
@@ -118,7 +117,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         const messageData = {
           roomId: activeRoom._id,
           type: MessageType.CODE,
-          content: text || `Edited code from ${codeModalData.originalMessage.sender.firstName} ${codeModalData.originalMessage.sender.lastName}:`,
+          content: text,
           codeData: {
             code,
             language
@@ -133,14 +132,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       setCodeModalData(null);
     } else {
       // Regular new code message
-      const messageData: any = {
+      const messageData: { roomId: string; type: MessageType; codeData?: { code: string; language: string }; content?: string; replyTo?: string } = {
         roomId: activeRoom._id,
         type: MessageType.CODE,
         codeData: {
           code,
           language
         },
-        replyTo: replyTo?._id || null
+        replyTo: replyTo?._id || undefined
       };
 
       // Only include content when non-empty, so backend accepts code-only messages
@@ -470,29 +469,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     };
   }, [isFileMenuOpen]);
 
-     // Keyboard shortcuts for image and video modals
-   useEffect(() => {
-     const handleKeyDown = (event: KeyboardEvent) => {
-       if (imageModalOpen) {
-         if (event.key === 'Escape') {
-           closeImageModal();
-         } else if (event.key === 'd' || event.key === 'D') {
-           downloadImage();
-         }
-       } else if (videoModalOpen) {
-         if (event.key === 'Escape') {
-           closeVideoModal();
-         } else if (event.key === 'd' || event.key === 'D') {
-           downloadVideo();
-         }
-       }
-     };
-
-     document.addEventListener('keydown', handleKeyDown);
-     return () => {
-       document.removeEventListener('keydown', handleKeyDown);
-     };
-   }, [imageModalOpen, videoModalOpen]);
 
   const handleSendMessage = () => {
     if (!activeRoom || !socket) return;
@@ -678,7 +654,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     setSelectedImage(null);
   };
 
-     const downloadImage = async () => {
+     const downloadImage = useCallback(async () => {
      if (!selectedImage) return;
      
      try {
@@ -693,10 +669,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
        window.URL.revokeObjectURL(url);
        document.body.removeChild(a);
        toast.success('Image downloaded successfully!');
-     } catch (error) {
+     } catch {
        toast.error('Failed to download image');
      }
-   };
+   }, [selectedImage]);
 
    // Video modal functions
    const openVideoModal = (src: string, name?: string) => {
@@ -709,7 +685,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
      setSelectedVideo(null);
    };
 
-   const downloadVideo = async () => {
+   const downloadVideo = useCallback(async () => {
      if (!selectedVideo) return;
      
      try {
@@ -724,10 +700,34 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
        window.URL.revokeObjectURL(url);
        document.body.removeChild(a);
        toast.success('Video downloaded successfully!');
-     } catch (error) {
+     } catch {
        toast.error('Failed to download video');
      }
-   };
+   }, [selectedVideo]);
+
+   // Keyboard shortcuts for image and video modals
+   useEffect(() => {
+     const handleKeyDown = (event: KeyboardEvent) => {
+       if (imageModalOpen) {
+         if (event.key === 'Escape') {
+           closeImageModal();
+         } else if (event.key === 'd' || event.key === 'D') {
+           downloadImage();
+         }
+       } else if (videoModalOpen) {
+         if (event.key === 'Escape') {
+           closeVideoModal();
+         } else if (event.key === 'd' || event.key === 'D') {
+           downloadVideo();
+         }
+       }
+     };
+
+     document.addEventListener('keydown', handleKeyDown);
+     return () => {
+       document.removeEventListener('keydown', handleKeyDown);
+     };
+   }, [imageModalOpen, videoModalOpen, downloadImage, downloadVideo]);
 
   // const formatTime = (date: Date) => {
   //   return new Intl.DateTimeFormat("en-US", {
@@ -1077,7 +1077,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                       isCurrentUser ? "text-primary-foreground" : "text-muted-foreground"
                     )}
                   >
-                    {isToday(msg.createdAt) ? formatDate(new Date(msg.createdAt), 'hh:mm a') : formatDate(new Date(msg.createdAt), 'E, MMM d, yyyy - hh:mm a')}  { msg.createdAt !== msg.updatedAt && '- Edited'}
+                    {isToday(msg.createdAt) ? formatDate(new Date(msg.createdAt), 'hh:mm a') : formatDate(new Date(msg.createdAt), 'E, MMM d, yyyy - hh:mm a')}  { msg.edited && '- Edited'}
                   </p>
                 </div>
                 {isCurrentUser && (
@@ -1734,7 +1734,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
            setCodeModalData(null)
          }}
          onSend={handleCodeMessage}
-         replyTo={replyTo}
+         replyTo={replyTo || undefined}
          initialCode={codeModalData?.code}
          initialLanguage={codeModalData?.language}
          initialText={codeModalData?.originalMessage?.content || ''}

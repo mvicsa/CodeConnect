@@ -2,8 +2,6 @@
 
 import React, { useState, useRef, useContext } from 'react';
 import { useReactions } from '@/hooks/useReactions';
-import { useSelector } from 'react-redux';
-import { RootState } from '@/store/store';
 import { SocketContext } from '@/store/Provider';
 import { cn } from '@/lib/utils';
 import { Heart, ThumbsUp, Laugh, Eye, Frown, Angry, Star, Hand, Flame } from 'lucide-react';
@@ -57,7 +55,7 @@ export default function MessageReactions({
   size = 'md'
 }: MessageReactionsProps) {
   const { handleMessageReaction } = useReactions();
-  const { user } = useSelector((state: RootState) => state.auth);
+  // const { user } = useSelector((state: RootState) => state.auth);
   const socket = useContext(SocketContext);
   const [showReactions, setShowReactions] = useState(false);
   const [isReacting, setIsReacting] = useState(false);
@@ -177,7 +175,7 @@ export default function MessageReactions({
         ) : totalReactions > 0 ? (
           <div className="flex items-center gap-1">
             <div className="flex -space-x-1">
-              {reactionsWithCounts.slice(0, 3).map((reaction, index) => (
+              {reactionsWithCounts.slice(0, 3).map((reaction) => (
                 <div
                   key={reaction.id}
                   className="text-lg"
@@ -205,7 +203,7 @@ export default function MessageReactions({
         <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 p-2 z-50 animate-in slide-in-from-bottom-2 duration-200">
           <div className="flex items-center gap-1">
             {REACTION_TYPES.map((reaction) => {
-              const Icon = reaction.icon;
+              // const Icon = reaction.icon;
               const isSelected = currentReactionType === reaction.id;
               const count = reactions[reaction.id as keyof typeof reactions] || 0;
               

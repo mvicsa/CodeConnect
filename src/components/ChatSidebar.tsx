@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Image from "next/image";
 import { ChatInput } from "@/components/ui/chat-input";
 import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
-import { ChatPreview, ChatRoomType, Message } from "@/types/chat";
+import { ChatPreview, ChatRoomType, Message, User, UserReaction } from "@/types/chat";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 import { ArrowLeft, Search, Users, Image as ImageIcon, File as FileIcon } from "lucide-react";
@@ -107,9 +107,9 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     dislike: "/reactions/dislike.png",
   };
 
-  const resolveReactionUserMeta = (userId: any, members: ChatPreview['members']) => {
-    if (!userId) return { firstName: '', lastName: '', _id: '' } as any;
-    if (typeof userId === 'string') return members.find(m => m._id === userId) || { firstName: '', lastName: '', _id: userId } as any;
+  const resolveReactionUserMeta = (userId: User, members: ChatPreview['members']) => {
+    if (!userId) return { firstName: '', lastName: '', _id: '' } as User;
+    if (typeof userId === 'string') return members.find(m => m._id === userId) || { firstName: '', lastName: '', _id: userId, username: '', avatar: '' } as User;
     return userId;
   };
 
@@ -117,7 +117,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     latestType: 'message' | 'reaction' | null;
     latestTime: number;
     latestMessage: Message | null;
-    latestReaction: { userName: string; reaction: string } | null;
+    latestReaction: { userName: string; reaction: string; userId?: string; firstName?: string } | null;
   };
 
   const getLastActivity = (roomId: string, members: ChatPreview['members']): LastActivity => {
@@ -134,13 +134,13 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         latestType = 'message';
         latestMessage = m;
       }
-      if (Array.isArray((m as any).userReactions)) {
-        (m as any).userReactions.forEach((ur: any) => {
+      if (Array.isArray(m.userReactions)) {
+        m.userReactions.forEach((ur: UserReaction) => {
           const rt = new Date(ur.createdAt).getTime();
           if (rt >= latestTime) {
             latestTime = rt;
             latestType = 'reaction';
-            const userMeta = resolveReactionUserMeta(ur.userId, members);
+            const userMeta = resolveReactionUserMeta(ur.userId as User, members);
             const fullName = `${userMeta.firstName || ''} ${userMeta.lastName || ''}`.trim() || 'Someone';
             latestReaction = { userName: fullName, reaction: ur.reaction, userId: userMeta._id, firstName: userMeta.firstName };
           }
@@ -156,8 +156,8 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     if (!latestType) return 'No messages yet';
     if (latestType === 'reaction' && latestReaction) {
       const imageSrc = reactionImageMap[latestReaction.reaction] || "/reactions/like.png";
-      const isMe = (latestReaction as any).userId === myUserId;
-      const firstName = (latestReaction as any).firstName || latestReaction.userName?.split(" ")[0] || 'Someone';
+      const isMe = latestReaction.userId === myUserId;
+      const firstName = latestReaction.firstName || 'Someone';
       return (
         <span className="inline-flex items-center gap-1">
           {isMe ? 'You reacted' : `${firstName} reacted`}

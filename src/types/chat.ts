@@ -63,6 +63,7 @@ export interface Message {
   pinned: boolean;
   createdAt: string;
   updatedAt?: string;
+  edited: boolean;
 }
 
 export interface ChatRoom {

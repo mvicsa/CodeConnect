@@ -1,8 +1,5 @@
 'use client'
 
-import React from 'react'
-import { Button } from '@/components/ui/button'
-import { Edit, Code } from 'lucide-react'
 import CodeBlock from '@/components/code/CodeBlock'
 import { Message } from '@/types/chat'
 
@@ -14,8 +11,6 @@ interface CodeMessageProps {
 
 export default function CodeMessage({
   message,
-  isCurrentUser,
-  onOpenCodeModal
 }: CodeMessageProps) {
 
   return (

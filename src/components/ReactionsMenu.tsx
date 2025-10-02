@@ -66,8 +66,7 @@ export default function ReactionsMenu({
   const { 
     handlePostReaction, 
     handleCommentReaction,
-    handleReplyReaction,
-    handleMessageReaction,
+    handleReplyReaction
   } = useReactions();
   
   const [open, setOpen] = useState(false);
@@ -82,26 +81,26 @@ export default function ReactionsMenu({
   const { isBlocked, loading: blockLoading } = useBlock();
 
   // Helpers to support both string and object userId forms
-  const getReactionUserId = (ur: any) => {
-    const possibleUserId = ur?.userId as any;
+  const getReactionUserId = (ur: UserReaction) => {
+    const possibleUserId = ur?.userId as User;
     if (!possibleUserId) return null;
     if (typeof possibleUserId === 'string') return possibleUserId;
     return possibleUserId._id ?? null;
   };
 
-  const safeGet = (obj: any, path: string[], fallback: any = undefined) => {
-    try {
-      return path.reduce((acc: any, key: string) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj) ?? fallback;
-    } catch {
-      return fallback;
-    }
-  };
+  // const safeGet = (obj: any, path: string[], fallback: any = undefined) => {
+  //   try {
+  //     return path.reduce((acc: any, key: string) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj) ?? fallback;
+  //   } catch {
+  //     return fallback;
+  //   }
+  // };
 
   const effectiveCurrentUserId = currentUserId || user?._id || null;
 
   // Resolve reaction user meta (handles string userId using roomMembers)
-  const resolveReactionUser = (reaction: any) => {
-    const possibleUserId = reaction?.userId as any;
+  const resolveReactionUser = (reaction: UserReaction) => {
+    const possibleUserId = reaction?.userId as User;
     if (!possibleUserId) {
       return { _id: '', firstName: '', lastName: '', username: '', avatar: '' };
     }
@@ -124,7 +123,7 @@ export default function ReactionsMenu({
     if (messageId) {
       return getReactionUserId(ur) === effectiveCurrentUserId;
     }
-    return (ur as any)?.userId?._id === user?._id;
+    return (ur as UserReaction)?.userId?._id === user?._id;
   });
   const currentUserReactionType = currentUserReaction?.reaction || null;
   const selectedReaction = currentUserReactionType ? reactionImageMap[currentUserReactionType as keyof typeof reactionImageMap] : null;
@@ -148,7 +147,7 @@ export default function ReactionsMenu({
     }
     // Posts/Comments: existing behavior
     if (blockLoading) return false;
-    const objId = (u as any)?.userId?._id;
+    const objId = (u as UserReaction)?.userId?._id;
     if (!objId) return false;
     return !isBlocked(objId);
   });
@@ -171,7 +170,7 @@ export default function ReactionsMenu({
       if (messageId) {
         return getReactionUserId(ur) === actingUserId;
       }
-      return (ur as any)?.userId?._id === actingUserId;
+      return (ur as UserReaction)?.userId?._id === actingUserId;
     });
     const isRemoving = currentReaction?.reaction === reactionName;
 
@@ -234,7 +233,7 @@ export default function ReactionsMenu({
           socket.emit('chat:react_message', { roomId, messageId, reaction: reactionName });
         }
         // No REST call here; Provider listens to socket and updates Redux/state
-        result = { success: true } as any;
+        result = { success: true } as { success: boolean };
       } else if (commentId && !replyId) {
         result = await handleCommentReaction(commentId, reactionName);
         if (isRemoving && result?.success) {

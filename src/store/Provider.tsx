@@ -593,7 +593,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
 
     // Message reaction events
     console.log('🎯 Setting up chat:react_message listener');
-    newSocket.on('chat:react_message', (data: { message: any; userId: string; reaction: string; action: string; roomId: string }) => {
+    newSocket.on('chat:react_message', (data: { message: Message; userId: string; reaction: string; action: string; roomId: string }) => {
       console.log('🎯 Received message reaction event in Provider:', data);
       console.log('🎯 Current active room ID:', activeRoomId);
       console.log('🎯 Event room ID:', data.roomId);
@@ -721,7 +721,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         notificationSocketRef.current = null;
       }
     };
-  }, [token, dispatch, setSocket, user]);
+  }, [token, dispatch, setSocket, user, activeRoomId]);
 
   // Separate effect to join notification room when user becomes available
   useEffect(() => {

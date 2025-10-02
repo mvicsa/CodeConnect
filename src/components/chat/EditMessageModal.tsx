@@ -4,11 +4,8 @@ import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { X, Send, Code, Edit } from 'lucide-react'
+import { Send, Code, Edit } from 'lucide-react'
 import CodeEditor from '@/components/code/CodeEditor'
-import { useSelector } from 'react-redux'
-import { selectAllLanguages } from '@/store/slices/programmingLanguagesSlice'
-import { RootState } from '@/store/store'
 import { Message, MessageType } from '@/types/chat'
 
 interface EditMessageModalProps {
@@ -29,8 +26,8 @@ export default function EditMessageModal({
   const [language, setLanguage] = useState('javascript')
   const [showCodeEditor, setShowCodeEditor] = useState(false)
   
-  const programmingLanguages = useSelector(selectAllLanguages)
-  const defaultLanguage = programmingLanguages.find(lang => lang.id === 'javascript')
+  // const programmingLanguages = useSelector(selectAllLanguages)
+  // const defaultLanguage = programmingLanguages.find(lang => lang.id === 'javascript')
 
   // Update state when modal opens with message data
   useEffect(() => {
@@ -112,7 +109,7 @@ export default function EditMessageModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-h-[95vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {getIcon()}
@@ -120,7 +117,7 @@ export default function EditMessageModal({
           </DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto -mx-6 px-6 py-1">
 
           {/* Text Input */}
           <div className="relative">

@@ -1,5 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { ChatRoom, Message, TypingIndicator, ChatRoomType, User } from '@/types/chat';
+import { ChatRoom, Message, TypingIndicator, ChatRoomType, User, UserReaction } from '@/types/chat';
+import { Reactions } from '@/types/post';
 
 interface ChatState {
   rooms: ChatRoom[];
@@ -283,7 +284,7 @@ const chatSlice = createSlice({
       if (!state.userStatuses) state.userStatuses = {};
       state.userStatuses[action.payload.userId] = action.payload.status;
     },
-    updateMessage(state, action: PayloadAction<{ roomId: string; messageId: string; updates: any }>) {
+    updateMessage(state, action: PayloadAction<{ roomId: string; messageId: string; updates: Message }>) {
       const { roomId, messageId, updates } = action.payload;
       const messages = state.messages[roomId];
       
@@ -304,7 +305,7 @@ const chatSlice = createSlice({
         }
       }
     },
-    updateMessageReactions(state, action: PayloadAction<{ roomId: string; messageId: string; reactions: any; userReactions: any[] }>) {
+    updateMessageReactions(state, action: PayloadAction<{ roomId: string; messageId: string; reactions: Reactions; userReactions: UserReaction[] }>) {
       const { roomId, messageId, reactions, userReactions } = action.payload;
       console.log('🎯 updateMessageReactions called:', { roomId, messageId, reactions, userReactions });
       const messages = state.messages[roomId];
