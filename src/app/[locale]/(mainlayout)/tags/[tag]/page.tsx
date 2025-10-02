@@ -67,33 +67,35 @@ export default function TagPage() {
 
   return (
     <Container>
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-2">
-          <Hash className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold">{tag}</h1>
-        </div>
-        <p className="text-muted-foreground">
-          {postsByTag.length} {postsByTag.length === 1 ? t('tags.postFound') : t('tags.postsFound')}
-        </p>
-      </div>
-
-      {postsByTag.length === 0 && !loading ? (
-        <div className="text-center py-12">
-          <Hash className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">{t('tags.noPostsFound')} #{tag}</h3>
+      <div className="max-w-3xl mx-auto">
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <Hash className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-bold">{tag}</h1>
+          </div>
           <p className="text-muted-foreground">
-            No posts have been tagged with this topic yet.
+            {postsByTag.length} {postsByTag.length === 1 ? t('tags.postFound') : t('tags.postsFound')}
           </p>
         </div>
-      ) : (
-        <PostsList
-          title="Title"
-          posts={postsByTag}
-          loading={loading}
-          error={error}
-          onRefresh={handleRefresh}
-        />
-      )}
+
+        {postsByTag.length === 0 && !loading ? (
+          <div className="text-center py-12">
+            <Hash className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">{t('tags.noPostsFound')} #{tag}</h3>
+            <p className="text-muted-foreground">
+              No posts have been tagged with this topic yet.
+            </p>
+          </div>
+        ) : (
+          <PostsList
+            title=""
+            posts={postsByTag}
+            loading={loading}
+            error={error}
+            onRefresh={handleRefresh}
+          />
+        )}
+      </div>
     </Container>
   )
 } 

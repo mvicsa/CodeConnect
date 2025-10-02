@@ -1,7 +1,7 @@
 import React, { useContext } from "react";
 import { ChatButton } from "@/components/ui/chat-button";
 import { Message } from "@/types/chat";
-import { Reply, Copy, Trash2, MoreHorizontal } from "lucide-react";
+import { Reply, Copy, Trash2, MoreHorizontal, Edit } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +15,7 @@ interface MessageActionsProps {
   onReply: (message: Message) => void;
   onCopy: (content: string) => void;
   onDelete?: (messageId: string) => void;
+  onEdit?: (message: Message) => void;
   isCurrentUser: boolean;
 }
 
@@ -23,6 +24,7 @@ const MessageActions: React.FC<MessageActionsProps> = ({
   onReply,
   onCopy,
   onDelete,
+  onEdit,
   isCurrentUser,
 }) => {
   const socket = useContext(SocketContext);
@@ -61,6 +63,13 @@ const MessageActions: React.FC<MessageActionsProps> = ({
           <Copy className="h-4 w-4 mr-2" />
           Copy
         </DropdownMenuItem>
+        
+        {isCurrentUser && onEdit && (message.type === 'text' || message.type === 'code') && (
+          <DropdownMenuItem onClick={() => onEdit(message)}>
+            <Edit className="h-4 w-4 mr-2" />
+            Edit
+          </DropdownMenuItem>
+        )}
         
         {isCurrentUser && onDelete && (
           <DropdownMenuItem 

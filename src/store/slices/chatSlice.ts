@@ -1,5 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { ChatRoom, Message, TypingIndicator, ChatRoomType, User } from '@/types/chat';
+import { ChatRoom, Message, TypingIndicator, ChatRoomType, User, UserReaction } from '@/types/chat';
+import { Reactions } from '@/types/post';
 
 interface ChatState {
   rooms: ChatRoom[];
@@ -69,11 +70,18 @@ const chatSlice = createSlice({
       // Update room's last message and unread count
       const room = state.rooms.find(r => r._id === roomId);
       if (room && currentUserId) {
-        room.lastMessage = messages[messages.length - 1];
+        if (messages.length > 0) {
+          room.lastMessage = messages[messages.length - 1];
+          room.lastMessageTime = new Date(messages[messages.length - 1].createdAt).getTime();
+        } else {
+          room.lastMessage = null;
+          room.lastMessageTime = undefined;
+        }
         room.unreadCount = state.messages[roomId].filter(m => !m.seenBy.includes(currentUserId)).length;
       }
     },
     addMessage(state, action: PayloadAction<{ roomId: string; message: Message; currentUserId?: string }>) {
+      console.log('[REDUX] Adding message to state:', action.payload);
       const { roomId, message, currentUserId } = action.payload;
       if (!state.messages[roomId]) {
         state.messages[roomId] = [];
@@ -92,15 +100,26 @@ const chatSlice = createSlice({
         ...message,
         chatRoom: chatRoomId
       };
+      console.log('[REDUX] Normalized message:', normalizedMessage);
 
       state.messages[roomId].push(normalizedMessage);
+      console.log('[REDUX] Message added to state. Current messages count:', state.messages[roomId].length);
       
       // Update room's last message and unread count
       const room = state.rooms.find(r => r._id === roomId);
       if (room && currentUserId) {
         room.lastMessage = normalizedMessage;
+        room.lastMessageTime = new Date(normalizedMessage.createdAt).getTime();
         room.unreadCount = state.messages[roomId].filter(m => !m.seenBy.includes(currentUserId)).length;
+        
+        // Move this room to the top of the rooms array (most recent message first)
+        const roomIndex = state.rooms.findIndex(r => r._id === roomId);
+        if (roomIndex > 0) {
+          const [movedRoom] = state.rooms.splice(roomIndex, 1);
+          state.rooms.unshift(movedRoom);
+        }
       }
+      console.log('[REDUX] Room updated with new message');
     },
     setTyping(state, action: PayloadAction<{ roomId: string; typing: TypingIndicator[] }>) {
       const { roomId, typing } = action.payload;
@@ -265,6 +284,48 @@ const chatSlice = createSlice({
       if (!state.userStatuses) state.userStatuses = {};
       state.userStatuses[action.payload.userId] = action.payload.status;
     },
+    updateMessage(state, action: PayloadAction<{ roomId: string; messageId: string; updates: Message }>) {
+      const { roomId, messageId, updates } = action.payload;
+      const messages = state.messages[roomId];
+      
+      if (messages) {
+        const messageIndex = messages.findIndex(m => m._id === messageId);
+        if (messageIndex !== -1) {
+          // Update the message with new data
+          messages[messageIndex] = {
+            ...messages[messageIndex],
+            ...updates
+          };
+          
+          // Update room's lastMessage if this was the last message
+          const room = state.rooms.find(r => r._id === roomId);
+          if (room && room.lastMessage?._id === messageId) {
+            room.lastMessage = messages[messageIndex];
+          }
+        }
+      }
+    },
+    updateMessageReactions(state, action: PayloadAction<{ roomId: string; messageId: string; reactions: Reactions; userReactions: UserReaction[] }>) {
+      const { roomId, messageId, reactions, userReactions } = action.payload;
+      console.log('🎯 updateMessageReactions called:', { roomId, messageId, reactions, userReactions });
+      const messages = state.messages[roomId];
+      if (messages) {
+        const messageIndex = messages.findIndex(m => m._id === messageId);
+        console.log('🎯 Message found at index:', messageIndex);
+        if (messageIndex !== -1) {
+          // Create a new message object to trigger re-render
+          const updatedMessage = {
+            ...messages[messageIndex],
+            reactions,
+            userReactions
+          };
+          messages[messageIndex] = updatedMessage;
+          console.log('🎯 Message updated:', updatedMessage);
+        }
+      } else {
+        console.log('🎯 No messages found for room:', roomId);
+      }
+    },
   },
 });
 
@@ -286,6 +347,8 @@ export const {
   deleteMessage,
   setHasMore,
   setUserStatus,
+  updateMessage,
+  updateMessageReactions,
 } = chatSlice.actions;
 
 export default chatSlice.reducer; 

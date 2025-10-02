@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import ChatSidebar from "./ChatSidebar";
 import ChatWindow from "./ChatWindow";
 import { cn } from "@/lib/utils";
@@ -40,21 +40,44 @@ const ChatInterface: React.FC = () => {
   const error = useSelector((state: RootState) => state.chat.error);
   const isLoading = useSelector((state: RootState) => state.chat.loading);
 
-  // Transform chat rooms into previews
-  const chatPreviews: ChatPreview[] = chatRooms.map(room => {
-    const roomMessages = messages[room._id] || [];
-    const unreadCount = roomMessages.filter((m: Message) => !m.seenBy.includes(myUserId as string)).length;
-    return {
-      _id: room._id,
-      type: room.type,
-      members: room.members,
-      createdBy: room.createdBy,
-      groupTitle: room.groupTitle,
-      groupAvatar: room.groupAvatar,
-      lastMessage: room.lastMessage,
-      unreadCount,
-    };
-  });
+  // Transform chat rooms into previews with useMemo for optimization
+  const chatPreviews: ChatPreview[] = useMemo(() => {
+    return chatRooms.map(room => {
+      const roomMessages = messages[room._id] || [];
+      const unreadCount = roomMessages.filter((m: Message) => !m.seenBy.includes(myUserId as string)).length;
+      
+      // Get the most recent message for this room
+      // Priority: 1. Latest message from messages array, 2. Room's lastMessage, 3. null
+      let lastMessage = null;
+      if (roomMessages.length > 0) {
+        // Messages are sorted oldest to newest, so last is most recent
+        lastMessage = roomMessages[roomMessages.length - 1];
+      } else if (room.lastMessage) {
+        lastMessage = room.lastMessage;
+      }
+      
+      return {
+        _id: room._id,
+        type: room.type,
+        members: room.members,
+        createdBy: room.createdBy,
+        groupTitle: room.groupTitle,
+        groupAvatar: room.groupAvatar,
+        lastMessage,
+        unreadCount,
+      };
+    }).sort((a, b) => {
+      // Sort by lastMessage timestamp (most recent first)
+      // If no last message, put at the end
+      if (!a.lastMessage && !b.lastMessage) return 0;
+      if (!a.lastMessage) return 1;
+      if (!b.lastMessage) return -1;
+      
+      const aTime = new Date(a.lastMessage.createdAt).getTime();
+      const bTime = new Date(b.lastMessage.createdAt).getTime();
+      return bTime - aTime; // Most recent first
+    });
+  }, [chatRooms, messages, myUserId]);
 
   const activeChatId = useSelector((state: RootState) => state.chat.activeRoomId);
   const activeChat = chatRooms.find(r => r._id === activeChatId) || null;

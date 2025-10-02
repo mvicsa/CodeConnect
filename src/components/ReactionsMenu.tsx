@@ -9,8 +9,10 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import type { UserReaction } from '@/types/post';
+import type { User } from '@/types/chat';
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store/store";
+// import { updateMessageReactions as updateChatMessageReactions } from '@/store/slices/chatSlice';
 import { useNotifications } from '@/hooks/useNotifications';
 import { removeNotificationsByCriteria } from '@/store/slices/notificationsSlice';
 import { SocketContext } from '@/store/Provider';
@@ -31,6 +33,8 @@ interface ReactionsMenuProps {
   size?: "sm" | "md";
   postId?: string;
   commentId?: string;
+  messageId?: string; // For chat messages
+  roomId?: string; // For chat socket emission
   parentCommentId?: number | string; // For replies
   replyId?: number | string; // For replies
   reactions?: {
@@ -43,27 +47,31 @@ interface ReactionsMenuProps {
   };
   userReactions?: UserReaction[];
   currentUserId?: string; // Should be the user's _id from backend
+  roomMembers?: User[]; // For chat: enrich reaction users when userId is string
 }
 
 export default function ReactionsMenu({ 
   size = "md",
   postId,
   commentId,
+  messageId,
+  roomId,
   parentCommentId,
   replyId,
   reactions = { like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 },
   userReactions = [],
-  currentUserId
+  currentUserId,
+  roomMembers = []
 }: ReactionsMenuProps) {
   const { 
     handlePostReaction, 
     handleCommentReaction,
-    handleReplyReaction,
+    handleReplyReaction
   } = useReactions();
   
   const [open, setOpen] = useState(false);
   const [isReactionLoading, setIsReactionLoading] = useState(false);
-  const lastReactionRef = useRef<{ postId?: string; commentId?: string; replyId?: string | number; reaction: string; timestamp: number } | null>(null);
+  const lastReactionRef = useRef<{ postId?: string; commentId?: string; messageId?: string; replyId?: string | number; reaction: string; timestamp: number } | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const { user } = useSelector((state: RootState) => state.auth);
@@ -72,10 +80,51 @@ export default function ReactionsMenu({
   const socket = useContext(SocketContext);
   const { isBlocked, loading: blockLoading } = useBlock();
 
+  // Helpers to support both string and object userId forms
+  const getReactionUserId = (ur: UserReaction) => {
+    const possibleUserId = ur?.userId as User;
+    if (!possibleUserId) return null;
+    if (typeof possibleUserId === 'string') return possibleUserId;
+    return possibleUserId._id ?? null;
+  };
+
+  // const safeGet = (obj: any, path: string[], fallback: any = undefined) => {
+  //   try {
+  //     return path.reduce((acc: any, key: string) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj) ?? fallback;
+  //   } catch {
+  //     return fallback;
+  //   }
+  // };
+
+  const effectiveCurrentUserId = currentUserId || user?._id || null;
+
+  // Resolve reaction user meta (handles string userId using roomMembers)
+  const resolveReactionUser = (reaction: UserReaction) => {
+    const possibleUserId = reaction?.userId as User;
+    if (!possibleUserId) {
+      return { _id: '', firstName: '', lastName: '', username: '', avatar: '' };
+    }
+    if (typeof possibleUserId === 'string') {
+      const member = roomMembers.find(m => m._id === possibleUserId);
+      if (member) return member;
+      return { _id: possibleUserId, firstName: '', lastName: '', username: '', avatar: '' };
+    }
+    return {
+      _id: possibleUserId._id || '',
+      firstName: possibleUserId.firstName || '',
+      lastName: possibleUserId.lastName || '',
+      username: possibleUserId.username || '',
+      avatar: possibleUserId.avatar || ''
+    } as User;
+  };
+
   // Get current user's reaction
-  const currentUserReaction = userReactions.find(
-    ur => ur.userId._id === user?._id
-  );
+  const currentUserReaction = userReactions.find((ur) => {
+    if (messageId) {
+      return getReactionUserId(ur) === effectiveCurrentUserId;
+    }
+    return (ur as UserReaction)?.userId?._id === user?._id;
+  });
   const currentUserReactionType = currentUserReaction?.reaction || null;
   const selectedReaction = currentUserReactionType ? reactionImageMap[currentUserReactionType as keyof typeof reactionImageMap] : null;
 
@@ -89,10 +138,18 @@ export default function ReactionsMenu({
   
   // Filter out blocked users from reactions
   const filteredUserReactions = userReactions.filter(u => {
-    if (!u.userId._id) return false;
-    // If block status is still loading, don't show the reaction yet
+    // For chat messages: while block status is loading, don't hide users
+    if (messageId && blockLoading) return true;
+    if (messageId) {
+      const uid = getReactionUserId(u);
+      if (!uid) return false;
+      return !isBlocked(uid);
+    }
+    // Posts/Comments: existing behavior
     if (blockLoading) return false;
-    return !isBlocked(u.userId._id);
+    const objId = (u as UserReaction)?.userId?._id;
+    if (!objId) return false;
+    return !isBlocked(objId);
   });
   
   reactionTypeList.forEach((rt) => {
@@ -105,10 +162,16 @@ export default function ReactionsMenu({
   const totalReactions = allUsers.length;
 
   const handleSelectReaction = async (reactionName: string) => {
-    if (!currentUserId || isReactionLoading) return;
+    const actingUserId = messageId ? effectiveCurrentUserId : currentUserId;
+    if (!actingUserId || isReactionLoading) return;
 
     // Debug: Check if user already has this reaction
-    const currentReaction = userReactions.find(ur => ur.userId._id === currentUserId);
+    const currentReaction = userReactions.find(ur => {
+      if (messageId) {
+        return getReactionUserId(ur) === actingUserId;
+      }
+      return (ur as UserReaction)?.userId?._id === actingUserId;
+    });
     const isRemoving = currentReaction?.reaction === reactionName;
 
     // Prevent duplicate rapid clicks
@@ -117,12 +180,13 @@ export default function ReactionsMenu({
     const isDuplicate = lastReaction && 
       lastReaction.postId === postId &&
       lastReaction.commentId === commentId &&
+      lastReaction.messageId === messageId &&
       lastReaction.replyId === replyId &&
       lastReaction.reaction === reactionName &&
       (now - lastReaction.timestamp) < 1000; // 1 second debounce
 
     if (isDuplicate) {
-      console.log('🚫 Duplicate reaction prevented:', { reactionName, postId, commentId, replyId });
+      console.log('🚫 Duplicate reaction prevented:', { reactionName, postId, commentId, messageId, replyId });
       return;
     }
 
@@ -130,6 +194,7 @@ export default function ReactionsMenu({
     lastReactionRef.current = {
       postId,
       commentId,
+      messageId,
       replyId,
       reaction: reactionName,
       timestamp: now
@@ -144,7 +209,7 @@ export default function ReactionsMenu({
           dispatch(removeNotificationsByCriteria({
             type: 'POST_REACTION',
             postId: postId,
-            fromUserId: currentUserId,
+            fromUserId: actingUserId,
             reactionType: reactionName // Match comment logic
           }));
           
@@ -153,14 +218,22 @@ export default function ReactionsMenu({
             socket.emit('notification:delete', {
               type: 'POST_REACTION',
               postId: postId,
-              fromUserId: currentUserId,
+              fromUserId: actingUserId,
               reactionType: reactionName, // Match comment logic
               forceRefresh: true
             });
           }
           // استدعاء الدالة القديمة أيضًا للتوافق
-          handleDeleteReactionNotification(postId, 'POST_REACTION', currentUserId, reactionName);
+          handleDeleteReactionNotification(postId, 'POST_REACTION', actingUserId, reactionName);
         }
+      } else if (messageId) {
+        console.log('🎯 Handling message reaction (socket-only):', { roomId, messageId, reactionName });
+        // For chat messages, use WebSocket only to avoid double-toggle (add then remove)
+        if (socket && roomId) {
+          socket.emit('chat:react_message', { roomId, messageId, reaction: reactionName });
+        }
+        // No REST call here; Provider listens to socket and updates Redux/state
+        result = { success: true } as { success: boolean };
       } else if (commentId && !replyId) {
         result = await handleCommentReaction(commentId, reactionName);
         if (isRemoving && result?.success) {
@@ -168,7 +241,7 @@ export default function ReactionsMenu({
           dispatch(removeNotificationsByCriteria({
             type: 'COMMENT_REACTION',
             commentId: commentId,
-            fromUserId: currentUserId,
+            fromUserId: actingUserId,
             reactionType: reactionName
           }));
           
@@ -177,14 +250,14 @@ export default function ReactionsMenu({
             socket.emit('notification:delete', {
               type: 'COMMENT_REACTION',
               commentId: commentId,
-              fromUserId: currentUserId,
+              fromUserId: actingUserId,
               reactionType: reactionName,
               forceRefresh: true
             });
           }
           
           // استدعاء الدالة القديمة أيضًا للتوافق
-          handleDeleteReactionNotification(commentId, 'COMMENT_REACTION', currentUserId, reactionName);
+          handleDeleteReactionNotification(commentId, 'COMMENT_REACTION', actingUserId, reactionName);
         }
       } else if (replyId && parentCommentId) {
         result = await handleReplyReaction(
@@ -197,7 +270,7 @@ export default function ReactionsMenu({
           dispatch(removeNotificationsByCriteria({
             type: 'COMMENT_REACTION',
             commentId: String(replyId),
-            fromUserId: currentUserId,
+            fromUserId: actingUserId,
             reactionType: reactionName
           }));
           
@@ -206,14 +279,14 @@ export default function ReactionsMenu({
             socket.emit('notification:delete', {
               type: 'COMMENT_REACTION',
               commentId: String(replyId),
-              fromUserId: currentUserId,
+              fromUserId: actingUserId,
               reactionType: reactionName,
               forceRefresh: true
             });
           }
           
           // استدعاء الدالة القديمة أيضًا للتوافق
-          handleDeleteReactionNotification(String(replyId), 'COMMENT_REACTION', currentUserId, reactionName);
+          handleDeleteReactionNotification(String(replyId), 'COMMENT_REACTION', actingUserId, reactionName);
         }
       }
 
@@ -313,23 +386,42 @@ export default function ReactionsMenu({
                 <div className="max-h-[300px] overflow-y-auto">
                   <TabsContent value="all">
                     <div className="flex flex-col gap-2">
-                      {allUsers.map((u, idx) => (
-                        <div key={u.userId._id + u.reaction + idx} className="flex items-center gap-2">
-                          <Link href={`/profile/${u.userId.username}`}>
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage src={u.userId.avatar} alt={u.userId._id} />
-                              <AvatarFallback className="text-xs">{u.userId.firstName?.charAt(0).toUpperCase() || ''}</AvatarFallback>
-                            </Avatar>
-                          </Link>
-                          <Image src={reactionImageMap[u.reaction as keyof typeof reactionImageMap]} alt={u.reaction} width={20} height={20} />
-                          <Link href={`/profile/${u.userId.username}`}>
-                            <span className="text-sm">
-                              {u.userId?.firstName || ''} {u.userId?.lastName || ''}
-                            </span>
-                          </Link>
-                          <span className="text-xs text-muted-foreground">({u.reaction})</span>
-                        </div>
-                      ))}
+                      {allUsers.map((u, idx) => {
+                        const userMeta = resolveReactionUser(u);
+                        const uid = userMeta._id;
+                        const username = userMeta.username || '';
+                        const avatar = userMeta.avatar || '';
+                        const firstName = userMeta.firstName || '';
+                        const lastName = userMeta.lastName || '';
+                        const nameText = `${firstName} ${lastName}`.trim() || 'User';
+                        const profileHref = username ? `/profile/${username}` : '#';
+                        return (
+                          <div key={`${uid || 'unknown'}-${u.reaction}-${idx}`} className="flex items-center gap-2">
+                            {username ? (
+                              <Link href={profileHref}>
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage src={avatar} alt={uid || ''} />
+                                  <AvatarFallback className="text-xs">{firstName?.charAt(0).toUpperCase() || ''}</AvatarFallback>
+                                </Avatar>
+                              </Link>
+                            ) : (
+                              <Avatar className="h-6 w-6">
+                                <AvatarImage src={avatar} alt={uid || ''} />
+                                <AvatarFallback className="text-xs">{firstName?.charAt(0).toUpperCase() || ''}</AvatarFallback>
+                              </Avatar>
+                            )}
+                            <Image src={reactionImageMap[u.reaction as keyof typeof reactionImageMap]} alt={u.reaction} width={20} height={20} />
+                            {username ? (
+                              <Link href={profileHref}>
+                                <span className="text-sm">{nameText}</span>
+                              </Link>
+                            ) : (
+                              <span className="text-sm">{nameText}</span>
+                            )}
+                            <span className="text-xs text-muted-foreground">({u.reaction})</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </TabsContent>
                 </div>
@@ -340,23 +432,42 @@ export default function ReactionsMenu({
                 {reactionTypeList.filter(rt => usersByReaction[rt].length > 0).map((reactionType) => (
                   <TabsContent key={reactionType} value={reactionType}>
                     <div className="flex flex-col gap-2">
-                      {usersByReaction[reactionType].map((u, idx) => (
-                        <div key={u.userId._id + u.reaction + idx} className="flex items-center gap-2">
-                          <Link href={`/profile/${u.userId.username}`}>
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage src={u.userId.avatar} alt={u.userId._id} />
-                              <AvatarFallback className="text-xs">{u.userId.firstName?.charAt(0).toUpperCase() || ''}</AvatarFallback>
-                            </Avatar>
-                          </Link>
-                          <Image src={reactionImageMap[u.reaction as keyof typeof reactionImageMap]} alt={u.reaction} width={20} height={20} />
-                          <Link href={`/profile/${u.userId.username}`}>
-                            <span className="text-sm">
-                              {u.userId?.firstName || ''} {u.userId?.lastName || ''}
-                            </span>
-                          </Link>
-                          <span className="text-xs text-muted-foreground">({u.reaction})</span>
-                        </div>
-                      ))}
+                      {usersByReaction[reactionType].map((u, idx) => {
+                        const userMeta = resolveReactionUser(u);
+                        const uid = userMeta._id;
+                        const username = userMeta.username || '';
+                        const avatar = userMeta.avatar || '';
+                        const firstName = userMeta.firstName || '';
+                        const lastName = userMeta.lastName || '';
+                        const nameText = `${firstName} ${lastName}`.trim() || 'User';
+                        const profileHref = username ? `/profile/${username}` : '#';
+                        return (
+                          <div key={`${uid || 'unknown'}-${u.reaction}-${idx}`} className="flex items-center gap-2">
+                            {username ? (
+                              <Link href={profileHref}>
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage src={avatar} alt={uid || ''} />
+                                  <AvatarFallback className="text-xs">{firstName?.charAt(0).toUpperCase() || ''}</AvatarFallback>
+                                </Avatar>
+                              </Link>
+                            ) : (
+                              <Avatar className="h-6 w-6">
+                                <AvatarImage src={avatar} alt={uid || ''} />
+                                <AvatarFallback className="text-xs">{firstName?.charAt(0).toUpperCase() || ''}</AvatarFallback>
+                              </Avatar>
+                            )}
+                            <Image src={reactionImageMap[u.reaction as keyof typeof reactionImageMap]} alt={u.reaction} width={20} height={20} />
+                            {username ? (
+                              <Link href={profileHref}>
+                                <span className="text-sm">{nameText}</span>
+                              </Link>
+                            ) : (
+                              <span className="text-sm">{nameText}</span>
+                            )}
+                            <span className="text-xs text-muted-foreground">({u.reaction})</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </TabsContent>
                 ))}

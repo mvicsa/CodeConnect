@@ -8,7 +8,7 @@ import { RootState, AppDispatch } from './store'
 import io from 'socket.io-client'
 import {
   setRooms, setMessages, addMessage, setTyping, setSeen, setError,
-  setConnected, deleteMessage, setHasMore, setUserStatus
+  setConnected, deleteMessage, setHasMore, setUserStatus, updateMessage, updateMessageReactions
 } from './slices/chatSlice'
 import { useSelector as useReduxSelector } from 'react-redux'
 import { addNotification, updateNotification, deleteNotification, clearNotifications, removeCommentNotifications, removeNotificationsByCriteria, removeMentionNotifications, setNotifications } from './slices/notificationsSlice';
@@ -124,6 +124,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
   const dispatch = useDispatch()
   const token = useReduxSelector((state: RootState) => state.auth.token)
   const user = useReduxSelector((state: RootState) => state.auth.user)
+  const activeRoomId = useReduxSelector((state: RootState) => state.chat.activeRoomId)
   const notificationSocketRef = useRef<ReturnType<typeof io> | null>(null);
   // Robust fix: Only play sound for notifications after the first one received after connect
   const firstNotificationReceived = useRef(false);
@@ -159,9 +160,6 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
       const userId = user?._id;
       if (userId) {
         notificationSocket.emit('join', userId);
-        console.log('📩 [SOCKET][NOTIFICATIONS] Joined room for user:', userId);
-      } else {
-        console.log('⚠️ [SOCKET][NOTIFICATIONS] No user ID available, cannot join room');
       }
     });
     
@@ -170,11 +168,9 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
     });
     
     notificationSocket.on('reconnect', () => {
-      console.log('🔄 [SOCKET][NOTIFICATIONS] Reconnected!');
       const userId = user?._id;
       if (userId) {
         notificationSocket.emit('join', userId);
-        console.log('📩 [SOCKET][NOTIFICATIONS] Re-joined room for user:', userId);
       }
     });
     
@@ -201,22 +197,16 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         const toUserBlockStatus = blockStatuses[String(toUserId)] || {};
 
         if (
-          fromUserBlockStatus.isBlocked ||  // أنت حظرت المرسل
-          fromUserBlockStatus.isBlockedBy || // المرسل حظرك
-          toUserBlockStatus.isBlocked ||     // أنت حظرت المستلم
-          toUserBlockStatus.isBlockedBy      // المستلم حظرك
+          fromUserBlockStatus.isBlocked ||
+          fromUserBlockStatus.isBlockedBy || 
+          toUserBlockStatus.isBlocked ||    
+          toUserBlockStatus.isBlockedBy    
         ) {
           shouldShowNotification = false;
-          console.log('🔒 [NOTIFICATION] Blocked notification', fromUserId, 'to', toUserId);
         }
       }
       
-      // إضافة الإشعار فقط إذا لم يكن محظور
       if (shouldShowNotification) {
-        console.log('[SOCKET][ALL]', notification);
-      if (notification.type === 'POST_CREATED') {
-        console.log('[SOCKET][POST_CREATED] إشعار بوست جديد:', notification);
-      }
       dispatch(addNotification(notification));
         // Only play sound if this is not the first notification after connect
       if (!firstNotificationReceived.current) {
@@ -237,10 +227,11 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         //   }
         // }
         
-        // Vibrate if enabled and supported
+        // Vibrate if enabled and supported (only after user interaction)
         if (typeof window !== 'undefined' && 
             localStorage.getItem('notificationVibration') !== 'disabled' && 
-            'vibrate' in navigator) {
+            'vibrate' in navigator &&
+            document.hasFocus()) { // Only vibrate if the page has focus (user has interacted)
           try {
             navigator.vibrate([200, 100, 200]);
           } catch (error) {
@@ -255,7 +246,6 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
 
     // استقبال موحد لحذف الإشعارات من الباك إند
     notificationSocket.on('notification:delete', (payload: NotificationDeletePayload) => {
-      console.log('Received notification:delete', payload);
       // حذف مباشر بالـ id
       if (payload?.notificationId) {
         dispatch(deleteNotification(payload.notificationId));
@@ -530,8 +520,6 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         newSocket.emit('chat:join_room', { roomId: room._id }, (error: Error) => {
           if (error) {
             console.error(`[SOCKET] Error joining room ${room._id}:`, error);
-          } else {
-            console.log(`[SOCKET] Successfully joined room ${room._id}`);
           }
         });
       });
@@ -560,12 +548,11 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         }
       });
       
-      // Sort messages by _id (which is a timestamp-based ObjectId)
+      // Sort messages by createdAt timestamp for reliable chronological order
       mergedMessages.sort((a, b) => {
-        // Convert string _id to timestamp for comparison
-        const aTime = parseInt(a._id.substring(0, 8), 16) * 1000;
-        const bTime = parseInt(b._id.substring(0, 8), 16) * 1000;
-        return aTime - bTime;
+        const aTime = new Date(a.createdAt).getTime();
+        const bTime = new Date(b.createdAt).getTime();
+        return aTime - bTime; // Oldest first, newest last
       });
       
       dispatch(setMessages({ roomId, messages: mergedMessages, currentUserId: user?._id }));
@@ -598,6 +585,41 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
 
     newSocket.on('chat:delete_message', ({ roomId, messageId, forAll, userId }: { roomId: string; messageId: string; forAll: boolean; userId: string }) => {
       dispatch(deleteMessage({ roomId, messageId, forAll, userId }));
+    });
+
+    newSocket.on('chat:message_edited', (msg: Message) => {
+      dispatch(updateMessage({ roomId: msg.chatRoom, messageId: msg._id, updates: msg }));
+    });
+
+    // Message reaction events
+    console.log('🎯 Setting up chat:react_message listener');
+    newSocket.on('chat:react_message', (data: { message: Message; userId: string; reaction: string; action: string; roomId: string }) => {
+      console.log('🎯 Received message reaction event in Provider:', data);
+      console.log('🎯 Current active room ID:', activeRoomId);
+      console.log('🎯 Event room ID:', data.roomId);
+      console.log('🎯 Room IDs match:', activeRoomId === data.roomId);
+      
+      if (data.message && data.message._id && data.roomId) {
+        console.log('🎯 Updating message reactions in Redux:', {
+          roomId: data.roomId,
+          messageId: data.message._id,
+          reactions: data.message.reactions,
+          userReactions: data.message.userReactions
+        });
+        dispatch(updateMessageReactions({
+          roomId: data.roomId,
+          messageId: data.message._id,
+          reactions: data.message.reactions,
+          userReactions: data.message.userReactions
+        }));
+        console.log('🎯 Redux update dispatched');
+      } else {
+        console.log('🎯 Missing required data:', {
+          hasMessage: !!data.message,
+          hasMessageId: !!(data.message && data.message._id),
+          hasRoomId: !!data.roomId
+        });
+      }
     });
 
     // Listen for user:status events (online/offline)
@@ -644,9 +666,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
 
     // Listen for meeting session ended
     newSocket.on('meeting:session_ended', () => {
-      console.log('🎯 [SOCKET] Session ended event received for user:', user?._id);
       if (user?._id) {
-        console.log('🔄 [SOCKET] Refreshing meetings data for user:', user._id);
         dispatch({ type: 'meeting/fetchRooms' });
         dispatch({ type: 'meeting/fetchPublicSessions' });
         dispatch({ type: 'meeting/fetchSessionHistory' });
@@ -673,6 +693,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         newSocket.off('chat:typing');
         newSocket.off('chat:seen');
         newSocket.off('chat:delete_message');
+        newSocket.off('chat:message_edited');
         newSocket.off('user:status'); // Added this line to remove the listener
         newSocket.off('user:status:all'); // Added this line to remove the listener
         newSocket.off('chat:join_room'); // Added this line to remove the listener
@@ -700,7 +721,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         notificationSocketRef.current = null;
       }
     };
-  }, [token, dispatch, setSocket, user]);
+  }, [token, dispatch, setSocket, user, activeRoomId]);
 
   // Separate effect to join notification room when user becomes available
   useEffect(() => {

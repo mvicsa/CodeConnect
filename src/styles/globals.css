@@ -402,3 +402,138 @@ canvas {
   @apply font-medium;
 }
 
+/* Custom Video Controls Styling */
+.custom-video-controls {
+  /* Style the video element itself */
+  border-radius: 0.5rem !important;
+  overflow: hidden !important;
+  border: 1px solid hsl(var(--primary) / 0.2) !important;
+  transition: all 0.3s ease !important;
+}
+
+.custom-video-controls::-webkit-media-controls-panel {
+  background: hsl(var(--primary) / 0.9) !important;
+  border-radius: 0 0 0.5rem 0.5rem !important;
+  padding: 0.5rem !important;
+}
+
+.custom-video-controls::-webkit-media-controls-play-button {
+  color: white !important;
+  transition: transform 0.2s ease !important;
+}
+
+.custom-video-controls::-webkit-media-controls-play-button:hover {
+  transform: scale(1.1) !important;
+}
+
+.custom-video-controls::-webkit-media-controls-timeline {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-radius: 9999px !important;
+  height: 0.25rem !important;
+  transition: height 0.2s ease !important;
+}
+
+.custom-video-controls::-webkit-media-controls-timeline:hover {
+  height: 0.5rem !important;
+}
+
+.custom-video-controls::-webkit-media-controls-current-time-display,
+.custom-video-controls::-webkit-media-controls-time-remaining-display {
+  color: white !important;
+  font-weight: 500 !important;
+}
+
+.custom-video-controls::-webkit-media-controls-mute-button {
+  color: white !important;
+  transition: transform 0.2s ease !important;
+}
+
+.custom-video-controls::-webkit-media-controls-mute-button:hover {
+  transform: scale(1.1) !important;
+}
+
+.custom-video-controls::-webkit-media-controls-volume-slider {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-radius: 9999px !important;
+  height: 0.25rem !important;
+}
+
+.custom-video-controls::-webkit-media-controls-fullscreen-button {
+  color: white !important;
+  transition: transform 0.2s ease !important;
+}
+
+.custom-video-controls::-webkit-media-controls-fullscreen-button:hover {
+  transform: scale(1.1) !important;
+}
+
+.custom-video-controls::-moz-media-controls-panel {
+  background: hsl(var(--primary) / 0.9) !important;
+  border-radius: 0 0 0.5rem 0.5rem !important;
+  padding: 0.5rem !important;
+}
+
+.custom-video-controls::-webkit-media-controls {
+  background: hsl(var(--primary) / 0.9) !important;
+  border-radius: 0 0 0.5rem 0.5rem !important;
+}
+
+.custom-video-controls::-webkit-media-controls-enclosure {
+  background: transparent !important;
+}
+
+/* Dark mode adjustments for video controls */
+.dark .custom-video-controls::-webkit-media-controls-panel {
+  background: hsl(var(--primary) / 0.95) !important;
+}
+
+.dark .custom-video-controls::-webkit-media-controls-timeline {
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
+.dark .custom-video-controls::-webkit-media-controls-volume-slider {
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Enhanced video player styling */
+.custom-video-controls {
+  /* Add a subtle border */
+  border: 1px solid hsl(var(--primary) / 0.2) !important;
+  
+  /* Ensure smooth transitions */
+  transition: all 0.3s ease !important;
+}
+
+/* Video player hover effects */
+.custom-video-controls:hover {
+  border-color: hsl(var(--primary) / 0.4) !important;
+  box-shadow: 0 0 20px hsl(var(--primary) / 0.1) !important;
+}
+
+/* Focus states for accessibility */
+.custom-video-controls:focus {
+  outline: 2px solid hsl(var(--primary)) !important;
+  outline-offset: 2px !important;
+}
+
+/* Loading state for video */
+.custom-video-controls:not([src]) {
+  background: linear-gradient(45deg, hsl(var(--primary) / 0.1), hsl(var(--primary) / 0.05)) !important;
+}
+
+/* Video controls animation */
+@keyframes videoControlsFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.custom-video-controls::-webkit-media-controls-panel {
+  animation: videoControlsFadeIn 0.3s ease-out !important;
+}
+

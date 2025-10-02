@@ -33,6 +33,7 @@ export interface ReactionState {
   error: string | null
   postReactions: Record<string, { reactions: Reactions; userReactions: UserReaction[] }>
   commentReactions: Record<string, { reactions: Reactions; userReactions: UserReaction[] }>
+  messageReactions: Record<string, { reactions: Reactions; userReactions: UserReaction[] }>
 }
 
 // Async thunks
@@ -86,12 +87,34 @@ export const addCommentReaction = createAsyncThunk(
   }
 );
 
+export const addMessageReaction = createAsyncThunk(
+  'reactions/addMessageReaction',
+  async ({ messageId, reaction, token }: { messageId: string; reaction: string; token: string }) => {
+    try {
+      const response = await axios.post(
+        `${API_URL}/chat/messages/${messageId}/reactions`,
+        { reaction },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return {
+        messageId,
+        reactions: response.data.message.reactions,
+        userReactions: response.data.message.userReactions,
+        action: response.data.action
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+);
+
 // Initial state
 const initialState: ReactionState = {
   loading: false,
   error: null,
   postReactions: {},
-  commentReactions: {}
+  commentReactions: {},
+  messageReactions: {}
 }
 
 // Slice
@@ -119,6 +142,15 @@ const reactionsSlice = createSlice({
     }>) => {
       const { commentId, reactions, userReactions } = action.payload
       state.commentReactions[commentId] = { reactions, userReactions }
+    },
+    // Update message reactions in local state
+    updateMessageReactions: (state, action: PayloadAction<{
+      messageId: string
+      reactions: Reactions
+      userReactions: UserReaction[]
+    }>) => {
+      const { messageId, reactions, userReactions } = action.payload
+      state.messageReactions[messageId] = { reactions, userReactions }
     }
   },
   extraReducers: (builder) => {
@@ -155,8 +187,23 @@ const reactionsSlice = createSlice({
         state.loading = false
         state.error = action.error.message || 'Failed to add comment reaction'
       })
+      
+      // Add message reaction
+      .addCase(addMessageReaction.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(addMessageReaction.fulfilled, (state, action) => {
+        state.loading = false
+        const { messageId, reactions, userReactions } = action.payload
+        state.messageReactions[messageId] = { reactions, userReactions }
+      })
+      .addCase(addMessageReaction.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.error.message || 'Failed to add message reaction'
+      })
   }
 })
 
-export const { clearError, updatePostReactions, updateCommentReactions } = reactionsSlice.actions
+export const { clearError, updatePostReactions, updateCommentReactions, updateMessageReactions } = reactionsSlice.actions
 export default reactionsSlice.reducer 
