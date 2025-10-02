@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios, { AxiosError } from 'axios';
-import { getAuthToken, setAuthToken, removeAuthToken } from '@/lib/cookies';
+import { getAuthToken, setAuthToken, removeAuthToken, setCookie, deleteCookie } from '@/lib/cookies';
 
 interface User {
   _id: string;
@@ -155,6 +155,9 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       removeAuthToken();
+      if (typeof window !== 'undefined') {
+        deleteCookie('username');
+      }
     },
     setUser: (state, action: PayloadAction<User>) => {
       state.user = action.payload;
@@ -187,6 +190,9 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.token = action.payload.token;
         setAuthToken(action.payload.token);
+        if (typeof window !== 'undefined' && action.payload?.user?.username) {
+          setCookie('username', action.payload.user.username);
+        }
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -201,6 +207,9 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.token = action.payload.token;
         setAuthToken(action.payload.token);
+        if (typeof window !== 'undefined' && action.payload?.user?.username) {
+          setCookie('username', action.payload.user.username);
+        }
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
@@ -214,6 +223,10 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user || action.payload;
         state.initialized = true;
+        const username = (state.user as User | null)?.username;
+        if (typeof window !== 'undefined' && username) {
+          setCookie('username', username);
+        }
       })
       .addCase(fetchProfile.rejected, (state, action) => {
         state.loading = false;
@@ -236,6 +249,9 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.token = action.payload.token;
         setAuthToken(action.payload.token);
+        if (typeof window !== 'undefined' && action.payload?.user?.username) {
+          setCookie('username', action.payload.user.username);
+        }
       })
       .addCase(handleGitHubCallback.rejected, (state, action) => {
         state.loading = false;
@@ -249,6 +265,10 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = null;
         state.user = action.payload;
+        const username = (action.payload as User | null)?.username;
+        if (typeof window !== 'undefined' && username) {
+          setCookie('username', username);
+        }
       })
       .addCase(updateProfile.rejected, (state, action) => {
         state.loading = false;

@@ -23,7 +23,14 @@ export default function middleware(request: NextRequest) {
   const pathWithoutLocale = pathname.replace(/^\/(en|ar)(\/|$)/, '/');
 
   const token = request.cookies.get('token')?.value;
+  const username = request.cookies.get('username')?.value;
   const locale = pathname.match(/^\/(en|ar)(\/|$)/)?.[1] || 'en';
+
+  // If hitting /{locale}/profile directly and we have username, redirect early to user's profile
+  if (token && username && pathWithoutLocale === '/profile') {
+    const profileUrl = new URL(`/${locale}/profile/${username}`, request.url);
+    return NextResponse.redirect(profileUrl);
+  }
 
   // If authenticated and trying to access a public auth page, redirect to timeline
   if (token && PUBLIC_PATHS.some((p) => pathWithoutLocale.startsWith(p))) {
