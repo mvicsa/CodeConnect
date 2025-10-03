@@ -8,8 +8,8 @@ import { Heart } from "lucide-react";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import type { UserReaction } from '@/types/post';
-import type { User } from '@/types/chat';
+import type { UserReaction as PostUserReaction } from '@/types/post';
+import type { User, UserReaction as ChatUserReaction } from '@/types/chat';
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store/store";
 import { updateMessageReactions as updateChatMessageReactions } from '@/store/slices/chatSlice';
@@ -45,7 +45,7 @@ interface ReactionsMenuProps {
     dislike: number;
     happy: number;
   };
-  userReactions?: UserReaction[];
+  userReactions?: PostUserReaction[];
   currentUserId?: string; // Should be the user's _id from backend
   roomMembers?: User[]; // For chat: enrich reaction users when userId is string
 }
@@ -81,7 +81,7 @@ export default function ReactionsMenu({
   const { isBlocked, loading: blockLoading } = useBlock();
 
   // Helpers to support both string and object userId forms
-  const getReactionUserId = (ur: UserReaction) => {
+  const getReactionUserId = (ur: PostUserReaction) => {
     const possibleUserId = ur?.userId as User;
     if (!possibleUserId) return null;
     if (typeof possibleUserId === 'string') return possibleUserId;
@@ -99,7 +99,7 @@ export default function ReactionsMenu({
   const effectiveCurrentUserId = currentUserId || user?._id || null;
 
   // Resolve reaction user meta (handles string userId using roomMembers)
-  const resolveReactionUser = (reaction: UserReaction) => {
+  const resolveReactionUser = (reaction: PostUserReaction) => {
     const possibleUserId = reaction?.userId as User;
     if (!possibleUserId) {
       return { _id: '', firstName: '', lastName: '', username: '', avatar: '' };
@@ -123,7 +123,7 @@ export default function ReactionsMenu({
     if (messageId) {
       return getReactionUserId(ur) === effectiveCurrentUserId;
     }
-    return (ur as UserReaction)?.userId?._id === user?._id;
+    return (ur as PostUserReaction)?.userId?._id === user?._id;
   });
   const currentUserReactionType = currentUserReaction?.reaction || null;
   const selectedReaction = currentUserReactionType ? reactionImageMap[currentUserReactionType as keyof typeof reactionImageMap] : null;
@@ -132,7 +132,7 @@ export default function ReactionsMenu({
   const reactionTypeList = Object.keys(reactions).filter(rt => rt in reactionImageMap) as (keyof typeof reactionImageMap)[];
   
   // Group users by reaction type - filter out blocked users
-  const usersByReaction: Record<keyof typeof reactionImageMap, typeof userReactions> = {
+  const usersByReaction: Record<keyof typeof reactionImageMap, PostUserReaction[]> = {
     like: [], love: [], wow: [], funny: [], dislike: [], happy: []
   };
   
@@ -147,7 +147,7 @@ export default function ReactionsMenu({
     }
     // Posts/Comments: existing behavior
     if (blockLoading) return false;
-    const objId = (u as UserReaction)?.userId?._id;
+    const objId = (u as PostUserReaction)?.userId?._id;
     if (!objId) return false;
     return !isBlocked(objId);
   });
@@ -170,7 +170,7 @@ export default function ReactionsMenu({
       if (messageId) {
         return getReactionUserId(ur) === actingUserId;
       }
-      return (ur as UserReaction)?.userId?._id === actingUserId;
+      return (ur as PostUserReaction)?.userId?._id === actingUserId;
     });
     const isRemoving = currentReaction?.reaction === reactionName;
 
@@ -248,14 +248,19 @@ export default function ReactionsMenu({
                 currentCounts[existing.reaction as keyof typeof currentCounts] = Math.max(0, (currentCounts[existing.reaction as keyof typeof currentCounts] || 0) - 1);
                 currentCounts[reactionName as keyof typeof currentCounts] = (currentCounts[reactionName as keyof typeof currentCounts] || 0) + 1;
                 const idx = nextUserReactions.findIndex(ur => getReactionUserId(ur) === actingUserId);
-                if (idx !== -1) nextUserReactions[idx] = { ...nextUserReactions[idx], userId: actingUserId as any, reaction: reactionName } as any;
+                if (idx !== -1) nextUserReactions[idx] = { ...nextUserReactions[idx], userId: actingUserId as string, reaction: reactionName } as  PostUserReaction;
               }
             } else {
               currentCounts[reactionName as keyof typeof currentCounts] = (currentCounts[reactionName as keyof typeof currentCounts] || 0) + 1;
-              nextUserReactions.push({ userId: actingUserId as any, reaction: reactionName } as any);
+              nextUserReactions.push({ userId: actingUserId as string, reaction: reactionName, username: '', createdAt: '' } as PostUserReaction);
             }
 
-            dispatch(updateChatMessageReactions({ roomId, messageId, reactions: currentCounts as any, userReactions: nextUserReactions as any }));
+            dispatch(updateChatMessageReactions({ 
+              roomId, 
+              messageId, 
+              reactions: currentCounts, 
+              userReactions: nextUserReactions as ChatUserReaction[]
+            }));
           }
         } catch (e) {
           console.warn('Optimistic reaction update failed:', e);

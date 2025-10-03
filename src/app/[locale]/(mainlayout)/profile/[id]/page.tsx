@@ -1,6 +1,7 @@
 'use client'
 
 import ProfilePageClient from '@/components/profile/ProfilePageClient';
+import UserNotFound from '@/components/profile/UserNotFound';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
@@ -61,7 +62,11 @@ const Page = () => {
     </div>
   );
 
-  if (error) return <div className="text-center mt-10 text-red-500">{String(error)}</div>;
+  // Show UserNotFound for errors or when user doesn't exist
+  if (error || (!user && !loading && !initialLoading)) {
+    return <UserNotFound username={typeof params.id === 'string' ? params.id : undefined} />;
+  }
+  
   if (!user) return null;
 
   return (

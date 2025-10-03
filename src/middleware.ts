@@ -11,15 +11,19 @@ const PUBLIC_PATHS = [
 ];
 
 export default function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl.clone();
+  
+  // Skip middleware for static files (files with extensions)
+  if (pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|pdf|txt|json|xml|html|htm|map|avif)$/)) {
+    return NextResponse.next();
+  }
+
   // Next-intl i18n middleware
   const intlResponse = createMiddleware({
     locales: ['en', 'ar'],
     defaultLocale: 'en',
     localePrefix: 'always',
   })(request);
-
-  // Get pathname without locale prefix
-  const { pathname } = request.nextUrl.clone();
   const pathWithoutLocale = pathname.replace(/^\/(en|ar)(\/|$)/, '/');
 
   const token = request.cookies.get('token')?.value;
@@ -48,5 +52,9 @@ export default function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next|.*\\..*|api).*)'],
+  matcher: [
+    // Match all paths except _next and api
+    // This will process /profile/reda.ahmed and redirect to /en/profile/reda.ahmed
+    '/((?!_next|api).*)',
+  ],
 };
