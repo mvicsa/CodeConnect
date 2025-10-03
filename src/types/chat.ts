@@ -66,6 +66,15 @@ export interface Message {
   edited: boolean;
 }
 
+export interface LastActivity {
+  message?: Message | null;
+  messageId?: string | null;
+  latestType?: 'message' | 'reaction' | null;
+  latestTime?: number;
+  latestMessage?: Message | null;
+  latestReaction?: { userName: string; reaction: string; userId?: string; firstName?: string } | null;
+}
+
 export interface ChatRoom {
   _id: string;
   type: ChatRoomType;
@@ -75,6 +84,14 @@ export interface ChatRoom {
   groupAvatar: string | null;
   lastMessage?: Message | null;
   lastMessageTime?: number; // Timestamp for sorting
+  lastActivity?: {
+    type: 'message' | 'reaction';
+    time: string; // Keep as string for Redux serialization
+    messageId: string;
+    reaction?: string;
+    userId?: string | User; // Can be string or User object
+    message?: Message; // Full message object for messages
+  };
   messages: Message[];
   unreadCount: number;
   admins: string[];

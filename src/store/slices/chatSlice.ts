@@ -105,12 +105,24 @@ const chatSlice = createSlice({
       state.messages[roomId].push(normalizedMessage);
       console.log('[REDUX] Message added to state. Current messages count:', state.messages[roomId].length);
       
-      // Update room's last message and unread count
+      // Update room's unread count only
       const room = state.rooms.find(r => r._id === roomId);
       if (room && currentUserId) {
-        room.lastMessage = normalizedMessage;
-        room.lastMessageTime = new Date(normalizedMessage.createdAt).getTime();
+        // Don't update lastMessage here - it's handled by lastActivity
         room.unreadCount = state.messages[roomId].filter(m => !m.seenBy.includes(currentUserId)).length;
+        
+        // Note: lastActivity is handled by updateRoomLastActivity from backend
+        // Only update if no lastActivity exists (fallback for old backend versions)
+        if (!room.lastActivity) {
+          room.lastActivity = {
+            type: 'message',
+            time: normalizedMessage.createdAt,
+            messageId: normalizedMessage._id,
+            userId: normalizedMessage.sender._id,
+            message: normalizedMessage
+          };
+          console.log('🎯 Updated room lastActivity for new message (fallback):', { roomId, lastActivity: room.lastActivity });
+        }
         
         // Move this room to the top of the rooms array (most recent message first)
         const roomIndex = state.rooms.findIndex(r => r._id === roomId);
@@ -152,11 +164,12 @@ const chatSlice = createSlice({
             }
           }
         });
-        // Update room's unread count for the current user
+        // Update room's unread count for the current user (but don't update lastMessageTime)
         const actualUserId = currentUserId || userId;
         const room = state.rooms.find(r => r._id === roomId);
         if (room && actualUserId) {
           room.unreadCount = messages.filter(m => !m.seenBy.includes(actualUserId)).length;
+          // Don't update lastMessageTime here - it should only change when there's a new message
         }
       }
     },
@@ -282,7 +295,17 @@ const chatSlice = createSlice({
     },
     setUserStatus(state, action: PayloadAction<{ userId: string; status: 'online' | 'offline' }>) {
       if (!state.userStatuses) state.userStatuses = {};
-      state.userStatuses[action.payload.userId] = action.payload.status;
+      const { userId, status } = action.payload;
+      
+      // Only update if status actually changed to prevent unnecessary re-renders
+      if (state.userStatuses[userId] !== status) {
+        console.log('🔍 setUserStatus called:', { userId, status });
+        state.userStatuses[userId] = status;
+      } else {
+        console.log('🔍 setUserStatus skipped (no change):', { userId, status });
+        // Don't update Redux state if status hasn't changed
+        return;
+      }
     },
     updateMessage(state, action: PayloadAction<{ roomId: string; messageId: string; updates: Message }>) {
       const { roomId, messageId, updates } = action.payload;
@@ -309,6 +332,8 @@ const chatSlice = createSlice({
       const { roomId, messageId, reactions, userReactions } = action.payload;
       console.log('🎯 updateMessageReactions called:', { roomId, messageId, reactions, userReactions });
       const messages = state.messages[roomId];
+      const room = state.rooms.find(r => r._id === roomId);
+      
       if (messages) {
         const messageIndex = messages.findIndex(m => m._id === messageId);
         console.log('🎯 Message found at index:', messageIndex);
@@ -321,9 +346,89 @@ const chatSlice = createSlice({
           };
           messages[messageIndex] = updatedMessage;
           console.log('🎯 Message updated:', updatedMessage);
+
+          // Update room's lastMessage if this message has the most recent activity
+          if (room) {
+            // Check if this message now has the most recent activity
+            const currentLastTime = room.lastMessageTime || 0;
+            const messageTime = new Date(updatedMessage.createdAt).getTime();
+            
+            // Find the most recent reaction time on this message
+            let newestReactionTime = 0;
+            if (Array.isArray(updatedMessage.userReactions)) {
+              for (const ur of updatedMessage.userReactions) {
+                const reactionTime = new Date(ur.createdAt).getTime();
+                if (reactionTime > newestReactionTime) {
+                  newestReactionTime = reactionTime;
+                }
+              }
+            }
+            
+            // Get the latest time (either message or newest reaction)
+            const latestActivityTime = Math.max(messageTime, newestReactionTime);
+            
+            // Update if this activity is newer than current last time
+            if (latestActivityTime > currentLastTime) {
+              room.lastMessage = updatedMessage;
+              room.lastMessageTime = latestActivityTime;
+              console.log('🎯 Updated room lastMessage and lastMessageTime due to newer activity', { latestActivityTime });
+            }
+          }
         }
+      } else if (room && room.lastMessage && room.lastMessage._id === messageId) {
+        // If messages not loaded but this is the room's lastMessage, update it
+        const updatedMessage = {
+          ...room.lastMessage,
+          reactions,
+          userReactions
+        };
+        room.lastMessage = updatedMessage;
+        
+        // Find the most recent reaction time
+        let newestReactionTime = 0;
+        if (Array.isArray(updatedMessage.userReactions)) {
+          for (const ur of updatedMessage.userReactions) {
+            const reactionTime = new Date(ur.createdAt).getTime();
+            if (reactionTime > newestReactionTime) {
+              newestReactionTime = reactionTime;
+            }
+          }
+        }
+        
+        const messageTime = new Date(updatedMessage.createdAt).getTime();
+        const latestActivityTime = Math.max(messageTime, newestReactionTime);
+        room.lastMessageTime = latestActivityTime;
+        console.log('🎯 Updated room.lastMessage directly (messages not loaded)', { latestActivityTime });
       } else {
-        console.log('🎯 No messages found for room:', roomId);
+        console.log('🎯 No messages found for room and not lastMessage:', roomId);
+      }
+    },
+    // 🎯 NEW: Update room's lastActivity from backend
+    updateRoomLastActivity(state, action: PayloadAction<{ 
+      roomId: string; 
+      lastActivity: { 
+        type: 'message' | 'reaction'; 
+        time: string; 
+        messageId: string; 
+        reaction?: string; 
+        userId?: string; 
+      } 
+    }>) {
+      const { roomId, lastActivity } = action.payload;
+      console.log('🔍 updateRoomLastActivity called:', { roomId, lastActivity });
+      console.log('🔍 Available rooms:', state.rooms.map(r => ({ _id: r._id, lastActivity: r.lastActivity })));
+      const room = state.rooms.find(r => r._id === roomId);
+      
+      if (room) {
+        room.lastActivity = {
+          ...lastActivity,
+          time: lastActivity.time // Keep as string, don't convert to Date
+        };
+        console.log('🎯 Updated room lastActivity from backend:', { roomId, lastActivity, updatedRoom: room });
+        console.log('🎯 Room lastActivity after update:', room.lastActivity);
+      } else {
+        console.log('❌ Room not found for lastActivity update:', roomId);
+        console.log('❌ Available room IDs:', state.rooms.map(r => r._id));
       }
     },
   },
@@ -349,6 +454,7 @@ export const {
   setUserStatus,
   updateMessage,
   updateMessageReactions,
+  updateRoomLastActivity,
 } = chatSlice.actions;
 
 export default chatSlice.reducer; 

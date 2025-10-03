@@ -67,14 +67,28 @@ const ChatInterface: React.FC = () => {
         unreadCount,
       };
     }).sort((a, b) => {
-      // Sort by lastMessage timestamp (most recent first)
-      // If no last message, put at the end
-      if (!a.lastMessage && !b.lastMessage) return 0;
-      if (!a.lastMessage) return 1;
-      if (!b.lastMessage) return -1;
+      // 🎯 NEW: Sort by lastActivity if available, otherwise fallback to lastMessage
+      const aRoom = chatRooms.find(r => r._id === a._id);
+      const bRoom = chatRooms.find(r => r._id === b._id);
       
-      const aTime = new Date(a.lastMessage.createdAt).getTime();
-      const bTime = new Date(b.lastMessage.createdAt).getTime();
+      // Use lastActivity time if available
+      const aTime = aRoom?.lastActivity?.time 
+        ? new Date(aRoom.lastActivity.time).getTime()
+        : a.lastMessage 
+          ? new Date(a.lastMessage.createdAt).getTime()
+          : 0;
+          
+      const bTime = bRoom?.lastActivity?.time 
+        ? new Date(bRoom.lastActivity.time).getTime()
+        : b.lastMessage 
+          ? new Date(b.lastMessage.createdAt).getTime()
+          : 0;
+      
+      // If no activity at all, put at the end
+      if (aTime === 0 && bTime === 0) return 0;
+      if (aTime === 0) return 1;
+      if (bTime === 0) return -1;
+      
       return bTime - aTime; // Most recent first
     });
   }, [chatRooms, messages, myUserId]);

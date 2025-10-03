@@ -1,15 +1,14 @@
-import React, { useContext, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Image from "next/image";
 import { ChatInput } from "@/components/ui/chat-input";
 import { ChatScrollArea } from "@/components/ui/chat-scroll-area";
-import { ChatPreview, ChatRoomType, Message, User, UserReaction } from "@/types/chat";
+import { ChatPreview, ChatRoomType, LastActivity, Message, User } from "@/types/chat";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 import { ArrowLeft, Search, Users, Image as ImageIcon, File as FileIcon } from "lucide-react";
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store/store';
-import { SocketContext } from '@/store/Provider'; 
 import { setSeen } from '@/store/slices/chatSlice';
 import { useBlock } from '@/hooks/useBlock';
 import Link from "next/link";
@@ -35,11 +34,13 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   chatPreviews
 }) => {
   const myUserId = useSelector((state: RootState) => state.auth.user?._id);
-  const socket = useContext(SocketContext);
   const messages = useSelector((state: RootState) => state.chat.messages);
   const chatRooms = useSelector((state: RootState) => state.chat.rooms);
-  const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
+  const userStatusesRaw = useSelector((state: RootState) => state.chat.userStatuses || {});
   const dispatch = useDispatch();
+  
+  // Stabilize userStatuses to prevent unnecessary re-renders
+  const userStatuses = useMemo(() => userStatusesRaw, [userStatusesRaw]);
   const { checkBlockStatus } = useBlock();
   const checkBlockStatusRef = useRef(checkBlockStatus);
 
@@ -51,16 +52,15 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   const handleChatSelect = (chatId: string) => {
     onChatSelect(chatId);
     
-    // Mark messages as seen when selecting a chat
-    if (socket && messages[chatId]) {
+    // Mark messages as seen when selecting a chat (but don't emit to backend to avoid status changes)
+    if (messages[chatId]) {
       const unseenMessages = messages[chatId].filter(msg => 
         !msg.seenBy.includes(myUserId as string)
       );
       
       if (unseenMessages.length > 0) {
         const messageIds = unseenMessages.map(msg => msg._id);
-        socket.emit('chat:seen', { roomId: chatId, messageIds });
-        // Optimistically update Redux so badge disappears instantly
+        // Only update Redux locally, don't emit to backend
         dispatch(setSeen({ roomId: chatId, seen: messageIds, userId: myUserId as string, currentUserId: myUserId as string }));
       }
     }
@@ -107,60 +107,91 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     dislike: "/reactions/dislike.png",
   };
 
-  const resolveReactionUserMeta = (userId: User, members: ChatPreview['members']) => {
-    if (!userId) return { firstName: '', lastName: '', _id: '' } as User;
-    if (typeof userId === 'string') return members.find(m => m._id === userId) || { firstName: '', lastName: '', _id: userId, username: '', avatar: '' } as User;
-    return userId;
-  };
+  // const resolveReactionUserMeta = (userId: User, members: ChatPreview['members']) => {
+  //   if (!userId) return { firstName: '', lastName: '', _id: '' } as User;
+  //   if (typeof userId === 'string') return members.find(m => m._id === userId) || { firstName: '', lastName: '', _id: userId, username: '', avatar: '' } as User;
+  //   return userId;
+  // };
 
-  type LastActivity = {
-    latestType: 'message' | 'reaction' | null;
-    latestTime: number;
-    latestMessage: Message | null;
-    latestReaction: { userName: string; reaction: string; userId?: string; firstName?: string } | null;
-  };
-
-  const getLastActivity = (roomId: string, members: ChatPreview['members']): LastActivity => {
-    const roomMessages = messages[roomId] || [];
-    let latestType: 'message' | 'reaction' | null = null;
-    let latestTime = 0;
-    let latestMessage: Message | null = null;
-  let latestReaction: { userName: string; reaction: string; userId?: string; firstName?: string } | null = null;
-
-    roomMessages.forEach((m) => {
-      const msgTime = new Date(m.createdAt).getTime();
-      if (msgTime >= latestTime) {
-        latestTime = msgTime;
-        latestType = 'message';
-        latestMessage = m;
+  const getLastActivity = (roomId: string): LastActivity => {
+    const room = chatRooms.find(r => r._id === roomId);
+    console.log('🔍 getLastActivity for roomId:', roomId);
+    console.log('🔍 Found room:', room);
+    console.log('🔍 Room lastActivity:', room?.lastActivity);
+    
+    // 🎯 PRIORITY 1: Use backend's lastActivity if available
+    if (room?.lastActivity) {
+      console.log('✅ Using room.lastActivity from backend');
+      const lastActivity = room.lastActivity;
+      const activityTime = new Date(lastActivity.time).getTime();
+      
+      // Find the message for this activity
+      let latestMessage: Message | null = null;
+      
+      // Check if lastActivity contains the full message object (from backend)
+      if ((lastActivity as LastActivity).message) {
+        latestMessage = (lastActivity as LastActivity).message || null;
+      } else if (lastActivity.messageId && room.lastMessage?._id === lastActivity.messageId) {
+        latestMessage = room.lastMessage;
       }
-      if (Array.isArray(m.userReactions)) {
-        m.userReactions.forEach((ur: UserReaction) => {
-          const rt = new Date(ur.createdAt).getTime();
-          if (rt >= latestTime) {
-            latestTime = rt;
-            latestType = 'reaction';
-            const userMeta = resolveReactionUserMeta(ur.userId as User, members);
-            const fullName = `${userMeta.firstName || ''} ${userMeta.lastName || ''}`.trim() || 'Someone';
-            latestReaction = { userName: fullName, reaction: ur.reaction, userId: userMeta._id, firstName: userMeta.firstName };
-          }
-        });
+      
+      // If it's a reaction, create reaction info
+      let latestReaction: { userName: string; reaction: string; userId?: string; firstName?: string } | null = null;
+      if (lastActivity.type === 'reaction' && lastActivity.reaction && lastActivity.userId) {
+        // Handle userId as object from backend
+        const userId = typeof lastActivity.userId === 'string' ? lastActivity.userId : (lastActivity.userId as User)._id;
+        const userFirstName = typeof lastActivity.userId === 'string' ? '' : (lastActivity.userId as User).firstName;
+        // const userLastName = typeof lastActivity.userId === 'string' ? '' : (lastActivity.userId as User).lastName;
+        
+        // Check if it's the current user
+        if (userId === myUserId) {
+          latestReaction = {
+            userName: 'You',
+            reaction: lastActivity.reaction,
+            userId: userId,
+            firstName: 'You'
+          };
+        } else {
+          // Use the user info from lastActivity.userId object
+          const fullName = `${userFirstName || ''}`.trim() || 'Someone';
+          latestReaction = {
+            userName: fullName,
+            reaction: lastActivity.reaction,
+            userId: userId,
+            firstName: userFirstName
+          };
+        }
       }
-    });
-
-    return { latestType, latestTime, latestMessage, latestReaction };
+      
+      // If it's a message, set latestMessage from lastActivity.message
+      if (lastActivity.type === 'message' && (lastActivity as LastActivity).message) {
+        latestMessage = (lastActivity as LastActivity).message || null;
+      }
+      
+      return {
+        latestType: lastActivity.type,
+        latestTime: activityTime,
+        latestMessage,
+        latestReaction
+      };
+    }
+    
+    // If no lastActivity, return null (don't use fallback to avoid instability)
+    console.log('❌ No lastActivity found for roomId:', roomId);
+    return { latestType: null, latestTime: 0, latestMessage: null, latestReaction: null };
   };
 
   const renderLastPreview = (preview: ChatPreview) => {
-    const { latestType, latestMessage, latestReaction } = getLastActivity(preview._id, preview.members);
+    const activity = getLastActivity(preview._id);
+    const { latestType, latestMessage, latestReaction } = activity;
     if (!latestType) return 'No messages yet';
     if (latestType === 'reaction' && latestReaction) {
       const imageSrc = reactionImageMap[latestReaction.reaction] || "/reactions/like.png";
       const isMe = latestReaction.userId === myUserId;
-      const firstName = latestReaction.firstName || 'Someone';
+      const displayName = latestReaction.userName || 'Someone';
       return (
         <span className="inline-flex items-center gap-1">
-          {isMe ? 'You reacted' : `${firstName} reacted`}
+          {isMe ? 'You reacted' : `${displayName} reacted`}
           <Image src={imageSrc} alt={latestReaction.reaction} width={16} height={16} className="ms-1" />
         </span>
       );
@@ -216,7 +247,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
               </span>
             </div>
             {(() => {
-              const activity = getLastActivity(preview._id, preview.members);
+              const activity = getLastActivity(preview._id);
               return activity.latestTime ? (
                 <p className="text-xs text-muted-foreground">{formatTime(new Date(activity.latestTime))}</p>
               ) : null;
@@ -290,11 +321,12 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                   </span>
                 )}
               </p>
-              {preview.lastMessage && (
-                <p className="text-xs text-muted-foreground">
-                  {preview.lastMessage.createdAt ? formatTime(new Date(preview.lastMessage.createdAt)) : ""}
-                </p>
-              )}
+              {(() => {
+                const activity = getLastActivity(preview._id);
+                return activity.latestTime ? (
+                  <p className="text-xs text-muted-foreground">{formatTime(new Date(activity.latestTime))}</p>
+                ) : null;
+              })()}
             </div>
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground truncate">

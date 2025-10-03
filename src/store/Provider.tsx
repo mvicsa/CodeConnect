@@ -8,7 +8,7 @@ import { RootState, AppDispatch } from './store'
 import io from 'socket.io-client'
 import {
   setRooms, setMessages, addMessage, setTyping, setSeen, setError,
-  setConnected, deleteMessage, setHasMore, setUserStatus, updateMessage, updateMessageReactions
+  setConnected, deleteMessage, setHasMore, setUserStatus, updateMessage, updateMessageReactions, updateRoomLastActivity
 } from './slices/chatSlice'
 import { useSelector as useReduxSelector } from 'react-redux'
 import { addNotification, updateNotification, deleteNotification, clearNotifications, removeCommentNotifications, removeNotificationsByCriteria, removeMentionNotifications, setNotifications } from './slices/notificationsSlice';
@@ -21,6 +21,30 @@ import { Reactions } from '@/types/comments'
 import { ChatRoom, Message } from '@/types/chat'
 import { updateCommentReactions, updatePostReactions, UserReaction } from './slices/reactionsSlice'
 import { getAuthToken } from '@/lib/cookies'
+
+// Strongly-typed socket event payloads
+type LastActivityPayload = {
+  type: 'message' | 'reaction';
+  time: string;
+  messageId: string;
+  reaction?: string;
+  userId?: string; // keep as string for Redux serialization
+  message?: Message; // optional full message when provided by backend
+};
+
+type ChatNewMessageEvent =
+  | { message: Message; lastActivity?: LastActivityPayload }
+  | Message; // legacy format where the payload is the message itself
+
+type MessageReactionUpdateEvent = {
+  roomId: string;
+  message: {
+    _id: string;
+    reactions: Message['reactions'];
+    userReactions: Message['userReactions'];
+  };
+  lastActivity?: LastActivityPayload;
+};
 
 export const SocketContext = createContext<ReturnType<typeof io> | null>(null)
 
@@ -568,8 +592,53 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
       dispatch(addMessage({ roomId: msg.chatRoom, message: msg, currentUserId: user?._id }));
     });
 
-    newSocket.on('chat:new_message', (msg: Message) => {
-      dispatch(addMessage({ roomId: msg.chatRoom, message: msg, currentUserId: user?._id }));
+    newSocket.on('chat:new_message', (data: ChatNewMessageEvent) => {
+      console.log('🔍 chat:new_message received:', data);
+      
+      // Handle both new format (with lastActivity) and old format (just message)
+      if (data && typeof data === 'object' && 'message' in data && (data as { message: Message }).message.chatRoom) {
+        // New format with lastActivity
+        const payload = data as { message: Message; lastActivity?: LastActivityPayload };
+        dispatch(addMessage({ roomId: payload.message.chatRoom, message: payload.message, currentUserId: user?._id }));
+        
+        // 🎯 NEW: Update room's lastActivity if provided by backend
+        if (payload.lastActivity) {
+          console.log('🎯 Updating room lastActivity from new_message:', payload.lastActivity);
+          dispatch(updateRoomLastActivity({
+            roomId: payload.message.chatRoom,
+            lastActivity: payload.lastActivity
+          }));
+        } else {
+          console.log('❌ No lastActivity in new_message data. Applying client fallback.');
+          const fallback: LastActivityPayload = {
+            type: 'message',
+            time: payload.message.createdAt,
+            messageId: payload.message._id,
+            userId: payload.message.sender?._id,
+            message: payload.message,
+          };
+          dispatch(updateRoomLastActivity({
+            roomId: payload.message.chatRoom,
+            lastActivity: fallback,
+          }));
+        }
+      } else if (data && (data as Message).chatRoom) {
+        // Old format - data is the message itself
+        console.log('🔄 Using old format for chat:new_message');
+        const msg = data as Message;
+        dispatch(addMessage({ roomId: msg.chatRoom, message: msg, currentUserId: user?._id }));
+        // Fallback lastActivity for legacy payloads
+        const legacyFallback: LastActivityPayload = {
+          type: 'message',
+          time: msg.createdAt,
+          messageId: msg._id,
+          userId: msg.sender?._id,
+          message: msg,
+        };
+        dispatch(updateRoomLastActivity({ roomId: msg.chatRoom, lastActivity: legacyFallback }));
+      } else {
+        console.error('❌ Invalid chat:new_message data:', data);
+      }
     });
 
     newSocket.on('chat:typing', ({ roomId, userId, isTyping }: { roomId: string; userId: string; isTyping: boolean }) => {
@@ -592,14 +661,16 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
     });
 
     // Message reaction events
-    console.log('🎯 Setting up chat:react_message listener');
-    newSocket.on('chat:react_message', (data: { message: Message; userId: string; reaction: string; action: string; roomId: string }) => {
-      console.log('🎯 Received message reaction event in Provider:', data);
-      console.log('🎯 Current active room ID:', activeRoomId);
-      console.log('🎯 Event room ID:', data.roomId);
-      console.log('🎯 Room IDs match:', activeRoomId === data.roomId);
+    newSocket.on('chat:react_message', (data: MessageReactionUpdateEvent) => {
+      // 🔍 Check if backend is sending lastActivity
+      if (!data?.lastActivity) {
+        console.log('❌ Backend is NOT sending lastActivity! Applying client fallback.');
+      } else {
+        console.log('✅ Backend is sending lastActivity:', data.lastActivity);
+      }
       
-      if (data.message && data.message._id && data.roomId) {
+      // Check if data and required properties exist
+      if (data && data.message && data.message._id && data.roomId) {
         console.log('🎯 Updating message reactions in Redux:', {
           roomId: data.roomId,
           messageId: data.message._id,
@@ -612,23 +683,85 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
           reactions: data.message.reactions,
           userReactions: data.message.userReactions
         }));
+        
+        // 🎯 NEW: Update room's lastActivity if provided by backend
+        if (data.lastActivity) {
+          console.log('🎯 Updating room lastActivity from backend:', data.lastActivity);
+          dispatch(updateRoomLastActivity({
+            roomId: data.roomId,
+            lastActivity: data.lastActivity
+          }));
+        } else {
+          // ✅ Fallback: derive lastActivity from message.userReactions
+          const reactionsArray = Array.isArray(data.message.userReactions) ? data.message.userReactions : [];
+          if (reactionsArray.length > 0) {
+            const latest = reactionsArray.reduce((acc, curr) => {
+              const accTime = new Date(acc.createdAt).getTime();
+              const currTime = new Date(curr.createdAt).getTime();
+              return currTime > accTime ? curr : acc;
+            }, reactionsArray[0]);
+
+            // Resolve user id possibly embedded as object
+            const userIdValue = ((): string | undefined => {
+              const raw = (latest as unknown as { userId?: unknown }).userId as unknown;
+              if (!raw) return undefined;
+              if (typeof raw === 'string') return raw;
+              if (typeof raw === 'object' && raw !== null && '_id' in (raw as Record<string, unknown>)) {
+                const maybe = (raw as { _id?: unknown })._id;
+                return typeof maybe === 'string' ? maybe : undefined;
+              }
+              return undefined;
+            })();
+
+            const fallbackLastActivity: LastActivityPayload = {
+              type: 'reaction',
+              time: latest.createdAt || new Date().toISOString(),
+              messageId: data.message._id,
+              reaction: (latest as unknown as { reaction?: string }).reaction,
+              userId: userIdValue,
+            };
+            console.log('🎯 Updating room lastActivity (client fallback):', fallbackLastActivity);
+            dispatch(updateRoomLastActivity({
+              roomId: data.roomId,
+              lastActivity: fallbackLastActivity,
+            }));
+          }
+        }
+        
         console.log('🎯 Redux update dispatched');
       } else {
-        console.log('🎯 Missing required data:', {
-          hasMessage: !!data.message,
-          hasMessageId: !!(data.message && data.message._id),
-          hasRoomId: !!data.roomId
+        console.error('❌ Invalid chat:react_message data:', {
+          hasData: !!data,
+          hasMessage: !!(data && data.message),
+          hasMessageId: !!(data && data.message && data.message._id),
+          hasRoomId: !!(data && data.roomId),
+          data: data
         });
       }
     });
 
+    // Debounce timers for user status updates
+    const statusTimers: { [userId: string]: NodeJS.Timeout } = {};
+    
     // Listen for user:status events (online/offline)
     newSocket.on('user:status', ({ userId, status }: { userId: string; status: 'online' | 'offline' }) => {
-      dispatch(setUserStatus({ userId, status }));
+      console.log('🔍 user:status received from socket:', { userId, status });
+      
+      // Clear existing timer for this user
+      if (statusTimers[userId]) {
+        clearTimeout(statusTimers[userId]);
+      }
+      
+      // Set new timer to debounce rapid status changes
+      statusTimers[userId] = setTimeout(() => {
+        dispatch(setUserStatus({ userId, status }));
+        delete statusTimers[userId];
+      }, 300);
     });
 
     // Listen for user:status:all events (all currently online users)
     newSocket.on('user:status:all', ({ online }: { online: string[] }) => {
+      console.log('🔍 user:status:all received from socket:', { online });
       online.forEach(userId => {
         dispatch(setUserStatus({ userId, status: 'online' }));
       });
