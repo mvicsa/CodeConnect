@@ -277,7 +277,7 @@ export default function ArchiveDetail({ id }: ArchiveDetailProps) {
                                   </div>
                                 )}
                                 {comment.aiComment && (
-                                  <div className="border-l-4 border-primary pl-4 bg-primary/5 p-3 rounded-lg">
+                                  <div className="border-l-4 border-primary ps-4 bg-primary/5 p-3 rounded-lg">
                                     <h4 className="font-medium mb-2 text-primary">AI Evaluation</h4>
                                     <p className="text-sm text-muted-foreground">{comment.aiComment.evaluation}</p>
                                   </div>

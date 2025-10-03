@@ -215,7 +215,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                 {!isBlocked(user?._id || '') && !isBlockedBy(user?._id || '') && (
                   <span
                     className={
-                      `absolute bottom-2 left-5 w-5 h-5 rounded-full border-3 border-card ` +
+                      `absolute bottom-2 start-5 w-5 h-5 rounded-full border-3 border-card ` +
                       (status === 'online' ? 'bg-primary' : 'bg-gray-400')
                     }
                     title={status.charAt(0).toUpperCase() + status.slice(1)}

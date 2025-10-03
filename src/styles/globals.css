@@ -8,6 +8,24 @@
   --font-family: 'Jost', 'IBM Plex Sans Arabic';
 }
 
+html[dir="rtl"] {
+  [dir="ltr"] {
+    direction: rtl !important;
+  }
+
+  [data-radix-popper-content-wrapper][dir="ltr"] {
+    direction: ltr !important;
+  }
+
+  .lucide[class*="arrow"], .lucide[class*="chevron"] {
+    transform: scaleX(-1);
+  }
+}
+
+.direction-ltr {
+  direction: ltr !important;
+}
+
 body {
   font-family: var(--font-family);
   overflow-wrap: anywhere;

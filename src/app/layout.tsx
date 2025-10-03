@@ -1,11 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans_Arabic, Jost } from "next/font/google";
-import { NextIntlClientProvider } from "next-intl";
 import "@/styles/globals.css";
-import { ThemeProvider } from "@/components/ThemeProvider";
-import ReduxProvider from "@/store/Provider";
-import { RtlProvider } from "@/components/RtlProvider";
-import { Toaster } from "@/components/ui/sonner";
 
 const jost = Jost({
   variable: "--font-jost",
@@ -24,51 +19,19 @@ export const metadata: Metadata = {
     "A platform for collaborative coding and learning together with friends. Share your code, learn from others. Join the community!",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
-  params,
 }: Readonly<{
   children: React.ReactNode;
-  params: Promise<{ locale: string }>;
 }>) {
-  let locale = (await params).locale;
-  const supportedLocales = ["en", "ar"];
-
-  if (!locale || !supportedLocales.includes(locale)) locale = "en";
-
-  let messages;
-  try {
-    messages = (await import(`@/messages/${locale}.json`)).default;
-  } catch (error) {
-    console.log(error);
-    messages = (await import(`@/messages/en.json`)).default;
-  }
-
   return (
-    <html
-      lang={locale}
-      dir={locale === "ar" ? "rtl" : "ltr"}
-      suppressHydrationWarning
-    >
+    <html suppressHydrationWarning>
       <head>
         <link rel="alternate" hrefLang="en" href="/en" />
         <link rel="alternate" hrefLang="ar" href="/ar" />
       </head>
       <body className={`${ibmPlexSansArabic.variable} ${jost.variable}`}>
-        <NextIntlClientProvider
-          key={locale}
-          locale={locale}
-          messages={messages}
-        >
-          <ReduxProvider>
-            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-              <RtlProvider>
-                {children}
-                <Toaster />
-              </RtlProvider>
-            </ThemeProvider>
-          </ReduxProvider>
-        </NextIntlClientProvider>
+        {children}
       </body>
     </html>
   );

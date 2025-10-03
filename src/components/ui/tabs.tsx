@@ -51,15 +51,12 @@ function TabsList({
   className,
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.List>) {
-  const isRtl = useRtlDetection()
   
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
-      dir="ltr"
       className={cn(
         "bg-card text-card-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]",
-        isRtl ? "flex-row-reverse" : "",
         className
       )}
       {...props}

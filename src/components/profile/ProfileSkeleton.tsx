@@ -40,7 +40,7 @@ export const ProfileHeaderSkeleton = ({ className = '' }: { className?: string }
           <Skeleton className="w-35 h-35 rounded-full border-6 border-card" />
           
           {/* Online Status Dot */}
-          <Skeleton className="absolute bottom-2 left-5 w-5 h-5 rounded-full" />
+          <Skeleton className="absolute bottom-2 start-5 w-5 h-5 rounded-full" />
           
           {/* Edit Avatar Button (for own profile) */}
           <div className="absolute bottom-0 right-0">

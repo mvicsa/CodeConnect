@@ -396,12 +396,12 @@ const NotificationPage = () => {
 
                     {/* Search Input */}
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Search notifications..."
                             value={searchTerm}
                             onChange={handleSearchChange}
-                            className="pl-10"
+                            className="ps-10"
                             aria-label="Search notifications"
                         />
                     </div>
@@ -468,7 +468,7 @@ const NotificationPage = () => {
                                                                     <AvatarImage className='rounded-full object-cover w-full h-full' src={notification.fromUserId?.avatar || '/user.png'} />
                                                                     <AvatarFallback>{notification.fromUserId?.firstName?.charAt(0).toUpperCase()}</AvatarFallback>
                                                                 </Avatar>
-                                                                <div className="absolute -bottom-1 -right-1 p-1 rounded-full bg-muted flex items-center">
+                                                                <div className="absolute -bottom-1 -end-1 p-1 rounded-full bg-muted flex items-center">
                                                                 { reactionImage ? reactionImage : <IconComponent className="h-3 w-3" /> }
                                                                 </div>
                                                             </div>
@@ -480,7 +480,7 @@ const NotificationPage = () => {
                                                     </div>
 
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-1 text-xs text-muted-foreground absolute top-3 right-3">
+                                                        <div className="flex items-center gap-1 text-xs text-muted-foreground absolute top-3 end-3">
                                                         <Clock className="h-3 w-3" />
                                                         <span>
                                                             {formatTime(notification.createdAt)}

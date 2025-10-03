@@ -15,7 +15,7 @@ export default function MobileMenu({
   setActiveIndex,
 }: activeMenuProps) {
   return (
-    <nav className="fixed flex justify-center bottom-0 left-0 w-full bg-background h-16 z-50 border-t lg:hidden">
+    <nav className="fixed flex justify-center bottom-0 start-0 w-full bg-background h-16 z-50 border-t lg:hidden">
       <NavigationMenu>
         <NavigationMenuList className="flex flex-row justify-between items-center">
           {navItems.map((item, index) => {

@@ -701,7 +701,7 @@ export default function CommentItem({
               className="reply-item relative"
             >
               {highlightedReplyId === replyData._id && showHighlight && (
-                <div className="absolute top-[-0.5rem] left-[-0.5rem] w-[calc(100%+1rem)] h-[calc(100%+1rem)] bg-primary/10 z-1 border-s-2 border-primary transition-opacity duration-500 rounded-lg"></div>
+                <div className="absolute top-[-0.5rem] start-[-0.5rem] w-[calc(100%+1rem)] h-[calc(100%+1rem)] bg-primary/10 z-1 border-s-2 border-primary transition-opacity duration-500 rounded-lg"></div>
               )}
               <CommentItem
                 comment={replyData}

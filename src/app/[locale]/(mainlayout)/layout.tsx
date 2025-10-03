@@ -2,7 +2,7 @@
 import { MainNavBar } from "@/components/layout/navigation/MainNavBar";
 import React from "react";
 
-export default async function RootLayout({
+export default function MainLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;

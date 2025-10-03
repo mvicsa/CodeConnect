@@ -82,7 +82,7 @@ const NotFoundPage: React.FC = () => {
                                         <div className="w-80 h-6 bg-gradient-to-r from-muted to-muted/80 rounded-xl shadow-lg transform perspective-1000 rotate-x-45 border border-border/50"></div>
 
                                         {/* Keyboard Keys */}
-                                        <div className="absolute top-1 left-4 right-4 flex flex-wrap gap-1">
+                                        <div className="absolute top-1 start-4 end-4 flex flex-wrap gap-1">
                                             {[...Array(24)].map((_, i) => (
                                                 <div
                                                     key={i}
@@ -100,7 +100,7 @@ const NotFoundPage: React.FC = () => {
                                             {/* Screen Content */}
                                             <div className="w-full h-full bg-gradient-to-br from-destructive/30 to-destructive/40 rounded-xl relative overflow-hidden shadow-inner">
                                                 {/* 404 Dialog Box */}
-                                                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                                                <div className="absolute top-1/2 start-1/2 transform -translate-x-1/2 -translate-y-1/2">
                                                     <div className="bg-gradient-to-br from-background/90 to-background/80 rounded-lg p-6 shadow-xl min-w-32 border border-border">
                                                         {/* Close Button */}
                                                         <div className="flex justify-end mb-2">
@@ -130,7 +130,7 @@ const NotFoundPage: React.FC = () => {
                                         </div>
 
                                         {/* CD/DVD Tray */}
-                                        <div className="absolute -bottom-2 left-2 w-16 h-3 bg-gradient-to-r from-orange-300 to-orange-400 rounded-r-lg shadow-md border-r border-t border-orange-400/50"></div>
+                                        <div className="absolute -bottom-2 start-2 w-16 h-3 bg-gradient-to-r from-orange-300 to-orange-400 rounded-r-lg shadow-md border-r border-t border-orange-400/50"></div>
                                     </div>
                                 </div>
 
@@ -142,15 +142,15 @@ const NotFoundPage: React.FC = () => {
                                         <div className="absolute -right-3 top-4 w-6 h-8 border-4 border-orange-400 rounded-r-full"></div>
 
                                         {/* Coffee Surface */}
-                                        <div className="absolute top-2 left-2 right-2 h-3 bg-gradient-to-r from-amber-800 to-amber-900 rounded-lg shadow-inner border border-amber-700/20"></div>
+                                        <div className="absolute top-2 start-2 right-2 h-3 bg-gradient-to-r from-amber-800 to-amber-900 rounded-lg shadow-inner border border-amber-700/20"></div>
 
                                         {/* Floating sphere on coffee */}
-                                        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-gradient-to-br from-pink-300 to-orange-300 rounded-full animate-bounce shadow-lg border border-pink-400/30"
+                                        <div className="absolute -top-2 start-1/2 transform -translate-x-1/2 w-4 h-4 bg-gradient-to-br from-pink-300 to-orange-300 rounded-full animate-bounce shadow-lg border border-pink-400/30"
                                             style={{ animationDuration: '2s', animationDelay: '1s' }}></div>
                                     </div>
 
                                     {/* Steam Animation */}
-                                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
+                                    <div className="absolute -top-8 start-1/2 transform -translate-x-1/2">
                                         {[...Array(4)].map((_, i) => (
                                             <div
                                                 key={i}

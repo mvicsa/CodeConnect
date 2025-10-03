@@ -422,10 +422,10 @@ export default function PostForm({ mode, post, onCancel, onSuccess, className = 
             value={content.text}
             onChange={(e) => handleTextChange(e.target.value)}
             placeholder="What's on your mind?"
-            className="resize-none min-h-[100px] max-h-[200px] pr-10"
+            className="resize-none min-h-[100px] max-h-[200px] pe-10"
             autoComplete='off'
           />
-          <div className="absolute bottom-2 right-2">
+          <div className="absolute bottom-2 end-2">
             <EmojiMenu
               onEmojiSelect={handleEmojiSelect}
               position="top"

@@ -122,13 +122,13 @@ const ChatInterface: React.FC = () => {
     <div className="flex h-screen w-full bg-background overflow-hidden">
       {/* Connection status */}
       {!isConnected && (
-        <div className="absolute top-0 left-0 right-0 bg-destructive text-destructive-foreground p-2 text-center">
+        <div className="absolute top-0 start-0 end-0 bg-destructive text-destructive-foreground p-2 text-center">
         </div>
       )}
 
       {/* Error message */}
       {error && (
-        <div className="absolute top-0 left-0 right-0 bg-destructive text-destructive-foreground p-2 text-center">
+        <div className="absolute top-0 start-0 end-0 bg-destructive text-destructive-foreground p-2 text-center">
           {error}
         </div>
       )}

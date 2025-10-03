@@ -1505,7 +1505,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             
             {/* File Upload Menu - WhatsApp Style */}
              {isFileMenuOpen && (
-               <div data-file-menu className="absolute bottom-full left-0 mb-2 bg-background border rounded-xl shadow-xl p-3 z-50 min-w-[220px]">
+               <div data-file-menu className="absolute bottom-full start-0 mb-2 bg-background border rounded-xl shadow-xl p-3 z-50 min-w-[220px]">
                  <div className="space-y-2">
                    {/* Photo & Video */}
                    <button

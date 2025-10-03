@@ -87,20 +87,11 @@ function DialogContent({
 }
 
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
-  const [isRtl, setIsRtl] = React.useState(false)
-
-  React.useEffect(() => {
-    if (typeof document !== 'undefined') {
-      setIsRtl(document.documentElement.dir === 'rtl')
-    }
-  }, [])
-
   return (
     <div
       data-slot="dialog-header"
       className={cn(
-        "flex flex-col gap-2 text-center", 
-        isRtl ? "sm:text-right" : "sm:text-left", 
+        "flex flex-col gap-2 text-center sm:text-start",
         className
       )}
       {...props}

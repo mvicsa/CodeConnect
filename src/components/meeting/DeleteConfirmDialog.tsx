@@ -23,7 +23,7 @@ export const DeleteConfirmDialog = ({
   onOpenChange, 
   onConfirm, 
 }: DeleteConfirmDialogProps) => {
-  const t = useTranslations("meeting");
+  const t = useTranslations();
   const [isDeleting, setIsDeleting] = useState(false);
   
   useEffect(() => {

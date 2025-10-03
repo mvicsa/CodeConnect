@@ -198,13 +198,13 @@ export default function SearchPage() {
           <div className="flex flex-col sm:flex-row gap-4">
             {/* Search Input */}
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
                 type="text"
                 placeholder="Search posts and users..."
                 value={inputValue}
                 onChange={handleInputChange}
-                className="w-full h-12 pl-10 pr-4 py-3 bg-card border border-border rounded-2xl focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent text-foreground placeholder:text-muted-foreground"
+                className="w-full h-12 ps-10 pe-4 py-3 bg-card border border-border rounded-2xl focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent text-foreground placeholder:text-muted-foreground"
                 aria-label="Search input"
               />
             </div>

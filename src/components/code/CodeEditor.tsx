@@ -317,7 +317,7 @@ export default function CodeEditor({
       </div>
       
       {/* Monaco Editor */}
-      <div className="rounded-lg">
+      <div className="rounded-lg direction-ltr">
         <Editor
           height={height}
           defaultLanguage={getMonacoLanguage(language)}

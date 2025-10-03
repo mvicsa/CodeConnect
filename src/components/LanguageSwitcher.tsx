@@ -21,7 +21,7 @@ const LanguageSwitcher = () => {
   ];
 
   return (
-    <div className="hidden">
+    <div>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="icon">

@@ -938,7 +938,7 @@ export const EmojiMenu: React.FC<EmojiMenuProps> = ({
               placeholder="Search emojis..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="ps-9"
             />
           </div>
         </div>

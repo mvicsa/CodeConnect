@@ -391,7 +391,7 @@ export default function ReactionsMenu({
               </span>
             </div>
           </DialogTrigger>
-          <DialogContent className="max-w-md" dir="rtl">
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Reactions</DialogTitle>
             </DialogHeader>
