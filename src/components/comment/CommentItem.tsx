@@ -52,6 +52,7 @@ import { AIEvaluation } from '@/types/ai'
 import { getAuthToken } from '@/lib/cookies';
 import { formatDate } from 'date-fns'
 import CommentSkeleton from './CommentSkeleton'
+import { REPLY_LIMIT } from '@/constants/comments';
 
 
 // Define CommentContent type
@@ -156,6 +157,22 @@ export default function CommentItem({
     }
   }, [comment]);
 
+  // Auto-hide highlight after 2 seconds
+  const [shouldShowHighlight, setShouldShowHighlight] = useState(true);
+  
+  useEffect(() => {
+    if (highlightedReplyId) {
+      setShouldShowHighlight(true);
+      const timer = setTimeout(() => {
+        setShouldShowHighlight(false);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    } else {
+      setShouldShowHighlight(true); // Reset when no highlight
+    }
+  }, [highlightedReplyId]);
+
   const isReply = !!comment.parentCommentId
   const rootCommentId = rootId || String(commentId)
   const { user } = useSelector((state: RootState) => state.auth)
@@ -259,14 +276,18 @@ export default function CommentItem({
     if (!showReplies) {
       // First time loading replies
       if (has_id(comment)) {
+        // Get parent comment ID for highlighted reply - use a simpler approach
+        // If we have a highlighted reply and this comment is likely its parent (based on typical structure)
+        const shouldHighlightReply = highlightedReplyId && 
+          (comment._id === highlightedReplyId?.substring(0, comment._id.length) || // Basic pattern matching
+           highlightedReplyId.startsWith(comment._id.substring(0, 8))); // Common ID structure
+        
         setIsLoadingReplies(true);
         dispatch(fetchReplies({ 
           parentCommentId: comment._id, 
           offset: 0, 
-          limit: 2,
-          highlight: highlightedReplyId && comment._id === filteredReplies.find(r => r._id === highlightedReplyId)?.parentCommentId 
-            ? highlightedReplyId 
-            : undefined
+          limit: REPLY_LIMIT,
+          highlight: shouldHighlightReply ? highlightedReplyId : undefined
         }))
           .unwrap()
           .then((result) => {
@@ -279,7 +300,7 @@ export default function CommentItem({
             });
             
             setShowReplies(true);
-            setVisibleReplies(2);
+            setVisibleReplies(REPLY_LIMIT);
           })
           .catch(error => {
             console.error('Failed to fetch replies:', error);
@@ -290,22 +311,27 @@ export default function CommentItem({
       }
     } else {
       // Loading more replies from API
+      // Use the same simple approach for highlight detection
+      // const shouldHighlightReply = highlightedReplyId && 
+      //   (comment._id === highlightedReplyId?.substring(0, comment._id.length) || // Basic pattern matching
+      //    highlightedReplyId.startsWith(comment._id.substring(0, 8))); // Common ID structure
+      
       setIsLoadingMore(true);
-      const currentLoadedCount = filteredReplies.length; // Use actual loaded count
-      // const totalRepliesCount = (comment as Comment).repliesCount || 0;
-      const loadMoreCount = 4; // Always load 2 replies
+      // Calculate offset based on the number of replies already loaded in Redux
+      const currentLoadedCount = isCommentWithReplies(comment) ? comment.replies.length : 0;
+      const loadMoreCount = REPLY_LIMIT; // Load 2 replies at a time
       
       dispatch(fetchReplies({ 
         parentCommentId: comment._id, 
         offset: currentLoadedCount, 
         limit: loadMoreCount,
-        highlight: highlightedReplyId && comment._id === filteredReplies.find(r => r._id === highlightedReplyId)?.parentCommentId 
-          ? highlightedReplyId 
-          : undefined
+        highlight: highlightedReplyId // Always send highlight if it exists
       }))
         .unwrap()
-        .then(() => {
-          setVisibleReplies(prev => prev + loadMoreCount);
+        .then((result) => {
+          // Use the actual number of replies loaded from the API response
+          const actualLoadedCount = result.replies.length; 
+          setVisibleReplies(prev => prev + actualLoadedCount);
           setIsLoadingMore(false);
         })
         .catch(error => {
@@ -785,7 +811,7 @@ export default function CommentItem({
               id={`comment-${replyData._id}`}
               className="reply-item relative"
             >
-              {replyData.isHighlighted && showHighlight && (
+              {replyData.isHighlighted && replyData._id === highlightedReplyId && shouldShowHighlight && (
                 <div className="absolute top-[-0.5rem] left-[-0.5rem] w-[calc(100%+1rem)] h-[calc(100%+1rem)] bg-primary/10 z-1 border-s-2 border-primary transition-opacity duration-500 rounded-lg"></div>
               )}
               <CommentItem
@@ -831,10 +857,7 @@ export default function CommentItem({
           {/* Show loading skeleton after button */}
           {(isLoadingReplies || isLoadingMore) && (
             <CommentSkeleton 
-              count={isLoadingMore 
-                ? Math.min(2, Math.max(0, (comment as Comment).repliesCount || 0 - filteredReplies.length)) 
-                : 2
-              }
+              count={ Math.max(0, ((comment as Comment).repliesCount || 0) - filteredReplies.length) > REPLY_LIMIT ? REPLY_LIMIT : Math.max(0, ((comment as Comment).repliesCount || 0) - filteredReplies.length) }
             />
           )}
         </div>

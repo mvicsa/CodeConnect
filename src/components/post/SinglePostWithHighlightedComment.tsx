@@ -11,17 +11,12 @@ import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { fetchComments, getCommentContext, fetchReplies } from '@/store/slices/commentsSlice';
 import { fetchPostById } from '@/store/slices/postsSlice';
 import PostSkeleton from './PostSkeleton';
+import { COMMENT_LIMIT, REPLY_LIMIT } from '@/constants/comments';
 
 interface SinglePostWithHighlightedCommentProps {
   postId: string;
   highlightedCommentId?: string;
   highlightedReplyId?: string;
-}
-
-declare global {
-  interface Window {
-    commentScrolled?: boolean;
-  }
 }
 
 export default function SinglePostWithHighlightedComment({ 
@@ -37,6 +32,7 @@ export default function SinglePostWithHighlightedComment({
   const [error, setError] = useState<string | null>(null);
   const [parentCommentId, setParentCommentId] = useState<string | null>(null);
   const [targetIdType, setTargetIdType] = useState<'comment' | 'reply' | null>(null);
+  const [hasScrolled, setHasScrolled] = useState(false);
   
   // Get the ID we're looking for (either comment or reply)
   const targetId = highlightedCommentId || highlightedReplyId;
@@ -45,6 +41,11 @@ export default function SinglePostWithHighlightedComment({
   const { posts } = useSelector((state: RootState) => state.posts);
   const { comments } = useSelector((state: RootState) => state.comments);
   
+  // Reset scroll flag when targetId changes
+  useEffect(() => {
+    setHasScrolled(false);
+  }, [targetId]);
+
   // Step 1: Load the post first
   useEffect(() => {
     const loadPost = async () => {
@@ -99,7 +100,7 @@ export default function SinglePostWithHighlightedComment({
               await dispatch(fetchComments({ 
                 postId, 
                 offset: 0, 
-                limit: 3, // Normal comments load
+                limit: COMMENT_LIMIT, // Normal comments load
                 highlight: context.parentComment._id // Highlight the parent comment
               }));
               
@@ -107,15 +108,18 @@ export default function SinglePostWithHighlightedComment({
               await dispatch(fetchReplies({ 
                 parentCommentId: context.parentComment._id, 
                 offset: 0, 
-                limit: 2, // Small limit - backend will add highlighted reply to this
+                limit: REPLY_LIMIT, // Small limit - backend will add highlighted reply to this
                 highlight: context.parentComment._id === context.comment.parentCommentId ? targetId : undefined
               }));
+
+              console.log('🔥 Parent comment:', context.parentComment);
+
             } else {
               // For highlighted comment: normal load
               await dispatch(fetchComments({ 
                 postId, 
                 offset: 0, 
-                limit: 3, // Normal limit - backend will add highlighted comment to this
+                limit: COMMENT_LIMIT, // Normal limit - backend will add highlighted comment to this
                 highlight: targetId 
               }));
             }
@@ -123,11 +127,11 @@ export default function SinglePostWithHighlightedComment({
           } catch (error) {
             console.error('Comment context not found:', error);
             // Fallback: load normal comments
-            await dispatch(fetchComments({ postId, offset: 0, limit: 3 }));
+            await dispatch(fetchComments({ postId, offset: 0, limit: COMMENT_LIMIT }));
           }
         } else {
           // No highlighting needed
-          await dispatch(fetchComments({ postId, offset: 0, limit: 3 }));
+          await dispatch(fetchComments({ postId, offset: 0, limit: COMMENT_LIMIT }));
         }
       } catch (err) {
         console.error('Error loading comments:', err);
@@ -158,22 +162,17 @@ export default function SinglePostWithHighlightedComment({
 
   // Scroll to the target element when it's loaded
   useEffect(() => {
-    if (!postLoading && !commentsLoading && targetId) {
+    if (!postLoading && !commentsLoading && targetId && !hasScrolled) {
       const scrollToHighlightedComment = () => {
         const elementId = `comment-${targetId}`;
         const element = document.getElementById(elementId);
         
         if (element) {
-          // Scroll to the element only once
-          if (!window.commentScrolled) {
-            element.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'center' 
-            });
-            
-            // Mark as scrolled to prevent future scrolls
-            window.commentScrolled = true;
-          }
+          element.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          });
+          setHasScrolled(true);
         }
       };
 
@@ -182,7 +181,7 @@ export default function SinglePostWithHighlightedComment({
       
       return () => clearTimeout(timer);
     }
-  }, [postLoading, commentsLoading, targetId]);
+  }, [postLoading, commentsLoading, targetId, hasScrolled]);
 
   // Show loading state only during initial post loading
   if (postLoading) {
@@ -242,4 +241,4 @@ export default function SinglePostWithHighlightedComment({
       />
     </div>
   );
-} 
+}

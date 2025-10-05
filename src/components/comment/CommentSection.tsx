@@ -13,6 +13,7 @@ import CommentAI from './CommentAI'
 import { useBlock } from '@/hooks/useBlock'
 import CommentSkeleton from './CommentSkeleton'
 import { Comment } from '@/types/comments'
+import { COMMENT_LIMIT } from '@/constants/comments';
 
 interface CommentSectionProps {
   postId: string;
@@ -47,7 +48,7 @@ const CommentSection = memo(function CommentSection({
   const [mentionUser, setMentionUser] = useState('')
   // Get visibleComments from Redux store or default to 3
   const currentPostComments = comments.filter(comment => comment.postId === postId);
-  const visibleComments = Math.min(visibleCounts[postId] || 3, Math.max(currentPostComments.length, 3));
+  const visibleComments = Math.min(visibleCounts[postId] || COMMENT_LIMIT, Math.max(currentPostComments.length, COMMENT_LIMIT));
   const [showHighlight, setShowHighlight] = useState(true)
   // const [parentCommentId, setParentCommentId] = useState<string | null>(parentCommentIdProp || null)
   const [isLoadingComments, setIsLoadingComments] = useState(false)
@@ -163,7 +164,7 @@ const CommentSection = memo(function CommentSection({
       setIsLoadingComments(true);
       setShowSkeleton(true);
       
-      dispatch(fetchComments({ postId, offset: 0, limit: 3 })) // initial load
+      dispatch(fetchComments({ postId, offset: 0, limit: COMMENT_LIMIT })) // initial load
         .unwrap()
         .then(() => {
           setIsLoadingComments(false);
@@ -258,25 +259,28 @@ const CommentSection = memo(function CommentSection({
     
     // Calculate offset based on loaded comments
     let currentLoadedCount = currentPostComments.length;
-    let excludeCommentId;
+    let parentCommentIdForHighlight;
     
     if (highlightedReplyId) {
-      // For highlighted reply: send the reply ID so backend knows it's a highlighted reply route
-      excludeCommentId = highlightedReplyId;
+      // For highlighted reply: find the parent comment that contains the highlighted reply
+      const parentComment = currentPostComments.find(comment => 
+        comment.replies?.some(reply => reply._id === highlightedReplyId)
+      );
+      parentCommentIdForHighlight = parentComment?._id;
       // Adjust offset because parent comment was added extra to the initial load
       currentLoadedCount = Math.max(0, currentLoadedCount - 1);
     } else if (highlightedCommentId) {
-      // For highlighted comment: exclude the highlighted comment
-      excludeCommentId = highlightedCommentId;
+      // For highlighted comment: use the comment ID itself
+      parentCommentIdForHighlight = highlightedCommentId;
     }
     
     
-    // Fetch more comments from API with highlight parameter for exclusion
+    // Fetch more comments from API with highlight parameter
     dispatch(fetchComments({ 
       postId, 
       offset: currentLoadedCount, 
-      limit: 3,
-      highlight: excludeCommentId // Backend will exclude this from pagination results
+      limit: COMMENT_LIMIT,
+      highlight: parentCommentIdForHighlight // Send parentCommentId for proper highlighting
     }))
       .unwrap()
       .then(() => {
