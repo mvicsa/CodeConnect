@@ -113,8 +113,10 @@ export default function CommentItem({
     codeLang: comment.codeLang || '',
   })
   const [showReplies, setShowReplies] = useState(() => {
-    // Check if replies are already loaded
-    return isCommentWithReplies(comment) && comment.replies && comment.replies.length > 0;
+    // Check if replies are already loaded OR if there's a highlighted reply in this comment
+    const hasLoadedReplies = isCommentWithReplies(comment) && comment.replies && comment.replies.length > 0;
+    const hasHighlightedReply = isCommentWithReplies(comment) && comment.replies?.some(reply => reply.isHighlighted);
+    return hasLoadedReplies || hasHighlightedReply;
   })
   const [visibleReplies, setVisibleReplies] = useState(() => {
     // Set initial visible replies based on loaded replies
@@ -138,6 +140,13 @@ export default function CommentItem({
         });
     }
   }, [comment, commentId]);
+
+  // Open replies section if there's a highlighted reply
+  useEffect(() => {
+    if (isCommentWithReplies(comment) && comment.replies?.some(reply => reply.isHighlighted)) {
+      setShowReplies(true);
+    }
+  }, [comment]);
 
   // Update showReplies when replies are loaded
   useEffect(() => {
@@ -194,14 +203,30 @@ export default function CommentItem({
       .filter((reply) => !isBlocked(reply.createdBy._id)) as Reply[];
   }, [comment, visibleReplies, isBlocked]);
 
+  // Get replies count from Redux store
+  const parentId = isReply ? rootCommentId : String(commentId);
+  const repliesTotalFromStore = useSelector((state: RootState) => state.comments.totalCounts?.[parentId] ?? 0);
+  const hasMoreFromStore = useSelector((state: RootState) => state.comments.hasMore?.[parentId] ?? false);
+  
+  // Calculate effective replies count - use backend count first, then store count
+  const effectiveRepliesCount = ((comment as Comment).repliesCount ?? repliesTotalFromStore ?? 0);
+
   // Check if there are more replies to load (after filtering blocked users)
   const filteredReplies = isCommentWithReplies(comment) && comment.replies 
     ? comment.replies.filter((reply) => reply && !isBlocked(reply.createdBy._id))
     : [];
-  const hasMoreReplies = isCommentWithReplies(comment) && (
-    filteredReplies.length > visibleRepliesList.length || 
-    (!showReplies && (comment.repliesCount || 0) > 0)
+  const hasMoreReplies = (
+    // Show button if replies are not loaded yet and there are replies to show
+    (!showReplies && effectiveRepliesCount > 0) ||
+    // Or if replies are loaded but there are more to show
+    (showReplies && (
+      hasMoreFromStore || // Backend says there are more
+      effectiveRepliesCount > filteredReplies.length || // Total count > loaded count
+      filteredReplies.length > visibleRepliesList.length // Loaded > visible
+    ))
   );
+
+  const replyFormRef = useRef<HTMLDivElement>(null)
 
   const handleReplyClick = () => {
     // If this is a reply, trigger the reply form on the parent comment
@@ -211,32 +236,21 @@ export default function CommentItem({
     } else {
       setMentionUser((hasCreatedBy(comment) ? comment.createdBy?.username : '') || '')
       setActiveReplyId(String(commentId))
-      
-      // Load replies if not already loaded
-      if (isCommentWithReplies(comment) && !showReplies) {
-        setIsLoadingReplies(true);
-        dispatch(fetchReplies(comment._id))
-          .unwrap()
-          .then((replies) => {
-            // Check block status for reply authors
-            const replyAuthorIds = replies.map(reply => reply.createdBy._id).filter(Boolean);
-            replyAuthorIds.forEach(authorId => {
-              if (authorId) {
-                checkBlockStatusRef.current(authorId);
-              }
-            });
-            
-            setShowReplies(true);
-            setVisibleReplies(2);
-          })
-          .catch(error => {
-            console.error('Failed to fetch replies:', error);
-          })
-          .finally(() => {
-            setIsLoadingReplies(false);
-          });
-      }
     }
+
+    // Scroll to reply form with smooth behavior
+    setTimeout(() => {
+      // Find the reply form in the parent comment
+      const parentCommentElement = document.getElementById(`comment-${rootCommentId}`);
+      const replyFormInParent = parentCommentElement?.querySelector('[data-reply-form="true"]');
+      
+      if (replyFormInParent) {
+        replyFormInParent.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+      }
+    }, 100); // Small delay to ensure state update completes
   }
 
   const shouldShowReplyForm = !isReply && activeReplyId === String(commentId)
@@ -246,11 +260,18 @@ export default function CommentItem({
       // First time loading replies
       if (has_id(comment)) {
         setIsLoadingReplies(true);
-        dispatch(fetchReplies(comment._id))
+        dispatch(fetchReplies({ 
+          parentCommentId: comment._id, 
+          offset: 0, 
+          limit: 2,
+          highlight: highlightedReplyId && comment._id === filteredReplies.find(r => r._id === highlightedReplyId)?.parentCommentId 
+            ? highlightedReplyId 
+            : undefined
+        }))
           .unwrap()
-          .then((replies) => {
+          .then((result) => {
             // Check block status for reply authors
-            const replyAuthorIds = replies.map(reply => reply.createdBy._id).filter(Boolean);
+            const replyAuthorIds = result.replies.map(reply => reply.createdBy._id).filter(Boolean);
             replyAuthorIds.forEach(authorId => {
               if (authorId) {
                 checkBlockStatusRef.current(authorId);
@@ -268,13 +289,29 @@ export default function CommentItem({
           });
       }
     } else {
-      // Loading more replies
+      // Loading more replies from API
       setIsLoadingMore(true);
-      // Simulate loading delay for better UX
-      setTimeout(() => {
-        setVisibleReplies(prev => prev + 2);
-        setIsLoadingMore(false);
-      }, 500);
+      const currentLoadedCount = filteredReplies.length; // Use actual loaded count
+      // const totalRepliesCount = (comment as Comment).repliesCount || 0;
+      const loadMoreCount = 4; // Always load 2 replies
+      
+      dispatch(fetchReplies({ 
+        parentCommentId: comment._id, 
+        offset: currentLoadedCount, 
+        limit: loadMoreCount,
+        highlight: highlightedReplyId && comment._id === filteredReplies.find(r => r._id === highlightedReplyId)?.parentCommentId 
+          ? highlightedReplyId 
+          : undefined
+      }))
+        .unwrap()
+        .then(() => {
+          setVisibleReplies(prev => prev + loadMoreCount);
+          setIsLoadingMore(false);
+        })
+        .catch(error => {
+          console.error('Failed to load more replies:', error);
+          setIsLoadingMore(false);
+        });
     }
   }
 
@@ -348,7 +385,7 @@ export default function CommentItem({
         
         // If this is a reply, fetch the parent comment's replies again to ensure UI updates
         if (isReply && rootCommentId) {
-          dispatch(fetchReplies(rootCommentId))
+          dispatch(fetchReplies({ parentCommentId: rootCommentId, offset: 0, limit: 10 }))
         }
       } catch (error) {
         console.error('Error editing comment/reply:', error)
@@ -703,12 +740,15 @@ export default function CommentItem({
               currentUserId={user?._id as string || ''}
             />
             { user && (
-              <button onClick={handleReplyClick} className="flex items-center hover:text-foreground transition-all duration-300 gap-1 cursor-pointer">
+              <button onClick={() => handleReplyClick()} className="flex items-center hover:text-foreground transition-all duration-300 gap-1 cursor-pointer">
                 <ReplyIcon className="size-4" /> 
-                {isCommentWithReplies(comment) && (
-                  filteredReplies.length > 0 ? filteredReplies.length : 
-                  (comment.repliesCount && comment.repliesCount > 0 ? comment.repliesCount : '')
-                )}
+                {(() => {
+                  // Use effective replies count from Redux or backend
+                  const repliesCount = effectiveRepliesCount;
+                  const aiCount = comment.hasAiEvaluation ? 1 : 0;
+                  const totalCount = repliesCount + aiCount;
+                  return totalCount > 0 ? totalCount : '';
+                })()}
               </button>
             )}
             <Link href={`/posts/${comment.postId}/${commentId}`} className='hover:underline'>
@@ -717,26 +757,27 @@ export default function CommentItem({
           </div>
         )}
 
-        {/* Show AI evaluation if available or fetched */}
-        {(comment.hasAiEvaluation && fetchedAiEvaluation) && (
-          <div className='mt-4'>
-            <CommentAI 
-              evaluation={fetchedAiEvaluation} 
-              postId={comment.postId} 
-            />
-          </div>
-        )}
-
         {shouldShowReplyForm && (
           <ReplyForm
             key={mentionUser}
             initialValue={`@${mentionUser} `}
             onSubmit={handleReplySubmit}
+            ref={replyFormRef}
           />
         )}
 
         {/* Replies Section */}
-        <div className={`${(comment as Comment).replies?.length > 0 && visibleReplies > 0 ? 'mt-3' : ''} space-y-3`}>
+        <div className={`${((comment as Comment).replies?.length > 0 && visibleReplies > 0) || (comment.hasAiEvaluation && fetchedAiEvaluation) ? 'mt-3' : ''} space-y-3`}>
+          {/* Show AI evaluation if available or fetched */}
+          {(comment.hasAiEvaluation && fetchedAiEvaluation) && (
+            <div>
+              <CommentAI 
+                evaluation={fetchedAiEvaluation} 
+                postId={comment.postId} 
+              />
+            </div>
+          )}
+          
           {/* Show replies */}
           {!isLoadingReplies && visibleRepliesList.map((replyData, index) => (
             <div 
@@ -744,7 +785,7 @@ export default function CommentItem({
               id={`comment-${replyData._id}`}
               className="reply-item relative"
             >
-              {highlightedReplyId === replyData._id && showHighlight && (
+              {replyData.isHighlighted && showHighlight && (
                 <div className="absolute top-[-0.5rem] left-[-0.5rem] w-[calc(100%+1rem)] h-[calc(100%+1rem)] bg-primary/10 z-1 border-s-2 border-primary transition-opacity duration-500 rounded-lg"></div>
               )}
               <CommentItem
@@ -775,8 +816,13 @@ export default function CommentItem({
               >
                 <ChevronDown className="size-3 mr-1" />
                 {!showReplies 
-                  ? `View ${comment.repliesCount || 0} ${(comment.repliesCount || 0) === 1 ? 'reply' : 'replies'}`
-                  : `Load More Replies (${filteredReplies.length - visibleRepliesList.length} more)`
+                  ? (() => {
+                      const repliesCount = effectiveRepliesCount;
+                      const aiCount = comment.hasAiEvaluation ? 1 : 0;
+                      const totalCount = repliesCount + aiCount;
+                      return `View ${totalCount} ${totalCount === 1 ? 'reply' : 'replies'}`;
+                    })()
+                  : `Load More Replies (${Math.max(0, ((comment as Comment).repliesCount || 0) - filteredReplies.length)} more)`
                 }
               </Button>
             </div>
@@ -785,8 +831,10 @@ export default function CommentItem({
           {/* Show loading skeleton after button */}
           {(isLoadingReplies || isLoadingMore) && (
             <CommentSkeleton 
-              count={isLoadingMore ? Math.min(2, filteredReplies.length - visibleRepliesList.length) : 2}
-              isReply={true}
+              count={isLoadingMore 
+                ? Math.min(2, Math.max(0, (comment as Comment).repliesCount || 0 - filteredReplies.length)) 
+                : 2
+              }
             />
           )}
         </div>

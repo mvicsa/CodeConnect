@@ -5,17 +5,23 @@ import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/store/store';
 import { PostType } from '@/types/post';
 import Post from './Post';
-import { Skeleton } from '../ui/skeleton';
 import { useTranslations } from 'next-intl';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { fetchComments, fetchReplies } from '@/store/slices/commentsSlice';
+import { fetchComments, getCommentContext, fetchReplies } from '@/store/slices/commentsSlice';
 import { fetchPostById } from '@/store/slices/postsSlice';
+import PostSkeleton from './PostSkeleton';
 
 interface SinglePostWithHighlightedCommentProps {
   postId: string;
   highlightedCommentId?: string;
   highlightedReplyId?: string;
+}
+
+declare global {
+  interface Window {
+    commentScrolled?: boolean;
+  }
 }
 
 export default function SinglePostWithHighlightedComment({ 
@@ -68,42 +74,60 @@ export default function SinglePostWithHighlightedComment({
     }
   }, [postId, dispatch, t, posts]);
 
-  // Step 2: Load comments and replies after post is loaded
+  // Step 2: Load comments with highlighting
   useEffect(() => {
-    const loadCommentsAndReplies = async () => {
+    const loadCommentsWithHighlight = async () => {
       if (!post) return;
       
       setCommentsLoading(true);
       try {
-        // 1. Load all comments for this post
-        const commentsResult = await dispatch(fetchComments(postId)).unwrap();
-        
-        // 2. If we have a target ID, load all replies for all comments
         if (targetId) {
-          // First check if the target ID is a comment
-          const isDirectComment = commentsResult.some(comment => comment._id === targetId);
-          
-          if (isDirectComment) {
-            setTargetIdType('comment');
-          } else {
-            // If not a direct comment, it might be a reply - load all replies to check
-            setTargetIdType('reply');
+          // First get comment context to understand what we're highlighting
+          try {
+            const context = await dispatch(getCommentContext(targetId)).unwrap();
             
-            // Load replies for all comments to find the parent
-            const loadPromises = commentsResult.map(async (comment) => {
-              const replies = await dispatch(fetchReplies(comment._id)).unwrap();
-              console.log('replies', replies);
-              // Check if this comment contains our target reply
-              const hasTargetReply = replies.some(reply => reply._id === targetId);
-              if (hasTargetReply) {
-                setParentCommentId(comment._id);
-              }
+            if (context.isReply) {
+              setTargetIdType('reply');
+              setParentCommentId(context.parentComment?._id || null);
+            } else {
+              setTargetIdType('comment');
+              setParentCommentId(targetId);
+            }
+            
+            if (context.isReply && context.parentComment?._id) {
+              // For highlighted reply: load parent comment first, then its replies
+              await dispatch(fetchComments({ 
+                postId, 
+                offset: 0, 
+                limit: 3, // Normal comments load
+                highlight: context.parentComment._id // Highlight the parent comment
+              }));
               
-              return replies;
-            });
+              // Then load the parent comment's replies with highlighted reply
+              await dispatch(fetchReplies({ 
+                parentCommentId: context.parentComment._id, 
+                offset: 0, 
+                limit: 2, // Small limit - backend will add highlighted reply to this
+                highlight: context.parentComment._id === context.comment.parentCommentId ? targetId : undefined
+              }));
+            } else {
+              // For highlighted comment: normal load
+              await dispatch(fetchComments({ 
+                postId, 
+                offset: 0, 
+                limit: 3, // Normal limit - backend will add highlighted comment to this
+                highlight: targetId 
+              }));
+            }
             
-            await Promise.all(loadPromises);
+          } catch (error) {
+            console.error('Comment context not found:', error);
+            // Fallback: load normal comments
+            await dispatch(fetchComments({ postId, offset: 0, limit: 3 }));
           }
+        } else {
+          // No highlighting needed
+          await dispatch(fetchComments({ postId, offset: 0, limit: 3 }));
         }
       } catch (err) {
         console.error('Error loading comments:', err);
@@ -113,7 +137,7 @@ export default function SinglePostWithHighlightedComment({
     };
 
     if (post) {
-      loadCommentsAndReplies();
+      loadCommentsWithHighlight();
     }
   }, [post, postId, targetId, dispatch]);
 
@@ -135,18 +159,26 @@ export default function SinglePostWithHighlightedComment({
   // Scroll to the target element when it's loaded
   useEffect(() => {
     if (!postLoading && !commentsLoading && targetId) {
-      // Small delay to ensure the element is rendered
-      const timer = setTimeout(() => {
+      const scrollToHighlightedComment = () => {
         const elementId = `comment-${targetId}`;
         const element = document.getElementById(elementId);
         
         if (element) {
-          // Scroll to the element
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } else {
-          console.warn(`Element with ID ${elementId} not found.`);
+          // Scroll to the element only once
+          if (!window.commentScrolled) {
+            element.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center' 
+            });
+            
+            // Mark as scrolled to prevent future scrolls
+            window.commentScrolled = true;
+          }
         }
-      }, 1000);
+      };
+
+      // Small delay to ensure the element is rendered
+      const timer = setTimeout(scrollToHighlightedComment, 1000);
       
       return () => clearTimeout(timer);
     }
@@ -155,11 +187,7 @@ export default function SinglePostWithHighlightedComment({
   // Show loading state only during initial post loading
   if (postLoading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-64 w-full" />
-        <Skeleton className="h-8 w-full" />
-      </div>
+      <PostSkeleton />
     );
   }
 
@@ -200,12 +228,15 @@ export default function SinglePostWithHighlightedComment({
   }
 
   // Always render the post once it's loaded, even if comments are still loading
+  
   return (
     <div data-post-id={postId}>
       <Post 
         post={post} 
         initialShowComments={true} 
-        highlightedCommentId={targetIdType === 'comment' ? targetId : undefined}
+        highlightedCommentId={
+          targetIdType === 'comment' ? targetId : parentCommentId || undefined
+        }
         highlightedReplyId={targetIdType === 'reply' ? targetId : undefined}
         commentsLoading={commentsLoading}
       />

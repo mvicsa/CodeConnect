@@ -3,56 +3,84 @@ import axios from 'axios';
 import { Comment, Reply } from '@/types/comments';
 import { getAuthToken } from '@/lib/cookies';
 
-// Backend URL configuration
-const API_URL = `${process.env.NEXT_PUBLIC_API_URL}/comments`
+// Backend URL configuration - using direct URLs now
 
 interface CommentsState {
   comments: Comment[]
   loading: boolean
   error: string | null
+  hasMore: Record<string, boolean> // Track hasMore for each post
+  totalCounts: Record<string, number> // Track total counts for each post
+  visibleCounts: Record<string, number> // Track visible counts for each post
 }
 
 const initialState: CommentsState = {
   comments: [],
   loading: false,
   error: null,
+  hasMore: {},
+  totalCounts: {},
+  visibleCounts: {}
 }
 
-// ✅ Fetch all comments by id /post/:id (only top-level comments)
-export const fetchComments = createAsyncThunk<Comment[], string>(
+// ✅ Fetch comments with backend pagination and highlighting
+export const fetchComments = createAsyncThunk<{ comments: Comment[]; isInitialLoad: boolean; totalCount: number; hasMore: boolean }, { postId: string; offset?: number; limit?: number; highlight?: string }>(
   'comments/fetchComments',
-  async (postId) => {
+  async ({ postId, offset = 0, limit = 10, highlight }) => {
     try {
-      // Get all comments for the post
-      const response = await axios.get<Comment[]>(`${API_URL}/post/${postId}`);
+      
+      // Build query parameters
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString()
+      });
+      
+      if (highlight) {
+        params.append('highlight', highlight);
+      }
+      
+      // Get comments from backend API
+      // Backend should return: highlighted comment (if exists) + normal limit of comments
+      // Example: if limit=10 and highlight exists, return highlighted + 10 others = 11 total
+      const response = await axios.get<{ comments: Comment[]; total: number; hasMore: boolean }>(
+        `${process.env.NEXT_PUBLIC_API_URL}/comments/post/${postId}?${params.toString()}`
+      );
 
-      // Return comments with replies count but without loading replies automatically
-      const processedComments = await Promise.all(response.data.map(async (comment) => {
-        try {
-          // Get replies count by fetching replies but only using the length
-          const repliesResponse = await axios.get<Reply[]>(`${API_URL}/replies/${comment._id}`);
-          return {
-            ...comment,
-            replies: [], // Initialize empty replies array (don't store the actual replies)
-            repliesCount: repliesResponse.data.length // Add replies count
-          };
-        } catch (error) {
-          console.error('Error fetching replies count:', error);
-          return {
-            ...comment,
-            replies: [],
-            repliesCount: 0
-          };
-        }
+
+      // Backend should provide repliesCount with each comment
+      const processedComments = response.data.comments.map(comment => ({
+        ...comment,
+        replies: comment.replies || [], // Initialize empty replies array
+        repliesCount: comment.repliesCount || 0
       }));
 
-      return processedComments;
+      return {
+        comments: processedComments,
+        isInitialLoad: offset === 0,
+        totalCount: response.data.total,
+        hasMore: response.data.hasMore
+      };
     } catch (error) {
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 401) {
           throw new Error('Unauthorized - Please log in again');
         }
       }
+      throw error;
+    }
+  }
+);
+
+// ✅ Get comment context for highlighting
+export const getCommentContext = createAsyncThunk<{ comment: Comment; isReply: boolean; parentComment?: Comment; postId: string }, string>(
+  'comments/getCommentContext',
+  async (commentId) => {
+    try {
+      const response = await axios.get<{ comment: Comment; isReply: boolean; parentComment?: Comment; postId: string }>(
+        `${process.env.NEXT_PUBLIC_API_URL}/comments/${commentId}/context`
+      );
+      return response.data;
+    } catch (error) {
       throw error;
     }
   }
@@ -73,7 +101,7 @@ export const addCommentAsync = createAsyncThunk<Comment, {
       if (!token) throw new Error('No authorization token found');
 
       const response = await axios.post<Comment>(
-        API_URL,
+        `${process.env.NEXT_PUBLIC_API_URL}/comments`,
         {
           text: commentData.text,
           code: commentData.code || '',
@@ -112,7 +140,7 @@ export const addReplyAsync = createAsyncThunk<Reply, {
       if (!token) throw new Error('No authorization token found');
 
       const response = await axios.post<Reply>(
-        API_URL,
+        `${process.env.NEXT_PUBLIC_API_URL}/comments`,
         {
           parentCommentId: replyData.parentCommentId,
           text: replyData.text,
@@ -141,7 +169,7 @@ export const editCommentOrReplyAsync = createAsyncThunk<Comment, { id: string; d
     try {
       const token = getAuthToken();
       const response = await axios.put<Comment>(
-        `${API_URL}/${id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/comments/${id}`,
         {
           text: data.text,
           code: data.code || '',
@@ -171,7 +199,7 @@ export const deleteCommentOrReplyAsync = createAsyncThunk<
     const token = getAuthToken();
     
     // Delete the comment/reply from backend
-    await axios.delete(`${API_URL}/${idToDelete}`, {
+    await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/comments/${idToDelete}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -193,7 +221,7 @@ export const updateCommentReactionsAsync = createAsyncThunk<
     try {
       const token = getAuthToken();
       const response = await axios.post<Comment>(
-        `${API_URL}/${commentId}/reactions`,
+        `${process.env.NEXT_PUBLIC_API_URL}/comments/${commentId}/reactions`,
         { reaction },
         {
           headers: {
@@ -220,7 +248,7 @@ export const updateReplyReactionsAsync = createAsyncThunk<
       const token = getAuthToken();
       // Use the same endpoint as comment reactions but pass the replyId
       const response = await axios.post<Comment>(
-        `${API_URL}/${replyId}/reactions`,
+        `${process.env.NEXT_PUBLIC_API_URL}/comments/${replyId}/reactions`,
         { 
           reaction,
           parentCommentId // Include parentCommentId in the request body
@@ -239,13 +267,36 @@ export const updateReplyReactionsAsync = createAsyncThunk<
   }
 );
 
-// ✅ Fetch replies for a specific comment
-export const fetchReplies = createAsyncThunk<Reply[], string, { rejectValue: string }>(
+// ✅ Fetch replies with backend pagination and highlighting
+export const fetchReplies = createAsyncThunk<{ replies: Reply[]; isInitialLoad: boolean; totalCount: number; hasMore: boolean }, { parentCommentId: string; offset?: number; limit?: number; highlight?: string }, { rejectValue: string }>(
   'comments/fetchReplies',
-  async (parentCommentId, { rejectWithValue }) => {
+  async ({ parentCommentId, offset = 0, limit = 10, highlight }, { rejectWithValue }) => {
     try {
-      const response = await axios.get<Reply[]>(`${API_URL}/replies/${parentCommentId}`);
-      return response.data;
+      // Build query parameters
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString()
+      });
+      
+      if (highlight) {
+        params.append('highlight', highlight);
+      }
+      
+      // Get replies from backend API
+      // Backend should return: highlighted reply (if exists) + normal limit of replies
+      // Example: if limit=5 and highlight exists, return highlighted + 5 others = 6 total
+      const response = await axios.get<{ replies: Reply[]; total: number; hasMore: boolean }>(
+        `${process.env.NEXT_PUBLIC_API_URL}/comments/replies/${parentCommentId}?${params.toString()}`
+      );
+      
+      const replies = response.data.replies || (Array.isArray(response.data) ? response.data : []);
+      
+      return {
+        replies: replies,
+        isInitialLoad: offset === 0,
+        totalCount: response.data.total || replies.length || 0,
+        hasMore: response.data.hasMore || false
+      };
     } catch (error) {
       console.error('Error fetching replies:', error);
       if (axios.isAxiosError(error)) {
@@ -264,7 +315,11 @@ export const fetchReplies = createAsyncThunk<Reply[], string, { rejectValue: str
 const commentsSlice = createSlice({
   name: 'comments',
   initialState,
-  reducers: {},
+  reducers: {
+    updateVisibleCount: (state, action: { payload: { postId: string; count: number } }) => {
+      state.visibleCounts[action.payload.postId] = action.payload.count;
+    }
+  },
   extraReducers: (builder) => {
     builder
        // Handle fetchComments
@@ -274,38 +329,54 @@ const commentsSlice = createSlice({
        })
        .addCase(fetchComments.fulfilled, (state, action) => {
          state.loading = false;
-         // Keep existing comments for other posts and add new ones
-         const existingComments = state.comments.filter(
-           comment => comment.postId !== action.meta.arg
-         );
-         // Only update if the comments are actually different
-         const newComments = action.payload;
-         const currentPostComments = state.comments.filter(
-           comment => comment.postId === action.meta.arg
+         const { postId } = action.meta.arg;
+         const { comments: newComments, isInitialLoad, totalCount, hasMore } = action.payload;
+         
+        // Update hasMore and totalCount for this post
+        state.hasMore[postId] = hasMore;
+        state.totalCounts[postId] = totalCount;
+        
+         // Keep existing comments for other posts
+         const existingCommentsOtherPosts = state.comments.filter(
+           comment => comment.postId !== postId
          );
          
-         // Check if the comments are actually different
-         const hasChanged = newComments.length !== currentPostComments.length ||
-           newComments.some((newComment, index) => 
-             !currentPostComments[index] || 
-             currentPostComments[index]._id !== newComment._id
-           );
+         // Get existing comments for this post
+         const existingCommentsThisPost = state.comments.filter(
+           comment => comment.postId === postId
+         );
          
-         if (hasChanged) {
-           // Preserve existing replies when updating comments
-           const updatedComments = newComments.map(newComment => {
-             const existingComment = currentPostComments.find(c => c._id === newComment._id);
+         let updatedCommentsThisPost: Comment[];
+         
+         if (isInitialLoad) {
+           // Initial load - replace all comments for this post
+           updatedCommentsThisPost = newComments.map(newComment => {
+             const existingComment = existingCommentsThisPost.find(c => c._id === newComment._id);
              if (existingComment && existingComment.replies && existingComment.replies.length > 0) {
-               // Keep existing replies if they exist
                return {
                  ...newComment,
                  replies: existingComment.replies,
-                 repliesCount: existingComment.repliesCount || newComment.repliesCount
+                 repliesCount: existingComment.repliesCount !== undefined ? existingComment.repliesCount : newComment.repliesCount
                };
              }
              return newComment;
            });
-           state.comments = [...existingComments, ...updatedComments];
+         } else {
+           // Pagination load - append new comments
+           const newUniqueComments = newComments.filter(
+             newComment => !existingCommentsThisPost.some(existing => existing._id === newComment._id)
+           );
+           updatedCommentsThisPost = [...existingCommentsThisPost, ...newUniqueComments];
+         }
+         
+         state.comments = [...existingCommentsOtherPosts, ...updatedCommentsThisPost];
+         
+         // Update visible count after updating comments
+         if (isInitialLoad) {
+           state.visibleCounts[postId] = Math.max(newComments.length, 3);
+         } else {
+           // For pagination loads, update visible count to show all loaded comments
+           state.visibleCounts[postId] = Math.max(updatedCommentsThisPost.length, state.visibleCounts[postId] || 3);
          }
        })
       .addCase(fetchComments.rejected, (state, action) => {
@@ -315,22 +386,24 @@ const commentsSlice = createSlice({
       
       // Handle fetchReplies
       .addCase(fetchReplies.fulfilled, (state, action) => {
-        const parentCommentId = action.meta.arg;
+        const { parentCommentId } = action.meta.arg;
+        const { replies: newReplies, isInitialLoad, totalCount } = action.payload;
+        
         // Find the parent comment and update its replies
         const parentComment = state.comments.find(c => c._id === parentCommentId);
         if (parentComment) {
-          // Only update if the replies are actually different
-          const newReplies = action.payload;
           const currentReplies = parentComment.replies || [];
           
-          const hasChanged = newReplies.length !== currentReplies.length ||
-            newReplies.some((newReply, index) => 
-              !currentReplies[index] || 
-              currentReplies[index]?._id !== newReply._id
-            );
-          
-          if (hasChanged) {
+          if (isInitialLoad) {
+            // Initial load - replace all replies
             parentComment.replies = newReplies;
+            parentComment.repliesCount = totalCount;
+          } else {
+            // Pagination load - append new replies
+            const newUniqueReplies = newReplies.filter(
+              newReply => !currentReplies.some(existing => existing._id === newReply._id)
+            );
+            parentComment.replies = [...currentReplies, ...newUniqueReplies];
           }
         }
       })
@@ -346,7 +419,12 @@ const commentsSlice = createSlice({
         const parentComment = state.comments.find(c => c._id === parentCommentId);
         if (parentComment) {
           // Add new reply at the beginning of the array
+          parentComment.replies = parentComment.replies || [];
           parentComment.replies.unshift(action.payload);
+          // Update replies count
+          parentComment.repliesCount = (parentComment.repliesCount || 0) + 1;
+          // Update store total count
+          state.totalCounts[parentCommentId] = (state.totalCounts[parentCommentId] || 0) + 1;
         }
       })
 
@@ -429,8 +507,23 @@ const commentsSlice = createSlice({
           }
           return comment;
         });
+      })
+
+      // Handle getCommentContext - add parent comment to store if it's a reply
+      .addCase(getCommentContext.fulfilled, (state, action) => {
+        const { parentComment, isReply } = action.payload;
+        
+        // If it's a reply and we have parent comment, add it to store if not already there
+        if (isReply && parentComment) {
+          const existingComment = state.comments.find(c => c._id === parentComment._id);
+          if (!existingComment) {
+            // Add parent comment to store
+            state.comments.push(parentComment);
+          }
+        }
       });
   }
 });
 
+export const { updateVisibleCount } = commentsSlice.actions;
 export default commentsSlice.reducer;

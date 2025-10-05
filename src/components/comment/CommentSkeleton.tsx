@@ -1,41 +1,24 @@
 import React from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface CommentSkeletonProps {
   count?: number;
-  isReply?: boolean;
+  className?: string;
 }
 
-const CommentSkeleton: React.FC<CommentSkeletonProps> = ({ count = 2, isReply = false }) => {
+const CommentSkeleton = ({ count = 1, className }: CommentSkeletonProps) => {
   return (
-    <div className={`${isReply ? 'mt-3' : ''} space-y-3`}>
-      {Array.from({ length: count }).map((_, index) => (
-        <div key={index} className="animate-pulse">
-          <div className="flex gap-3 p-3">
-            {/* Avatar skeleton */}
-            <div className="w-8 h-8 bg-accent rounded-full flex-shrink-0"></div>
-            
-            {/* Content skeleton */}
-            <div className="flex-1 space-y-2">
-              {/* Header skeleton */}
-              <div className="flex items-center gap-2">
-                <div className="h-4 bg-accent rounded w-20"></div>
-                <div className="h-3 bg-accent rounded w-16"></div>
-                <div className="h-3 bg-accent rounded w-12"></div>
-              </div>
-              
-              {/* Text skeleton */}
-              <div className="space-y-1">
-                <div className="h-4 bg-accent rounded w-full"></div>
-                <div className="h-4 bg-accent rounded w-3/4"></div>
-              </div>
-              
-              {/* Actions skeleton */}
-              <div className="flex gap-4 mt-2">
-                <div className="h-3 bg-accent rounded w-12"></div>
-                <div className="h-3 bg-accent rounded w-8"></div>
-                <div className="h-3 bg-accent rounded w-16"></div>
-              </div>
+    <div className={className}>
+      {[...Array(count)].map((_, index) => (
+        <div key={index} className="flex gap-3 items-start mb-4">
+          <Skeleton className="h-10 w-10 rounded-full" />
+          <div className="flex-1 space-y-3">
+            <div className="flex items-center space-x-2">
+              <Skeleton className="h-4 w-[100px]" />
+              <Skeleton className="h-4 w-[50px]" />
             </div>
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
           </div>
         </div>
       ))}

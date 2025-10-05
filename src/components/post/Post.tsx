@@ -48,6 +48,7 @@ interface PostProps {
   initialShowComments?: boolean;
   highlightedCommentId?: string;
   highlightedReplyId?: string;
+  // parentCommentId?: string;
   commentsLoading?: boolean;
 }
 
@@ -55,9 +56,11 @@ const Post = memo(function Post({
   post, 
   initialShowComments = false, 
   highlightedCommentId,
-  highlightedReplyId
+  highlightedReplyId,
+  // parentCommentId
 }: PostProps) {
   const { _id, text, image, video, code, codeLang, tags, createdBy, createdAt, hasAiSuggestions, commentsCount, repliesCount, aiSuggestionsCount } = post;
+  
   const t = useTranslations();
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth)
@@ -420,9 +423,9 @@ const Post = memo(function Post({
                 currentUserId={createdBy?._id as string}
               />
               <button 
-                onClick={ toggleComments }
+                onClick={ () => (!highlightedCommentId && !highlightedReplyId) && toggleComments() }
                 data-comments-toggle
-                className='flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer'
+                className={`flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors ${highlightedCommentId || highlightedReplyId ? 'pointer-events-none' : 'cursor-pointer'}`}
               >
                 <MessageCircleMore className='size-5' />
                 {totalCount && totalCount > 0 ? <span className="text-sm font-medium">{totalCount}</span> : null}
@@ -441,6 +444,7 @@ const Post = memo(function Post({
                 hasAiSuggestions={hasAiSuggestions || !!(aiSuggestionsCount && aiSuggestionsCount > 0)} 
                 highlightedCommentId={highlightedCommentId}
                 highlightedReplyId={highlightedReplyId}
+                // parentCommentId={parentCommentId}
                 postText={text}
                 postCode={code}
                 postCodeLang={codeLang}
