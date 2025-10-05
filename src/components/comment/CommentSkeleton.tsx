@@ -8,7 +8,7 @@ interface CommentSkeletonProps {
 
 const CommentSkeleton = ({ count = 1, className }: CommentSkeletonProps) => {
   return (
-    <div className={className}>
+    <div className= {`${className} space-y-4`}>
       {[...Array(count)].map((_, index) => (
         <div key={index} className="flex gap-3 items-start">
           <Skeleton className="h-10 w-10 rounded-full" />
