@@ -57,6 +57,7 @@ export type Comment = {
   replies: Reply[]
   user?: User
   hasAiEvaluation?: boolean
+  repliesCount?: number
 }
   
 export type CommentUser = { 

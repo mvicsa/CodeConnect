@@ -26,21 +26,22 @@ export const fetchComments = createAsyncThunk<Comment[], string>(
       // Get all comments for the post
       const response = await axios.get<Comment[]>(`${API_URL}/post/${postId}`);
 
-      // For each comment, get its replies count
+      // Return comments with replies count but without loading replies automatically
       const processedComments = await Promise.all(response.data.map(async (comment) => {
         try {
-          // Just get the replies to know how many there are
+          // Get replies count by fetching replies but only using the length
           const repliesResponse = await axios.get<Reply[]>(`${API_URL}/replies/${comment._id}`);
           return {
             ...comment,
-            // Initialize empty replies array but set the correct length
-            replies: new Array(repliesResponse.data.length).fill(null)
+            replies: [], // Initialize empty replies array (don't store the actual replies)
+            repliesCount: repliesResponse.data.length // Add replies count
           };
         } catch (error) {
-          console.error('Error fetching replies:', error);
+          console.error('Error fetching replies count:', error);
           return {
             ...comment,
-            replies: []
+            replies: [],
+            repliesCount: 0
           };
         }
       }));
@@ -266,34 +267,47 @@ const commentsSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // Handle fetchComments
-      .addCase(fetchComments.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchComments.fulfilled, (state, action) => {
-        state.loading = false;
-        // Keep existing comments for other posts and add new ones
-        const existingComments = state.comments.filter(
-          comment => comment.postId !== action.meta.arg
-        );
-        // Only update if the comments are actually different
-        const newComments = action.payload;
-        const currentPostComments = state.comments.filter(
-          comment => comment.postId === action.meta.arg
-        );
-        
-        // Check if the comments are actually different
-        const hasChanged = newComments.length !== currentPostComments.length ||
-          newComments.some((newComment, index) => 
-            !currentPostComments[index] || 
-            currentPostComments[index]._id !== newComment._id
-          );
-        
-        if (hasChanged) {
-          state.comments = [...existingComments, ...newComments];
-        }
-      })
+       // Handle fetchComments
+       .addCase(fetchComments.pending, (state) => {
+         state.loading = true;
+         state.error = null;
+       })
+       .addCase(fetchComments.fulfilled, (state, action) => {
+         state.loading = false;
+         // Keep existing comments for other posts and add new ones
+         const existingComments = state.comments.filter(
+           comment => comment.postId !== action.meta.arg
+         );
+         // Only update if the comments are actually different
+         const newComments = action.payload;
+         const currentPostComments = state.comments.filter(
+           comment => comment.postId === action.meta.arg
+         );
+         
+         // Check if the comments are actually different
+         const hasChanged = newComments.length !== currentPostComments.length ||
+           newComments.some((newComment, index) => 
+             !currentPostComments[index] || 
+             currentPostComments[index]._id !== newComment._id
+           );
+         
+         if (hasChanged) {
+           // Preserve existing replies when updating comments
+           const updatedComments = newComments.map(newComment => {
+             const existingComment = currentPostComments.find(c => c._id === newComment._id);
+             if (existingComment && existingComment.replies && existingComment.replies.length > 0) {
+               // Keep existing replies if they exist
+               return {
+                 ...newComment,
+                 replies: existingComment.replies,
+                 repliesCount: existingComment.repliesCount || newComment.repliesCount
+               };
+             }
+             return newComment;
+           });
+           state.comments = [...existingComments, ...updatedComments];
+         }
+       })
       .addCase(fetchComments.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch comments';

@@ -49,9 +49,9 @@ import AdminBadge from '../AdminBadge'
 import { SocketContext } from '@/store/Provider'
 import CommentAI from './CommentAI'
 import { AIEvaluation } from '@/types/ai'
-import { Skeleton } from '../ui/skeleton'
 import { getAuthToken } from '@/lib/cookies';
 import { formatDate } from 'date-fns'
+import CommentSkeleton from './CommentSkeleton'
 
 
 // Define CommentContent type
@@ -112,9 +112,17 @@ export default function CommentItem({
     code: comment.code || '',
     codeLang: comment.codeLang || '',
   })
-  const [showReplies, setShowReplies] = useState(false)
-  const [visibleReplies, setVisibleReplies] = useState(0) 
+  const [showReplies, setShowReplies] = useState(() => {
+    // Check if replies are already loaded
+    return isCommentWithReplies(comment) && comment.replies && comment.replies.length > 0;
+  })
+  const [visibleReplies, setVisibleReplies] = useState(() => {
+    // Set initial visible replies based on loaded replies
+    return isCommentWithReplies(comment) && comment.replies ? comment.replies.length : 0;
+  }) 
   const [fetchedAiEvaluation, setFetchedAiEvaluation] = useState<AIEvaluation | null>(null);
+  const [isLoadingReplies, setIsLoadingReplies] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const commentId = has_id(comment) ? comment._id : '';
   useEffect(() => {
     if (comment.hasAiEvaluation && commentId) {
@@ -130,6 +138,14 @@ export default function CommentItem({
         });
     }
   }, [comment, commentId]);
+
+  // Update showReplies when replies are loaded
+  useEffect(() => {
+    if (isCommentWithReplies(comment) && comment.replies && comment.replies.length > 0) {
+      setShowReplies(true);
+      setVisibleReplies(comment.replies.length);
+    }
+  }, [comment]);
 
   const isReply = !!comment.parentCommentId
   const rootCommentId = rootId || String(commentId)
@@ -182,7 +198,10 @@ export default function CommentItem({
   const filteredReplies = isCommentWithReplies(comment) && comment.replies 
     ? comment.replies.filter((reply) => reply && !isBlocked(reply.createdBy._id))
     : [];
-  const hasMoreReplies = isCommentWithReplies(comment) && filteredReplies.length > visibleRepliesList.length;
+  const hasMoreReplies = isCommentWithReplies(comment) && (
+    filteredReplies.length > visibleRepliesList.length || 
+    (!showReplies && (comment.repliesCount || 0) > 0)
+  );
 
   const handleReplyClick = () => {
     // If this is a reply, trigger the reply form on the parent comment
@@ -192,15 +211,10 @@ export default function CommentItem({
     } else {
       setMentionUser((hasCreatedBy(comment) ? comment.createdBy?.username : '') || '')
       setActiveReplyId(String(commentId))
-    }
-  }
-
-  const shouldShowReplyForm = !isReply && activeReplyId === String(commentId)
-
-  const handleLoadMoreReplies = () => {
-    if (!showReplies) {
-      // First time loading replies
-      if (has_id(comment)) {
+      
+      // Load replies if not already loaded
+      if (isCommentWithReplies(comment) && !showReplies) {
+        setIsLoadingReplies(true);
         dispatch(fetchReplies(comment._id))
           .unwrap()
           .then((replies) => {
@@ -214,11 +228,53 @@ export default function CommentItem({
             
             setShowReplies(true);
             setVisibleReplies(2);
+          })
+          .catch(error => {
+            console.error('Failed to fetch replies:', error);
+          })
+          .finally(() => {
+            setIsLoadingReplies(false);
+          });
+      }
+    }
+  }
+
+  const shouldShowReplyForm = !isReply && activeReplyId === String(commentId)
+
+  const handleLoadMoreReplies = () => {
+    if (!showReplies) {
+      // First time loading replies
+      if (has_id(comment)) {
+        setIsLoadingReplies(true);
+        dispatch(fetchReplies(comment._id))
+          .unwrap()
+          .then((replies) => {
+            // Check block status for reply authors
+            const replyAuthorIds = replies.map(reply => reply.createdBy._id).filter(Boolean);
+            replyAuthorIds.forEach(authorId => {
+              if (authorId) {
+                checkBlockStatusRef.current(authorId);
+              }
+            });
+            
+            setShowReplies(true);
+            setVisibleReplies(2);
+          })
+          .catch(error => {
+            console.error('Failed to fetch replies:', error);
+          })
+          .finally(() => {
+            setIsLoadingReplies(false);
           });
       }
     } else {
       // Loading more replies
-      setVisibleReplies(prev => prev + 2);
+      setIsLoadingMore(true);
+      // Simulate loading delay for better UX
+      setTimeout(() => {
+        setVisibleReplies(prev => prev + 2);
+        setIsLoadingMore(false);
+      }, 500);
     }
   }
 
@@ -494,30 +550,14 @@ export default function CommentItem({
   const isAuthorBlockedBy = authorBlockStatus?.isBlockedBy || false;
   
   // Check if block status is still loading (not yet checked)
-  const isBlockStatusLoading = authorId && !authorBlockStatus;
+  // const isBlockStatusLoading = authorId && !authorBlockStatus;
   
   // Show skeleton while block status is loading
-  if (isBlockStatusLoading) {
-    return (
-      <div className="flex gap-3 items-start relative z-2">
-        <Skeleton className="h-8 w-8 rounded-full" />
-        <div className="flex-1">
-          <div className="bg-accent p-3 rounded-xl relative">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-2 w-12" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-3/4" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // if (isBlockStatusLoading) {
+  //   return (
+  //     <CommentSkeleton />
+  //   );
+  // }
   
   // Don't show comments from blocked users
   if (authorId && isAuthorBlocked) {
@@ -664,7 +704,11 @@ export default function CommentItem({
             />
             { user && (
               <button onClick={handleReplyClick} className="flex items-center hover:text-foreground transition-all duration-300 gap-1 cursor-pointer">
-                <ReplyIcon className="size-4" /> {isCommentWithReplies(comment) && filteredReplies.length > 0 ? filteredReplies.length : ''}
+                <ReplyIcon className="size-4" /> 
+                {isCommentWithReplies(comment) && (
+                  filteredReplies.length > 0 ? filteredReplies.length : 
+                  (comment.repliesCount && comment.repliesCount > 0 ? comment.repliesCount : '')
+                )}
               </button>
             )}
             <Link href={`/posts/${comment.postId}/${commentId}`} className='hover:underline'>
@@ -694,7 +738,7 @@ export default function CommentItem({
         {/* Replies Section */}
         <div className={`${(comment as Comment).replies?.length > 0 && visibleReplies > 0 ? 'mt-3' : ''} space-y-3`}>
           {/* Show replies */}
-          {visibleRepliesList.map((replyData, index) => (
+          {!isLoadingReplies && visibleRepliesList.map((replyData, index) => (
             <div 
               key={replyData._id || `reply-${index}`} 
               id={`comment-${replyData._id}`}
@@ -726,15 +770,24 @@ export default function CommentItem({
                 variant="ghost"
                 size="sm"
                 onClick={handleLoadMoreReplies}
+                disabled={isLoadingReplies || isLoadingMore}
                 className="text-muted-foreground hover:text-foreground text-xs px-2 py-1 h-auto"
               >
                 <ChevronDown className="size-3 mr-1" />
                 {!showReplies 
-                  ? `View ${filteredReplies.length - visibleRepliesList.length} ${filteredReplies.length - visibleRepliesList.length === 1 ? 'reply' : 'replies'}`
+                  ? `View ${comment.repliesCount || 0} ${(comment.repliesCount || 0) === 1 ? 'reply' : 'replies'}`
                   : `Load More Replies (${filteredReplies.length - visibleRepliesList.length} more)`
                 }
               </Button>
             </div>
+          )}
+          
+          {/* Show loading skeleton after button */}
+          {(isLoadingReplies || isLoadingMore) && (
+            <CommentSkeleton 
+              count={isLoadingMore ? Math.min(2, filteredReplies.length - visibleRepliesList.length) : 2}
+              isReply={true}
+            />
           )}
         </div>
 

@@ -40,4 +40,7 @@ export interface PostType {
   reactions: Reactions;
   userReactions: UserReaction[];
   hasAiSuggestions?: boolean;
+  commentsCount?: number;
+  repliesCount?: number;
+  aiSuggestionsCount?: number;
 }

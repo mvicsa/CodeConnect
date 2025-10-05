@@ -55,10 +55,9 @@ const Post = memo(function Post({
   post, 
   initialShowComments = false, 
   highlightedCommentId,
-  highlightedReplyId,
-  commentsLoading = false
+  highlightedReplyId
 }: PostProps) {
-  const { _id, text, image, video, code, codeLang, tags, createdBy, createdAt, hasAiSuggestions } = post;
+  const { _id, text, image, video, code, codeLang, tags, createdBy, createdAt, hasAiSuggestions, commentsCount, repliesCount, aiSuggestionsCount } = post;
   const t = useTranslations();
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth)
@@ -101,14 +100,20 @@ const Post = memo(function Post({
   const userStatuses = useSelector((state: RootState) => state.chat.userStatuses || {});
   const status = user ? userStatuses[createdBy?._id?.toString()] || 'offline' : 'offline';
   
-  // Get comments count for this post
-  const { comments } = useSelector((state: RootState) => state.comments)
-  const commentsCount = useMemo(() => 
-    comments.filter(comment => comment.postId === _id).length, 
-    [comments, _id]
-  )
+  // Get total count for this post: comments + replies + AI suggestions
+  // const { comments } = useSelector((state: RootState) => state.comments)
+  const totalCount = useMemo(() => {
+    // Handle undefined/null values properly
+    const commentsCountValue = (commentsCount && commentsCount > 0) ? commentsCount : 0;
+    const repliesCountValue = (repliesCount && repliesCount > 0) ? repliesCount : 0;
+    const aiSuggestionsCountValue = (aiSuggestionsCount && aiSuggestionsCount > 0) ? aiSuggestionsCount : 0;
+    
+    const total = commentsCountValue + repliesCountValue + aiSuggestionsCountValue;
+    return total;
+  }, [commentsCount, repliesCount, aiSuggestionsCount])
   
   const toggleComments = () => {
+    // Always show comments section immediately
     setShowComments(!showComments);
   };
 
@@ -420,39 +425,27 @@ const Post = memo(function Post({
                 className='flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer'
               >
                 <MessageCircleMore className='size-5' />
-                {(commentsCount > 0 || hasAiSuggestions) && <span className="text-sm font-medium">{commentsCount + (hasAiSuggestions ? 1 : 0)}</span>}
+                {totalCount && totalCount > 0 ? <span className="text-sm font-medium">{totalCount}</span> : null}
               </button>
               <SendIcon className='size-5 text-muted-foreground hidden' />
-              {hasAiSuggestions && (
+              
+              {((hasAiSuggestions === true) || (aiSuggestionsCount !== undefined && aiSuggestionsCount > 0)) && (
                 <span className='ms-auto'>
                   <BotIcon className='size-5 text-primary' />
                 </span>
               )}
             </div>
             <div className={`w-full border-t border-border pt-4 ${showComments ? 'block' : 'hidden'}`}>
-              {commentsLoading ? (
-                <div className="space-y-4 py-4">
-                  <div className="flex items-center space-x-2">
-                    <div className="h-10 w-10 rounded-full bg-muted"></div>
-                    <div className="space-y-2">
-                      <div className="h-4 w-[100px] bg-muted"></div>
-                      <div className="h-4 w-[60px] bg-muted"></div>
-                    </div>
-                  </div>
-                  <div className="h-4 w-full bg-muted"></div>
-                  <div className="h-4 w-2/3 bg-muted"></div>
-                </div>
-              ) : (
-                <CommentSection 
-                  postId={_id} 
-                  hasAiSuggestions={hasAiSuggestions} 
-                  highlightedCommentId={highlightedCommentId}
-                  highlightedReplyId={highlightedReplyId}
-                  postText={text}
-                  postCode={code}
-                  postCodeLang={codeLang}
-                />
-              )}
+              <CommentSection 
+                postId={_id} 
+                hasAiSuggestions={hasAiSuggestions || !!(aiSuggestionsCount && aiSuggestionsCount > 0)} 
+                highlightedCommentId={highlightedCommentId}
+                highlightedReplyId={highlightedReplyId}
+                postText={text}
+                postCode={code}
+                postCodeLang={codeLang}
+                autoLoad={showComments}
+              />
             </div>
           </CardFooter>
       </Card>

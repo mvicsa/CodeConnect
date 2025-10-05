@@ -9,7 +9,6 @@ import PostsList from '@/components/post/PostsList'
 import { PostSkeleton } from '@/components/post/PostSkeleton'
 import { Hash } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import Container from '@/components/Container'
 
 export default function TagPage() {
   const params = useParams()
@@ -35,7 +34,7 @@ export default function TagPage() {
 
   if (isInitialLoad) {
     return (
-      <Container>
+      <div className="max-w-3xl mx-auto px-5">
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-2">
             <Hash className="h-6 w-6 text-primary" />
@@ -50,52 +49,50 @@ export default function TagPage() {
             <PostSkeleton key={i} />
           ))}
         </div>
-      </Container>
+      </div>
     )
   }
 
   if (error) {
     return (
-      <Container>
+      <div className="max-w-3xl mx-auto px-5">
         <div className="text-center py-8">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
           <p className="text-muted-foreground">{error}</p>
         </div>
-      </Container>
+      </div>
     )
   }
 
   return (
-    <Container>
-      <div className="max-w-3xl mx-auto">
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            <Hash className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold">{tag}</h1>
-          </div>
+    <div className="max-w-3xl mx-auto px-5">
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-2">
+          <Hash className="h-6 w-6 text-primary" />
+          <h1 className="text-2xl font-bold">{tag}</h1>
+        </div>
+        <p className="text-muted-foreground">
+          {postsByTag.length} {postsByTag.length === 1 ? t('tags.postFound') : t('tags.postsFound')}
+        </p>
+      </div>
+
+      {postsByTag.length === 0 && !loading ? (
+        <div className="text-center py-12">
+          <Hash className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium mb-2">{t('tags.noPostsFound')} #{tag}</h3>
           <p className="text-muted-foreground">
-            {postsByTag.length} {postsByTag.length === 1 ? t('tags.postFound') : t('tags.postsFound')}
+            No posts have been tagged with this topic yet.
           </p>
         </div>
-
-        {postsByTag.length === 0 && !loading ? (
-          <div className="text-center py-12">
-            <Hash className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">{t('tags.noPostsFound')} #{tag}</h3>
-            <p className="text-muted-foreground">
-              No posts have been tagged with this topic yet.
-            </p>
-          </div>
-        ) : (
-          <PostsList
-            title=""
-            posts={postsByTag}
-            loading={loading}
-            error={error}
-            onRefresh={handleRefresh}
-          />
-        )}
-      </div>
-    </Container>
+      ) : (
+        <PostsList
+          title=""
+          posts={postsByTag}
+          loading={loading}
+          error={error}
+          onRefresh={handleRefresh}
+        />
+      )}
+    </div>
   )
 } 

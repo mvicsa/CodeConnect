@@ -11,6 +11,8 @@ import { MessageCircle, ChevronDown } from 'lucide-react'
 import { Button } from '../ui/button'
 import CommentAI from './CommentAI'
 import { useBlock } from '@/hooks/useBlock'
+import CommentSkeleton from './CommentSkeleton'
+import { Comment } from '@/types/comments'
 
 interface CommentSectionProps {
   postId: string;
@@ -21,6 +23,7 @@ interface CommentSectionProps {
   postText: string;
   postCode?: string;
   postCodeLang?: string;
+  autoLoad?: boolean; // New prop to control auto-loading
 }
 
 const CommentSection = memo(function CommentSection({ 
@@ -31,19 +34,27 @@ const CommentSection = memo(function CommentSection({
   highlightedReplyId,
   postText,
   postCode,
-  postCodeLang
+  postCodeLang,
+  autoLoad = true // Default to true for backward compatibility
 }: CommentSectionProps) {
   const dispatch = useDispatch<AppDispatch>()
-  const { comments, loading } = useSelector((state: RootState) => state.comments)
+  const { comments } = useSelector((state: RootState) => state.comments)
   const { suggestions } = useSelector((state: RootState) => state.aiSuggestions)
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null)
   const [mentionUser, setMentionUser] = useState('')
   const [visibleComments, setVisibleComments] = useState(3) // Show 3 comments initially
   const [showHighlight, setShowHighlight] = useState(true)
   const [parentCommentId, setParentCommentId] = useState<string | null>(null)
+  const [isLoadingComments, setIsLoadingComments] = useState(false)
+  const [showSkeleton, setShowSkeleton] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [aiSuggestionsLoaded, setAiSuggestionsLoaded] = useState(false)
+  const [optimisticComments, setOptimisticComments] = useState<Comment[]>([])
+  // const [isAddingComment, setIsAddingComment] = useState(false)
 
   const user = useSelector((state: RootState) => state.auth.user)
-  const { checkBlockStatus, isBlocked, loading: blockLoading } = useBlock()
+  // const { checkBlockStatus, isBlocked, loading: blockLoading } = useBlock()
+  const { checkBlockStatus, isBlocked } = useBlock()
   const checkBlockStatusRef = useRef(checkBlockStatus)
   const checkedAuthorsRef = useRef<Set<string>>(new Set())
 
@@ -54,10 +65,13 @@ const CommentSection = memo(function CommentSection({
 
   // Filter comments for this specific post and exclude blocked users
   const postComments = useMemo(() => {
-    return comments
+    const realComments = comments
       .filter(comment => comment.postId === postId)
       .filter(comment => !isBlocked(comment.createdBy._id));
-  }, [comments, postId, isBlocked]);
+    
+    // Combine real comments with optimistic comments
+    return [...optimisticComments, ...realComments];
+  }, [comments, postId, isBlocked, optimisticComments]);
 
   // Find parent comment ID if we have a highlighted reply
   useEffect(() => {
@@ -177,30 +191,86 @@ const CommentSection = memo(function CommentSection({
   const hasMoreComments = orderedComments.length > visibleComments
 
   useEffect(() => {
-    // Fetch comments when component mounts
-    dispatch(fetchComments(postId))
-      .unwrap()
-      .then()
-      .catch(error => {
-        console.error('Failed to fetch comments:', error);
-      });
+    // Only fetch comments if autoLoad is true
+    if (autoLoad) {
+      setIsLoadingComments(true);
+      setShowSkeleton(true);
       
-    // Fetch AI suggestions if the post has them
-    if (hasAiSuggestions) {
-      dispatch(fetchCodeSuggestions(postId))
+      dispatch(fetchComments(postId))
         .unwrap()
-        .then()
+        .then(() => {
+          setIsLoadingComments(false);
+          
+          // Fetch AI suggestions after comments are loaded
+          if (hasAiSuggestions) {
+            dispatch(fetchCodeSuggestions(postId))
+              .unwrap()
+              .then(() => {
+                setAiSuggestionsLoaded(true);
+                // Hide skeleton after AI suggestions are loaded
+                setTimeout(() => {
+                  setShowSkeleton(false);
+                }, 300);
+              })
+              .catch(error => {
+                console.error('Failed to fetch AI suggestions:', error);
+                setAiSuggestionsLoaded(true);
+                // Hide skeleton even if AI suggestions fail
+                setTimeout(() => {
+                  setShowSkeleton(false);
+                }, 300);
+              });
+          } else {
+            setAiSuggestionsLoaded(true);
+            // Hide skeleton immediately if no AI suggestions
+            setTimeout(() => {
+              setShowSkeleton(false);
+            }, 300);
+          }
+        })
         .catch(error => {
-          console.error('Failed to fetch AI suggestions:', error);
+          console.error('Failed to fetch comments:', error);
+          setIsLoadingComments(false);
+          setShowSkeleton(false);
         });
     }
-  }, [postId, hasAiSuggestions, dispatch]); // Remove dispatch from dependencies
+  }, [postId, hasAiSuggestions, autoLoad, dispatch]);
 
   const handleAddComment = async (content: { text: string, code: string, codeLang: string }) => {
     try {
       if (!user || typeof user._id !== 'string') return; // Ensure user._id is a string
+      
+      // Create optimistic comment
+      const optimisticComment: Comment = {
+        _id: `temp-${Date.now()}`, // Temporary ID
+        postId: postId,
+        createdBy: {
+          _id: user._id,
+          username: user.username || '',
+          email: user.email || '',
+          firstName: (user.firstName as string) || 'User',
+          lastName: (user.lastName as string) || '',
+          avatar: (user.avatar as string) || '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        text: content.text,
+        code: content.code,
+        codeLang: content.codeLang,
+        createdAt: new Date(),
+        reactions: { like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 },
+        userReactions: [],
+        replies: [],
+        repliesCount: 0
+      }
+      
+      // Add optimistic comment immediately
+      setOptimisticComments(prev => [optimisticComment, ...prev])
+      // setIsAddingComment(true)
+      
+      // Send to backend
       const newComment = {
-        postId: postId, // use the prop directly
+        postId: postId,
         createdBy: user._id,
         text: content.text,
         code: content.code,
@@ -209,40 +279,40 @@ const CommentSection = memo(function CommentSection({
         reactions: { like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 },
         userReactions: []
       }
+      
       await dispatch(addCommentAsync(newComment))
+      
+      // Remove optimistic comment after successful save
+      setOptimisticComments(prev => prev.filter(c => c._id !== optimisticComment._id))
+      
     } catch (error) {
       console.error('Failed to add comment:', error)
+      // Remove optimistic comment on error
+      setOptimisticComments(prev => prev.filter(c => c._id !== `temp-${Date.now()}`))
     }
   }
 
   const handleLoadMore = () => {
-    setVisibleComments(prev => prev + 3) // Load 3 more comments
+    setIsLoadingMore(true);
+    // Simulate loading delay for better UX
+    setTimeout(() => {
+      setVisibleComments(prev => prev + 3); // Load 3 more comments
+      setIsLoadingMore(false);
+    }, 500);
   }
 
-  if (blockLoading) {
-    return (
-      <div className={`space-y-4 ${className}`}>
-        <div className="animate-pulse">
-          <div className="h-20 bg-muted rounded-lg mb-4"></div>
-          <div className="space-y-4">
-            <div className="h-16 bg-muted rounded-lg"></div>
-            <div className="h-16 bg-muted rounded-lg"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // if (blockLoading) {
+  //   return (
+  //     <div className={`space-y-4 ${className}`}>
+  //       <CommentSkeleton count={3} />
+  //     </div>
+  //   );
+  // }
 
-  if (loading && postComments.length === 0) {
+  if (showSkeleton) {
     return (
       <div className={`space-y-4 ${className}`}>
-        <div className="animate-pulse">
-          <div className="h-20 bg-muted rounded-lg mb-4"></div>
-          <div className="space-y-4">
-            <div className="h-16 bg-muted rounded-lg"></div>
-            <div className="h-16 bg-muted rounded-lg"></div>
-          </div>
-        </div>
+        <CommentSkeleton count={3} />
       </div>
     )
   }
@@ -259,7 +329,7 @@ const CommentSection = memo(function CommentSection({
       )}
 
       {/* AI Suggestions */}
-      {hasAiSuggestions && (
+      {hasAiSuggestions && aiSuggestionsLoaded && (
         <CommentAI
           suggestion={suggestions[postId]}
           postId={postId}
@@ -278,7 +348,11 @@ const CommentSection = memo(function CommentSection({
               { highlightedCommentId === comment._id && showHighlight && (
                 <div className="absolute top-[-0.5rem] left-[-0.5rem] w-[calc(100%+1rem)] h-[calc(100%+1rem)] bg-primary/10 z-1 border-s-2 border-primary transition-opacity duration-500 rounded-lg"></div>
               )}
-              <CommentItem
+              {/* Show skeleton for optimistic comments */}
+              {comment._id.startsWith('temp-') ? (
+                <CommentSkeleton count={1} />
+              ) : (
+                <CommentItem
                 comment={comment}
                 activeReplyId={activeReplyId}
                 setActiveReplyId={(id) => setActiveReplyId(id)}
@@ -290,6 +364,7 @@ const CommentSection = memo(function CommentSection({
                 postCode={postCode}
                 postCodeLang={postCodeLang}
               />
+              )}
             </div>
           ))}
         </div>
@@ -302,6 +377,7 @@ const CommentSection = memo(function CommentSection({
             variant="ghost"
             size="sm"
             onClick={handleLoadMore}
+            disabled={isLoadingMore}
             className="text-muted-foreground hover:text-foreground"
           >
             <ChevronDown className="size-4 mr-1" />
@@ -309,9 +385,14 @@ const CommentSection = memo(function CommentSection({
           </Button>
         </div>
       )}
+      
+      {/* Show loading skeleton for Load More */}
+      {isLoadingMore && (
+        <CommentSkeleton count={Math.min(3, orderedComments.length - visibleComments)} />
+      )}
 
       {/* No Comments */}
-      {postComments.length + (hasAiSuggestions ? 1 : 0) === 0 && !loading && (
+      {postComments.length + (hasAiSuggestions ? 1 : 0) === 0 && !isLoadingComments && (
         <div className="text-center py-6 text-muted-foreground">
           <MessageCircle className="size-8 mx-auto mb-3 opacity-50" />
           <p>No comments yet. Be the first to comment!</p>

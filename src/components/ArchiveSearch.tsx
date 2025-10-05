@@ -6,13 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Search, X, Calendar, User, Tag, Eye } from 'lucide-react';
 import Link from 'next/link';
 import CodeBlock from '@/components/code/CodeBlock';
 import MarkdownWithCode from '@/components/MarkdownWithCode';
 import Container from './Container';
+import ArchiveSkeleton from './ArchiveSkeleton';
 import { formatDate } from 'date-fns';
 
 export default function ArchiveSearch() {
@@ -37,6 +37,7 @@ export default function ArchiveSearch() {
 
   // Show skeleton if loading or if no items are loaded yet
   const showSkeleton = loading && !error;
+  const hasAttemptedLoad = !loading && !error; // True when fetch is complete (success or empty)
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     search(e.target.value);
@@ -173,63 +174,10 @@ export default function ArchiveSearch() {
             {/* Archive Items */}
             <div className="grid gap-4">
                 {showSkeleton ? (
-                // Loading skeletons
-                Array.from({ length: 1 }).map((_, index) => (
-                    <Card key={index} className="shadow-none dark:border-transparent">
-                    <CardContent className="pt-6">
-                        <div className="space-y-4">
-                        {/* Header skeleton */}
-                        <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
-                            <Skeleton className="h-10 w-10 rounded-full" />
-                            <div className="space-y-2">
-                                <Skeleton className="h-5 w-48" />
-                                <div className="flex items-center gap-2">
-                                <Skeleton className="h-3 w-3" />
-                                <Skeleton className="h-3 w-24" />
-                                <Skeleton className="h-3 w-3" />
-                                <Skeleton className="h-3 w-20" />
-                                </div>
-                            </div>
-                            </div>
-                            <Skeleton className="h-8 w-24" />
-                        </div>
-                        
-                        {/* Content skeleton */}
-                        <div className="space-y-2">
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-4 w-3/4" />
-                            <Skeleton className="h-4 w-1/2" />
-                        </div>
-                        
-                        {/* Code block skeleton */}
-                        <div className="space-y-2">
-                            <Skeleton className="h-4 w-16" />
-                            <div className="bg-muted/50 p-4 rounded-lg">
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-4 w-5/6" />
-                            <Skeleton className="h-4 w-4/5" />
-                            </div>
-                        </div>
-                        
-                        {/* Tags skeleton */}
-                        <div className="flex items-center justify-between">
-                            <div className="flex gap-2">
-                            <Skeleton className="h-6 w-16" />
-                            <Skeleton className="h-6 w-20" />
-                            </div>
-                            <div className="flex gap-2">
-                            <Skeleton className="h-6 w-16" />
-                            <Skeleton className="h-6 w-20" />
-                            </div>
-                        </div>
-                        </div>
-                    </CardContent>
-                    </Card>
-                ))
-                ) : filteredItems.length === 0 && !showSkeleton ? (
+                <ArchiveSkeleton count={3} showHeader={false} />
+                ) : filteredItems.length === 0 && hasAttemptedLoad ? (
                 <Card>
-                    <CardContent className="pt-6">
+                    <CardContent>
                     <div className="text-center py-8">
                         <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                         <h3 className="text-lg font-semibold mb-2">No archive items found</h3>
@@ -243,7 +191,7 @@ export default function ArchiveSearch() {
                     </CardContent>
                 </Card>
                 ) : (
-                            // Archive items
+                // Archive items
                 filteredItems.map((item) => (
                     <Card key={item._id} className="shadow-none dark:border-transparent">
                     <CardContent>
@@ -327,7 +275,7 @@ export default function ArchiveSearch() {
                                 <Tag className="h-4 w-4 text-muted-foreground" />
                                 <div className="flex flex-wrap gap-1">
                                     {item.tags.map((tag) => (
-                                <Badge key={tag} variant="secondary" className="text-xs">
+                                <Badge key={tag} className="text-xs bg-background/50">
                                     {tag}
                                 </Badge>
                                     ))}
