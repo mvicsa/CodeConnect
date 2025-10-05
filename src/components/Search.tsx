@@ -192,7 +192,7 @@ export default function SearchPage() {
 
   return (
     <div className={'min-h-screen bg-background transition-colors duration-300'}>
-      <div className="max-w-3xl mx-auto px-5 lg:px-8 py-8">
+      <div className="max-w-3xl mx-auto px-5 py-8">
         {/* Search Controls */}
         <div className="mb-8 space-y-4">
           <div className="flex flex-col sm:flex-row gap-4">

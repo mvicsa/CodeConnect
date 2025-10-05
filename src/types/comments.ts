@@ -41,6 +41,7 @@ export type Reply = {
   reactions: Reactions
   userReactions: UserReaction[]
   hasAiEvaluation?: boolean
+  isHighlighted?: boolean
 }
 
 export type Comment = {
@@ -57,6 +58,8 @@ export type Comment = {
   replies: Reply[]
   user?: User
   hasAiEvaluation?: boolean
+  repliesCount?: number
+  isHighlighted?: boolean
 }
   
 export type CommentUser = { 

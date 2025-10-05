@@ -17,7 +17,7 @@ interface ArchiveState {
 const initialState: ArchiveState = {
   items: [],
   filteredItems: [],
-  loading: false,
+  loading: true, // Start with loading true to show skeleton initially
   error: null,
   searchQuery: '',
   filters: {

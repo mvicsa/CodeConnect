@@ -5,13 +5,13 @@ import { useArchive } from '@/hooks/useArchive';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ArrowLeft, Calendar, Tag } from 'lucide-react';
 import Link from 'next/link';
 import CodeBlock from '@/components/code/CodeBlock';
 import MarkdownWithCode from '@/components/MarkdownWithCode';
 import Container from './Container';
+import ArchiveSkeleton from './ArchiveSkeleton';
 import { formatDate } from 'date-fns';
 
 interface ArchiveDetailProps {
@@ -72,25 +72,7 @@ export default function ArchiveDetail({ id }: ArchiveDetailProps) {
   if (isLoading) {
     return (
         <Container>
-            <div className="space-y-6">
-                <div className="flex items-center gap-4">
-                    <Skeleton className="h-8 w-8" />
-                    <Skeleton className="h-6 w-32" />
-                </div>
-                <Card>
-                <CardContent className="pt-6">
-                    <div className="space-y-4">
-                    <Skeleton className="h-8 w-3/4" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-2/3" />
-                    <div className="flex gap-2">
-                        <Skeleton className="h-6 w-16" />
-                        <Skeleton className="h-6 w-20" />
-                    </div>
-                    </div>
-                </CardContent>
-                </Card>
-            </div>
+            <ArchiveSkeleton count={1} showHeader={true} />
         </Container>
     );
   }
@@ -137,25 +119,7 @@ export default function ArchiveDetail({ id }: ArchiveDetailProps) {
   if (!item) {
     return (
         <Container>
-            <div className="space-y-6">
-                <div className="flex items-center gap-4">
-                <Skeleton className="h-8 w-8" />
-                <Skeleton className="h-6 w-32" />
-                </div>
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="space-y-4">
-                        <Skeleton className="h-8 w-3/4" />
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-2/3" />
-                        <div className="flex gap-2">
-                            <Skeleton className="h-6 w-16" />
-                            <Skeleton className="h-6 w-20" />
-                        </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+            <ArchiveSkeleton count={1} showHeader={true} />
         </Container>
     );
   }
@@ -298,7 +262,7 @@ export default function ArchiveDetail({ id }: ArchiveDetailProps) {
                         </h3>
                         <div className="flex flex-wrap gap-2">
                         {item.tags.map((tag) => (
-                            <Badge key={tag} variant="secondary">
+                            <Badge key={tag} className="bg-background/50">
                             {tag}
                             </Badge>
                             ))}

@@ -8,9 +8,8 @@ import Post from './Post';
 import { useTranslations } from 'next-intl';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { useBlock } from '@/hooks/useBlock';
+// import { useBlock } from '@/hooks/useBlock';
 import PostBlockStatusChecker from './PostBlockStatusChecker';
-import PostSkeleton from './PostSkeleton';
 
 interface SinglePostViewProps {
   postId: string;
@@ -20,7 +19,7 @@ export default function SinglePostView({ postId }: SinglePostViewProps) {
   const t = useTranslations();
   const dispatch = useDispatch<AppDispatch>();
   const { posts, loading, error } = useSelector((state: RootState) => state.posts);
-  const { loading: blockLoading } = useBlock();
+  // const { loading: blockLoading } = useBlock();
   
   // Find the post in the Redux store
   const post = posts.find(p => p._id === postId) || null;
@@ -28,8 +27,10 @@ export default function SinglePostView({ postId }: SinglePostViewProps) {
   useEffect(() => {
     const fetchPost = async () => {
       try {
-        // Always fetch the post to ensure we have the latest data
-        await dispatch(fetchPostById(postId)).unwrap();
+        // Only fetch if post is not already in store
+        if (!post) {
+          await dispatch(fetchPostById(postId)).unwrap();
+        }
       } catch (err) {
         console.error('Error fetching post:', err);
       }
@@ -38,14 +39,7 @@ export default function SinglePostView({ postId }: SinglePostViewProps) {
     if (postId) {
       fetchPost();
     }
-  }, [postId, dispatch]);
-
-  // Show skeleton while loading post or block data
-  if (loading || blockLoading) {
-    return (
-      <PostSkeleton />
-    );
-  }
+  }, [postId, dispatch, post]);
 
   if (error) {
     return (
@@ -70,7 +64,7 @@ export default function SinglePostView({ postId }: SinglePostViewProps) {
   return post ? (
     <>
       <PostBlockStatusChecker post={post} />
-      <Post post={post} />
+      <Post post={post}  />
     </>
   ) : null;
 } 
