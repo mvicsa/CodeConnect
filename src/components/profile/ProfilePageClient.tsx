@@ -1183,7 +1183,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
                   <div className='flex flex-wrap gap-2'>
                     {/* loop through user skills */}
                     {(user?.skills as string[])?.map((skill: string, index: number) => (
-                      <span key={index} className='bg-card border dark:border-0 px-3 py-1 rounded-full text-sm'>{skill}</span>
+                      <span key={index} className='bg-card px-3 py-1 rounded-full text-sm text-muted-foreground'>{skill}</span>
                       ))}
                     </div>
                   </div>
