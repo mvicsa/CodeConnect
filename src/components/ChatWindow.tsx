@@ -1050,7 +1050,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                )}
                
               {/* Message Reactions (ReactionsMenu) */}
-              <div className={`flex items-center gap-2 mt-2 px-1 group absolute -bottom-3 start-2 bg-accent rounded-lg ${msg.userReactions?.length === 0 && "p-1"}`}>
+              <div className={`flex items-center gap-2 mt-2 px-1 group absolute -bottom-3 start-2 bg-accent rounded-lg px-1 ${msg.userReactions?.length === 0 ? "py-1": "py-[1px]"}`}>
                 <ReactionsMenu
                   size="sm"
                   messageId={msg._id}
