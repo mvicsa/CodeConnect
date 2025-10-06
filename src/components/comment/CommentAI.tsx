@@ -8,33 +8,31 @@ import MarkdownWithCode from '../MarkdownWithCode'
 import { useTheme } from 'next-themes';
 import { AIEvaluation, AISuggestion } from '@/types/ai'
 import { formatDate } from 'date-fns'
+import CommentSkeleton from './CommentSkeleton'
 
 export default function CommentAI({
   suggestion,
   evaluation,
-  postId
+  postId,
+  isLoading = false
 }: {
-  evaluation?: AIEvaluation
+  evaluation?: AIEvaluation | null
   suggestion?: AISuggestion
   postId: string
+  isLoading?: boolean
 }) {
   const { loading } = useSelector((state: RootState) => state.aiSuggestions)
   const { theme } = useTheme();
 
-  // If no suggestion and not loading, don't render anything
-  if (!suggestion && !evaluation?.evaluation && !loading[postId]) {
+  // If no suggestion/evaluation and not loading, don't render anything
+  if (!suggestion && !evaluation?.evaluation && !loading[postId] && !isLoading) {
     return null
   }
 
-  // Show loading state
-  if (loading[postId]) {
+  // Show loading state for post-level AI suggestions or comment-level AI evaluation
+  if (loading[postId] || isLoading) {
     return (
-      <div className="flex gap-3 items-start animate-pulse">
-        <div className="w-10 h-10 rounded-full bg-accent"></div>
-        <div className="flex-1">
-          <div className="bg-accent p-3 rounded-xl h-24"></div>
-        </div>
-      </div>
+      <CommentSkeleton count={1} />
     )
   }
 

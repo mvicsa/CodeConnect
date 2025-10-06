@@ -39,6 +39,9 @@ export const fetchComments = createAsyncThunk<{ comments: Comment[]; isInitialLo
         params.append('highlight', highlight);
       }
       
+      // Add cache-busting parameter to prevent 304 Not Modified responses
+      params.append('_t', Date.now().toString());
+      
       // Get comments from backend API
       // Backend should return: highlighted comment (if exists) + normal limit of comments
       // Example: if limit=10 and highlight exists, return highlighted + 10 others = 11 total
@@ -363,10 +366,8 @@ const commentsSlice = createSlice({
            });
          } else {
            // Pagination load - append new comments
-           const newUniqueComments = newComments.filter(
-             newComment => !existingCommentsThisPost.some(existing => existing._id === newComment._id)
-           );
-           updatedCommentsThisPost = [...existingCommentsThisPost, ...newUniqueComments];
+           // Don't filter out highlighted comments - they might be duplicates but needed for highlighting
+           updatedCommentsThisPost = [...existingCommentsThisPost, ...newComments];
          }
          
          state.comments = [...existingCommentsOtherPosts, ...updatedCommentsThisPost];

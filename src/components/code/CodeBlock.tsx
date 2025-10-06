@@ -133,7 +133,7 @@ const CodeBlock = memo(function CodeBlock({
 
   return (
     // get color background from themes code-dark.json and code-light.json
-    <div ref={containerRef} className={`relative rounded-lg overflow-hidden bg-[#f4f4f5] dark:bg-background ${className}`} dir="ltr">
+    <div ref={containerRef} className={`relative rounded-lg overflow-hidden bg-[#fefefe] dark:bg-background ${className}`} dir="ltr">
       {/* Code content */}
       {/* show copy button on container hover */}
       <div className="relative pt-4 group">

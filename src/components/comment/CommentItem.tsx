@@ -124,11 +124,13 @@ export default function CommentItem({
     return isCommentWithReplies(comment) && comment.replies ? comment.replies.length : 0;
   }) 
   const [fetchedAiEvaluation, setFetchedAiEvaluation] = useState<AIEvaluation | null>(null);
+  const [isLoadingAiEvaluation, setIsLoadingAiEvaluation] = useState(false);
   const [isLoadingReplies, setIsLoadingReplies] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const commentId = has_id(comment) ? comment._id : '';
   useEffect(() => {
     if (comment.hasAiEvaluation && commentId) {
+      setIsLoadingAiEvaluation(true);
       const token = getAuthToken();
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/comments/${commentId}/ai-evaluation`, {
         headers: {
@@ -138,6 +140,9 @@ export default function CommentItem({
         .then(res => res.ok ? res.json() : null)
         .then(data => {
           if (data) setFetchedAiEvaluation(data);
+        })
+        .finally(() => {
+          setIsLoadingAiEvaluation(false);
         });
     }
   }, [comment, commentId]);
@@ -793,13 +798,14 @@ export default function CommentItem({
         )}
 
         {/* Replies Section */}
-        <div className={`${((comment as Comment).replies?.length > 0 && visibleReplies > 0) || (comment.hasAiEvaluation && fetchedAiEvaluation) ? 'mt-3' : ''} space-y-3`}>
-          {/* Show AI evaluation if available or fetched */}
-          {(comment.hasAiEvaluation && fetchedAiEvaluation) && (
+        <div className={`${((comment as Comment).replies?.length > 0 && visibleReplies > 0) || (comment.hasAiEvaluation && (fetchedAiEvaluation || isLoadingAiEvaluation)) ? 'mt-3' : ''} space-y-3`}>
+          {/* Show AI evaluation if available, fetched, or loading */}
+          {(comment.hasAiEvaluation && (fetchedAiEvaluation || isLoadingAiEvaluation)) && (
             <div>
               <CommentAI 
-                evaluation={fetchedAiEvaluation} 
+                evaluation={fetchedAiEvaluation || undefined} 
                 postId={comment.postId} 
+                isLoading={isLoadingAiEvaluation}
               />
             </div>
           )}

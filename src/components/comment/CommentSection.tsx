@@ -156,7 +156,9 @@ const CommentSection = memo(function CommentSection({
   }, [orderedComments, visibleComments]);
 
   // Check if there are more comments to load
-  const hasMoreComments = hasMore[postId] || (totalCounts[postId] && totalCounts[postId] > currentPostComments.length)
+  // Use unique comment IDs to avoid counting duplicates from highlighting
+  const uniqueCommentIds = new Set(currentPostComments.map(comment => comment._id));
+  const hasMoreComments = hasMore[postId] || (totalCounts[postId] && totalCounts[postId] > uniqueCommentIds.size)
 
   useEffect(() => {
     // Only fetch comments if autoLoad is true
@@ -258,7 +260,7 @@ const CommentSection = memo(function CommentSection({
     setIsLoadingMore(true);
     
     // Calculate offset based on loaded comments
-    let currentLoadedCount = currentPostComments.length;
+    const currentLoadedCount = currentPostComments.length;
     let parentCommentIdForHighlight;
     
     if (highlightedReplyId) {
@@ -267,8 +269,8 @@ const CommentSection = memo(function CommentSection({
         comment.replies?.some(reply => reply._id === highlightedReplyId)
       );
       parentCommentIdForHighlight = parentComment?._id;
-      // Adjust offset because parent comment was added extra to the initial load
-      currentLoadedCount = Math.max(0, currentLoadedCount - 1);
+      // Don't adjust offset - the backend handles highlighting properly
+      // currentLoadedCount remains the same
     } else if (highlightedCommentId) {
       // For highlighted comment: use the comment ID itself
       parentCommentIdForHighlight = highlightedCommentId;

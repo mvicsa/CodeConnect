@@ -75,10 +75,12 @@ export default function SinglePostWithHighlightedComment({
     }
   }, [postId, dispatch, t, posts]);
 
+  const currentPostId = post?._id;
+
   // Step 2: Load comments with highlighting
   useEffect(() => {
     const loadCommentsWithHighlight = async () => {
-      if (!post) return;
+      if (!currentPostId) return;
       
       setCommentsLoading(true);
       try {
@@ -140,10 +142,10 @@ export default function SinglePostWithHighlightedComment({
       }
     };
 
-    if (post) {
+    if (currentPostId) {
       loadCommentsWithHighlight();
     }
-  }, [post, postId, targetId, dispatch]);
+  }, [currentPostId, postId, targetId, dispatch]); // Use currentPostId instead of full post object
 
   // Check if the target ID exists in any comment or reply - memoize to prevent infinite renders
   const targetExists = React.useMemo(() => {
