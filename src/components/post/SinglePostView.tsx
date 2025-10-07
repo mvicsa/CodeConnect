@@ -10,6 +10,7 @@ import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 // import { useBlock } from '@/hooks/useBlock';
 import PostBlockStatusChecker from './PostBlockStatusChecker';
+import { toast } from 'sonner';
 
 interface SinglePostViewProps {
   postId: string;
@@ -31,8 +32,8 @@ export default function SinglePostView({ postId }: SinglePostViewProps) {
         if (!post) {
           await dispatch(fetchPostById(postId)).unwrap();
         }
-      } catch (err) {
-        console.error('Error fetching post:', err);
+      } catch {
+        toast.error('Error fetching post');
       }
     };
 

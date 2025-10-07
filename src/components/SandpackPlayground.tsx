@@ -228,8 +228,8 @@ function SparkRating({ sparkId, sparkUserId }: { sparkId: string, sparkUserId: s
       await dispatch(rateSpark({ id: sparkId, value }));
       // Refresh ratings after successful rating to get updated average
       await dispatch(fetchSparkRatings(sparkId));
-    } catch (error) {
-      console.error('Failed to rate spark:', error);
+    } catch {
+      toast.error('Failed to rate spark');
     } finally {
       setSubmitting(false);
     }
@@ -356,9 +356,8 @@ export default function SandpackPlayground() {
       try {
         const url = await uploadToImageKit(file, '/sparks/previews');
         setPreviewImage(url);
-      } catch (error) {
-        alert('Failed to upload preview image.');
-        console.error(error);
+      } catch {
+        toast.error("Failed to upload preview image.");
       } finally {
         setPreviewImageUploading(false);
       }

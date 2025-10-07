@@ -14,6 +14,7 @@ import { useBlock } from '@/hooks/useBlock'
 import CommentSkeleton from './CommentSkeleton'
 import { Comment } from '@/types/comments'
 import { COMMENT_LIMIT } from '@/constants/comments';
+import { toast } from 'sonner'
 
 interface CommentSectionProps {
   postId: string;
@@ -180,8 +181,8 @@ const CommentSection = memo(function CommentSection({
                 // Hide skeleton immediately after AI suggestions are loaded
                 setShowSkeleton(false);
               })
-              .catch(error => {
-                console.error('Failed to fetch AI suggestions:', error);
+              .catch(() => {
+                toast.error('Failed to fetch AI suggestions');
                 setAiSuggestionsLoaded(true);
                 // Hide skeleton immediately even if AI suggestions fail
                 setShowSkeleton(false);
@@ -192,8 +193,8 @@ const CommentSection = memo(function CommentSection({
             setShowSkeleton(false);
           }
         })
-        .catch(error => {
-          console.error('Failed to fetch comments:', error);
+        .catch(() => {
+          toast.error('Failed to fetch comments');
           setIsLoadingComments(false);
           setShowSkeleton(false);
         });
@@ -249,8 +250,8 @@ const CommentSection = memo(function CommentSection({
       // Remove optimistic comment after successful save
       setOptimisticComments(prev => prev.filter(c => c._id !== optimisticComment._id))
       
-    } catch (error) {
-      console.error('Failed to add comment:', error)
+    } catch {
+      toast.error('Failed to add comment');
       // Remove optimistic comment on error
       setOptimisticComments(prev => prev.filter(c => c._id !== `temp-${Date.now()}`))
     }
@@ -288,8 +289,8 @@ const CommentSection = memo(function CommentSection({
       .then(() => {
         setIsLoadingMore(false);
       })
-      .catch(error => {
-        console.error('Failed to load more comments:', error);
+      .catch(() => {
+        toast.error('Failed to load more comments');
         setIsLoadingMore(false);
       });
   }

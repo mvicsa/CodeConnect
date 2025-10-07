@@ -63,10 +63,6 @@ export function ResetPasswordForm({
   }>({});
 
   useEffect(() => {
-    console.log('ResetPasswordForm mounted');
-    console.log('Token from URL:', token);
-    console.log('All search params:', Object.fromEntries(searchParams.entries()));
-    
     if (!token) {
       setError('Invalid reset link. Please request a new password reset.');
     }
@@ -78,8 +74,6 @@ export function ResetPasswordForm({
     setError(null);
     setMessage(null);
     setValidationErrors({});
-
-    console.log('Submitting reset password with token:', token);
 
     // Validate password
     const passwordError = validatePassword(password);
@@ -109,7 +103,6 @@ export function ResetPasswordForm({
         router.push('/login');
       }, 3000);
     } catch (err) {
-      console.error('Reset password error:', err);
       if (isAxiosError(err)) {
         setError(err.response?.data?.message || 'Failed to reset password. Please try again.');
       } else {

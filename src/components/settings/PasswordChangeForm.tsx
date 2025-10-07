@@ -156,8 +156,6 @@ const PasswordChangeForm = () => {
       });
       
     } catch (err) {
-      console.error('Password change error:', err);
-      
       let errorMessage = 'Failed to change password. Please try again.';
       
       if (isAxiosError(err)) {

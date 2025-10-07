@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { Copy, Check, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { highlightCode as shikiHighlightCode } from '@/lib/shiki'
+import { toast } from 'sonner'
 
 interface CodeBlockProps {
   code: string
@@ -43,8 +44,8 @@ const CodeBlock = memo(function CodeBlock({
       // Use the shared highlighter utility instead of managing our own instance
       const html = await shikiHighlightCode(code, lang || 'javascript')
       setHighlightedHtml(html)
-    } catch (error) {
-      console.error('Failed to highlight code:', error)
+    } catch {
+      toast.error('Failed to highlight code');
       setHighlightedHtml('')
     } finally {
       setIsHighlighting(false)
@@ -126,8 +127,8 @@ const CodeBlock = memo(function CodeBlock({
       await navigator.clipboard.writeText(code)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch (error) {
-      console.error('Failed to copy code:', error)
+    } catch {
+      toast.error('Failed to copy code');
     }
   }
 

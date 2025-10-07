@@ -12,6 +12,7 @@ import { RootState } from '@/store/store';
 import { setSeen } from '@/store/slices/chatSlice';
 import { useBlock } from '@/hooks/useBlock';
 import Link from "next/link";
+import ChatSkeleton from "./chat/ChatSkeleton";
 
 interface ChatSidebarProps {
   onChatSelect: (chatId: string) => void;
@@ -115,13 +116,9 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
   const getLastActivity = (roomId: string): LastActivity => {
     const room = chatRooms.find(r => r._id === roomId);
-    console.log('🔍 getLastActivity for roomId:', roomId);
-    console.log('🔍 Found room:', room);
-    console.log('🔍 Room lastActivity:', room?.lastActivity);
     
     // 🎯 PRIORITY 1: Use backend's lastActivity if available
     if (room?.lastActivity) {
-      console.log('✅ Using room.lastActivity from backend');
       const lastActivity = room.lastActivity;
       const activityTime = new Date(lastActivity.time).getTime();
       
@@ -177,7 +174,6 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     }
     
     // If no lastActivity, return null (don't use fallback to avoid instability)
-    console.log('❌ No lastActivity found for roomId:', roomId);
     return { latestType: null, latestTime: 0, latestMessage: null, latestReaction: null };
   };
 
@@ -392,21 +388,8 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
       {/* Chat List */}
       <ChatScrollArea className="flex-1">
         <div className="p-4">
-          {isLoading ? (
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div
-                  key={`skeleton-${i}`}
-                  className="flex items-center space-x-3 p-3 rounded-lg"
-                >
-                  <div className="w-12 h-12 bg-accent rounded-full animate-pulse" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-accent rounded animate-pulse" />
-                    <div className="h-3 bg-accent rounded w-3/4 animate-pulse" />
-                  </div>
-                </div>
-              ))}
-            </div>
+          {isLoading || (filteredPreviews.length === 0 && !searchQuery && chatPreviews.length === 0) ? (
+            <ChatSkeleton />
           ) : filteredPreviews.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-center">
               <Search className="h-8 w-8 text-muted-foreground mb-2" />

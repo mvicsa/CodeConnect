@@ -197,7 +197,6 @@ export const createRoom = createAsyncThunk(
       const response = await axiosInstance.post('/livekit/rooms', payload);
       return response.data;
     } catch (error) {
-      console.error('Create room error:', (error as Error).message);
       return rejectWithValue((error as Error).message || 'Failed to create room');
     }
   }
@@ -221,7 +220,6 @@ export const updateRoom = createAsyncThunk(
       const response = await axiosInstance.put(`/livekit/rooms/${roomId}`, payload);
       return response.data;
     } catch (error) {
-      console.error('Update room error:', (error as Error).message);
       return rejectWithValue((error as Error).message || 'Failed to update room');
     }
   }
@@ -303,20 +301,12 @@ const meetingSlice = createSlice({
         }
         
         if (action.payload.loadMore) {
-          // Append new sessions for load more
-          console.log('🔵 Load More - Current sessions:', state.sessionHistory.length);
-          console.log('🔵 Load More - New sessions received:', action.payload.sessionHistory.length);
-          
           const existingIds = new Set(state.sessionHistory.map(session => session.roomId));
           const uniqueNewSessions = action.payload.sessionHistory.filter(
             (session: SessionHistory) => !existingIds.has(session.roomId)
           );
           
-          console.log('🔵 Load More - Unique new sessions:', uniqueNewSessions.length);
-          console.log('🔵 Load More - Existing IDs:', Array.from(existingIds));
-          
           state.sessionHistory = [...state.sessionHistory, ...uniqueNewSessions];
-          console.log('🔵 Load More - Final sessions count:', state.sessionHistory.length);
         } else {
           // Replace all sessions for initial load or refresh
           state.sessionHistory = action.payload.sessionHistory;

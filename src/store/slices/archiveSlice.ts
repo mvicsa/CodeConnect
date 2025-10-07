@@ -160,7 +160,6 @@ const archiveSlice = createSlice({
       })
       .addCase(fetchArchiveItems.fulfilled, (state, action) => {
         state.loading = false;
-        console.log('Archive items received:', action.payload); // Debug log
         state.items = action.payload;
         state.filteredItems = filterItems(action.payload, state.searchQuery, state.filters);
       })

@@ -116,22 +116,11 @@ const ContextConnector = ({
   } = useMeetingLifecycle();
   
   useEffect(() => {
-    console.log('ContextConnector: Setting refs', {
-      hasCheckFunction: !!checkAndShowRatingDialog,
-      hasForceRefresh: !!forceRefreshRoomData,
-      hasParticipantLeave: !!handleParticipantLeave
-    });
-    
     checkRatingDialogRef.current = checkAndShowRatingDialog;
     lifecycleManagerRef.current = {
       forceRefreshRoomData,
       handleParticipantLeave
     };
-    
-    console.log('ContextConnector: Refs set successfully', {
-      hasCheckRef: !!checkRatingDialogRef.current,
-      hasLifecycleRef: !!lifecycleManagerRef.current
-    });
   }, [checkAndShowRatingDialog, forceRefreshRoomData, handleParticipantLeave, checkRatingDialogRef, lifecycleManagerRef]);
   
   return <>{children}</>;
@@ -222,13 +211,9 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
     if (!meeting || sessionEnded) return;
     
     try {
-      console.log('MeetingDetailsClient: Refreshing essential data after session end');
-      
       // Fetch updated meeting data to get all the latest fields
       const roomResponse = await axiosInstance.get(`/livekit/rooms/${meeting._id}`);
       if (roomResponse.data) {
-        console.log('MeetingDetailsClient: Updated meeting data received:', roomResponse.data);
-        
         // Update meeting object with fresh data (preserving UI state)
         setMeeting(prevMeeting => {
           if (!prevMeeting) return roomResponse.data;
@@ -286,11 +271,11 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
           }
         }
       } catch {
-        console.log('No session history available for this meeting');
+        toast.error('No session history available for this meeting');
       }
       
-    } catch (error) {
-      console.error('MeetingDetailsClient: Error refreshing essential data after session end', error);
+    } catch {
+      toast.error('Failed to refresh essential data after session end');
     }
   }, [meeting, sessionEnded]);
 
@@ -302,10 +287,6 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
       // Try to fetch as a room first
       const roomResponse = await axiosInstance.get(`/livekit/rooms/${meetingId}`);
       if (roomResponse.data) {
-        console.log('Room Response Data:', roomResponse.data);
-        console.log('Room - currentParticipants:', roomResponse.data.currentParticipants);
-        console.log('Room - totalParticipantsJoined:', roomResponse.data.totalParticipantsJoined);
-        
         setMeeting(prevMeeting => {
           // Only set loading to false if this is the initial fetch
           if (!prevMeeting) {
@@ -328,8 +309,6 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
               (session: { roomId: string }) => session.roomId === meetingId
             );
             if (sessionData) {
-              console.log('Session History Data:', sessionData);
-              console.log('Session - joinCount:', sessionData.joinCount);
               setMeetingSessionHistory({
                 joinCount: sessionData.joinCount || 0,
                 totalTimeSpent: sessionData.totalTimeSpent || 0,
@@ -338,7 +317,7 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
             }
           }
         } catch {
-          console.log('No session history available for this meeting');
+          toast.error('No session history available for this meeting');
         }
         
         return;
@@ -375,31 +354,13 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
 
   // Check if user should see rating dialog when entering the page
   useEffect(() => {
-    console.log('MeetingDetailsClient: useEffect triggered', {
-      hasMeeting: !!meeting,
-      hasUser: !!user,
-      hasRef: !!checkRatingDialogRef.current,
-      meetingType: meeting ? ('createdBy' in meeting ? 'Room' : 'PublicSession') : 'None'
-    });
-
     if (meeting && user) {
       // Check if this is a room (not public session) and if user is a participant
       if ('createdBy' in meeting && meeting.createdBy?._id !== user._id) {
-        console.log('MeetingDetailsClient: User is participant, checking if should show rating dialog', {
-          meetingId: meeting._id,
-          userId: user._id,
-          creatorId: meeting.createdBy?._id
-        });
-        
         // Check for rating dialog immediately when context is ready
         if (checkRatingDialogRef.current) {
-          console.log('MeetingDetailsClient: Calling checkAndShowRatingDialog immediately');
           checkRatingDialogRef.current(meeting._id);
-        } else {
-          console.log('MeetingDetailsClient: Context not ready yet');
         }
-      } else {
-        console.log('MeetingDetailsClient: User is creator or not a room, no rating dialog needed');
       }
     }
   }, [meeting, user]);
@@ -412,8 +373,8 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
           const response = await ratingService.getMySubmittedRatings(1, 1000); // Get all submitted ratings
           const ratedSessionIds = response.ratings.map(rating => rating.sessionId);
           setRatedSessions(new Set(ratedSessionIds));
-        } catch (error) {
-          console.error('Failed to fetch rated sessions:', error);
+        } catch {
+          toast.error('Failed to fetch rated sessions:');
         }
       };
       loadRatedSessions();
@@ -423,15 +384,8 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
   // Add effect to refresh data when session state changes
   useEffect(() => {
     if (meeting && roomStatus) {
-      console.log('MeetingDetailsClient: Session state changed, refreshing data', {
-        hasActiveSession: roomStatus.hasActiveSession,
-        isActive: meeting.isActive,
-        participantCount: roomStatus.participantCount
-      });
-      
       // Only refresh if there's a significant state change and session is still active
       if (!roomStatus.hasActiveSession && meeting.isActive && roomStatus.participantCount > 0) {
-        console.log('MeetingDetailsClient: Session appears to have ended, updating local state only');
         // Update local state without making API calls
         setMeeting(prevMeeting => {
           if (!prevMeeting) return meeting;
@@ -483,17 +437,11 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
           meeting.isPrivate !== updatedRoom.isPrivate;
         
         if (hasSignificantChanges) {
-          console.log('MeetingDetailsClient: Redux store updated with significant changes, syncing local state', {
-            oldIsActive: meeting.isActive,
-            newIsActive: updatedRoom.isActive
-          });
-          
           // Merge the updated data to preserve UI state
           safeUpdateMeetingData(updatedRoom);
           
           // Only refresh room status if the meeting state changed significantly and session is still active
           if (meeting.isActive !== updatedRoom.isActive && updatedRoom.isActive) {
-            console.log('MeetingDetailsClient: Meeting state changed, refreshing room status');
             // Use targeted refresh to avoid affecting UI
             const refreshStatus = async () => {
               try {
@@ -501,8 +449,8 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                 if (statusResponse.data) {
                   setRoomStatus(statusResponse.data);
                 }
-              } catch (error) {
-                console.error('MeetingDetailsClient: Error refreshing room status', error);
+              } catch {
+                toast.error('Error refreshing room status');
               }
             };
             refreshStatus();
@@ -562,22 +510,6 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
     const actualParticipantCount = roomStatusParticipantCount ?? meetingCurrentParticipants ?? 0;
     const totalParticipantsJoined = meetingTotalParticipants ?? actualParticipantCount;
     
-    console.log('Computed values:', { 
-      isOwner, 
-      isActive, 
-      hasEnded, 
-      canEdit, 
-      meetingIsActive: meeting?.isActive, 
-      roomStatusHasSession: roomStatusHasActiveSession,
-      userId: user?._id,
-      createdBy: meeting?.createdBy?._id,
-      participantCount: roomStatusParticipantCount,
-      currentParticipants: meetingCurrentParticipants,
-      meetingTotalParticipants: meetingTotalParticipants,
-      actualParticipantCount,
-      totalParticipantsJoined
-    });
-    
     return {
       isOwner,
       isPrivate,
@@ -597,25 +529,20 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
     meetingCurrentParticipants
   ]);
 
-  const endedDate = meeting && 'endedDate' in meeting ? meeting.endedDate : undefined
+  // const endedDate = meeting && 'endedDate' in meeting ? meeting.endedDate : undefined
 
   // Force re-computation when meeting data changes significantly
-  useEffect(() => {
-    if (meeting) {
-      console.log('MeetingDetailsClient: Meeting data changed, forcing re-computation', {
-        isActive: meeting.isActive,
-        currentParticipants: meeting.currentParticipants,
-        totalParticipantsJoined: meeting.totalParticipantsJoined,
-        endedDate
-      });
-    }
-  }, [
-    meeting,
-    meeting?.isActive,
-    meeting?.currentParticipants,
-    meeting?.totalParticipantsJoined,
-    endedDate
-  ]);
+  // useEffect(() => {
+  //   if (meeting) {
+  //     toast.error('Meeting data changed, forcing re-computation');
+  //   }
+  // }, [
+  //   meeting,
+  //   meeting?.isActive,
+  //   meeting?.currentParticipants,
+  //   meeting?.totalParticipantsJoined,
+  //   endedDate
+  // ]);
 
   // Fetch followed users for suggestions
   useEffect(() => {
@@ -633,11 +560,11 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
               skip: 0 
             }, 'fetchFollowing/fulfilled', { userId: user._id }));
           } else {
-            console.error('Failed to fetch followed users:', response.statusText);
+            toast.error('Failed to fetch followed users');
           }
         }
-      } catch (error) {
-        console.error("Error fetching followed users:", error);
+      } catch {
+        toast.error("Error fetching followed users");
       }
     };
     
@@ -679,19 +606,11 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
   const handleEditRoom = () => {
     if (!meeting) return;
     
-    console.log('handleEditRoom called', { 
-      meeting, 
-      user: user?._id, 
-      createdBy: meeting?.createdBy?._id,
-      isOwner: 'createdBy' in meeting && meeting.createdBy?._id === user?._id 
-    });
-    
     if ('createdBy' in meeting && meeting.createdBy?._id === user?._id) {
-      console.log('Setting editing room and showing dialog');
       setEditingRoom(meeting as Room);
       setShowEditDialog(true);
     } else {
-      console.log('Cannot edit room - conditions not met');
+      toast.error('Cannot edit room');
     }
   };
 
@@ -755,7 +674,6 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
       // Only stop loading if we didn't successfully join
       setIsJoining(false);
     } catch (error) {
-      console.error("Error joining meeting:", error);
       toast.error((error as Error).message || "Failed to join meeting");
       setIsJoining(false);
     }
@@ -763,12 +681,6 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
 
   // Video conference functions - Update UI immediately
   const handleDisconnect = async () => {
-    console.log('MeetingDetailsClient.handleDisconnect: Starting', {
-      hasCurrentRoom: !!currentRoom,
-      roomId: currentRoom?._id,
-      roomName: currentRoom?.name
-    });
-    
     // Store currentRoom before clearing it
     const roomToLeave = currentRoom;
     
@@ -785,14 +697,11 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
     
     // Handle lifecycle management in background (non-blocking)
     if (roomToLeave && lifecycleManagerRef.current?.handleParticipantLeave) {
-      console.log('MeetingDetailsClient: Using lifecycle manager to handle participant leave');
       // Don't await this - let it run in background
-      lifecycleManagerRef.current.handleParticipantLeave(roomToLeave).catch(error => {
-        console.error('Error in background participant leave handling:', error);
+      lifecycleManagerRef.current.handleParticipantLeave(roomToLeave).catch(() => {
+        toast.error('Error in background participant leave handling:');
       });
     }
-    
-    console.log('MeetingDetailsClient.handleDisconnect: Completed');
   };
 
   // Session ending - Update UI immediately and database
@@ -862,9 +771,7 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
       
       // Send API request to end session in database
       try {
-        console.log('MeetingDetailsClient: Sending API request to end session');
         const response = await axiosInstance.post(`/livekit/rooms/${currentRoom._id}/end-session`);
-        console.log('MeetingDetailsClient: Session ended in database successfully', response.data);
         
         // Update additional data from API response if available
         if (response.data) {
@@ -889,13 +796,11 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
         
         // Don't call fetchMeetingDetails here to avoid infinite loop
         // The local state is already updated above
-      } catch (apiError) {
-        console.error('MeetingDetailsClient: Error ending session in database', apiError);
+      } catch {
         toast.error("Failed to end session in database");
       }
       
-    } catch (error) {
-      console.error("Error updating local state:", error);
+    } catch {
       toast.error("Failed to update local state");
     }
   };
@@ -1444,8 +1349,7 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                 // Refresh meeting details
                 await fetchMeetingDetails();
                 toast.success("Meeting updated successfully!");
-              } catch (error) {
-                console.error("Error updating meeting:", error);
+              } catch {
                 toast.error("Failed to update meeting");
               } finally {
                 setIsUpdating(false);
@@ -1475,8 +1379,7 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                 setShowDeleteDialog(false);
                 toast.success("Meeting deleted successfully!");
                 router.push('/meeting');
-              } catch (error) {
-                console.error("Error deleting meeting:", error);
+              } catch {
                 toast.error("Failed to delete meeting");
               } finally {
                 setIsDeleting(false);

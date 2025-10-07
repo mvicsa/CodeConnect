@@ -12,6 +12,7 @@ import { fetchComments, getCommentContext, fetchReplies } from '@/store/slices/c
 import { fetchPostById } from '@/store/slices/postsSlice';
 import PostSkeleton from './PostSkeleton';
 import { COMMENT_LIMIT, REPLY_LIMIT } from '@/constants/comments';
+import { toast } from 'sonner';
 
 interface SinglePostWithHighlightedCommentProps {
   postId: string;
@@ -62,8 +63,8 @@ export default function SinglePostWithHighlightedComment({
           const result = await dispatch(fetchPostById(postId)).unwrap();
           setPost(result);
         }
-      } catch (err) {
-        console.error('Error loading post:', err);
+      } catch {
+        toast.error('Error loading post');
         setError(t('errorFetchingPost'));
       } finally {
         setPostLoading(false);
@@ -113,9 +114,6 @@ export default function SinglePostWithHighlightedComment({
                 limit: REPLY_LIMIT, // Small limit - backend will add highlighted reply to this
                 highlight: context.parentComment._id === context.comment.parentCommentId ? targetId : undefined
               }));
-
-              console.log('🔥 Parent comment:', context.parentComment);
-
             } else {
               // For highlighted comment: normal load
               await dispatch(fetchComments({ 
@@ -126,8 +124,8 @@ export default function SinglePostWithHighlightedComment({
               }));
             }
             
-          } catch (error) {
-            console.error('Comment context not found:', error);
+          } catch {
+            toast.error('Comment context not found'); 
             // Fallback: load normal comments
             await dispatch(fetchComments({ postId, offset: 0, limit: COMMENT_LIMIT }));
           }
@@ -135,8 +133,8 @@ export default function SinglePostWithHighlightedComment({
           // No highlighting needed
           await dispatch(fetchComments({ postId, offset: 0, limit: COMMENT_LIMIT }));
         }
-      } catch (err) {
-        console.error('Error loading comments:', err);
+      } catch {
+        toast.error('Error loading comments');
       } finally {
         setCommentsLoading(false);
       }

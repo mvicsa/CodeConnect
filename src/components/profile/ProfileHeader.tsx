@@ -19,6 +19,7 @@ import { RootState } from '@/store/store';
 import { setRooms, setActiveRoom } from '@/store/slices/chatSlice';
 import { User } from '@/types/user';
 import { getAuthToken } from '@/lib/cookies';
+import { toast } from 'sonner';
 
 interface ProfileHeaderProps {
   user: User;
@@ -137,12 +138,12 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           dispatch(setActiveRoom(roomResponse.roomId));
           router.push(`/chat`);
         } else {
-          console.error('Failed to create private room - no roomId in response');
+          toast.error('Failed to create private room');
         }
         setIsCreatingRoom(false);
       });
-    } catch (error) {
-      console.error('Error creating private room:', error);
+    } catch {
+      toast.error('Failed to create private room'); 
       setIsCreatingRoom(false);
     }
   };

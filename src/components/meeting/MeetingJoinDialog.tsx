@@ -120,7 +120,6 @@ export const MeetingJoinDialog = ({
         }
       }
     } catch (error) {
-      console.error("Error joining meeting:", error);
       toast.error((error as AxiosError<{ message: string }>)?.response?.data?.message || "Failed to join meeting");
     } finally {
       setLoading(false);

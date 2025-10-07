@@ -42,8 +42,8 @@ export default function RatingsPage() {
       const response = await ratingService.getMyReceivedRatings(1, 100); // Get more ratings for accurate stats
       setReceivedRatings(response.ratings || []);
       setTotalRatings(response.pagination.total || 0);
-    } catch (error) {
-      console.error("Failed to fetch received ratings for stats:", error);
+    } catch {
+      toast.error("Failed to fetch received ratings for stats:");
     } finally {
       setStatsLoading(false);
     }
@@ -82,9 +82,8 @@ export default function RatingsPage() {
       
       setRatings(response.ratings || []);
       setTotalPages(response.pagination.totalPages);
-    } catch (error) {
-      console.error("Failed to fetch ratings:", error);
-      toast.error("Failed to load ratings");
+    } catch {
+      toast.error("Failed to fetch ratings");
     } finally {
       setLoading(false);
     }

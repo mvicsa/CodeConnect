@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
 import { ratingService } from '@/services/ratingService';
+import { toast } from 'sonner';
 
 interface UserRatingsProps {
   userId: string;
@@ -30,8 +31,8 @@ const UserRatings: React.FC<UserRatingsProps> = ({ userId }) => {
           setTotalRatings(0);
           setAverageRating(null);
         }
-      } catch (error) {
-        console.error('Failed to fetch user ratings:', error);
+      } catch {
+        toast.error('Failed to fetch user ratings');
         setTotalRatings(0);
         setAverageRating(null);
       } finally {

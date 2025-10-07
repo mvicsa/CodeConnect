@@ -79,7 +79,6 @@ export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
   async (profileData: unknown, { getState, rejectWithValue }) => {
     try {
-      console.log('profileData', profileData);
       const state = getState() as { auth: AuthState };
       const token = state.auth.token || getAuthToken();
       if (!token) throw new Error('No token');

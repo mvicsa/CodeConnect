@@ -208,9 +208,7 @@ export const VideoConferenceComponent = ({
           connect={true}
           options={roomOptions}
           onDisconnected={() => {
-            console.log('🔄 LiveKit onDisconnected triggered, calling onDisconnect...');
             onDisconnect();
-            console.log('✅ onDisconnect called successfully');
           }}
           style={{ height: "100%", width: "100%" }}
         >

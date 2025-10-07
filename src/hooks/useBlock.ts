@@ -70,8 +70,7 @@ export const useBlock = () => {
     try {
       await dispatchRef.current(checkBlockStatus(userId)).unwrap();
       return true;
-    } catch (error) {
-      console.error('Failed to check block status:', error);
+    } catch {
       return false;
     }
   }, []); // No dependencies needed since we use refs
@@ -80,8 +79,8 @@ export const useBlock = () => {
     try {
       await dispatchRef.current(fetchBlockedUsers()).unwrap();
       return true;
-    } catch (error) {
-      toast.error(error as string || 'Failed to load blocked users');
+    } catch {
+      toast.error('Failed to load blocked users');
       return false;
     }
   }, []);
@@ -90,8 +89,7 @@ export const useBlock = () => {
     try {
       await dispatchRef.current(fetchBlockStats()).unwrap();
       return true;
-    } catch (error) {
-      console.error('Failed to load block stats:', error);
+    } catch {
       return false;
     }
   }, []);

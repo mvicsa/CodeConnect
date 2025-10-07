@@ -61,8 +61,8 @@ function SparkRating({ sparkId }: SparkRatingProps) {
     try {
       await dispatch(rateSpark({ id: sparkId, value }));
       await dispatch(fetchSparkRatings(sparkId));
-    } catch (error) {
-      console.error('Failed to rate spark:', error);
+    } catch {
+      toast.error('Failed to rate spark');
     } finally {
       setSubmitting(false);
     }

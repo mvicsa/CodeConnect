@@ -4,6 +4,7 @@ import CommentEditor from './CommentEditor'
 import { useSelector } from 'react-redux'
 import { RootState } from '@/store/store'
 import { forwardRef, Ref } from 'react'
+import { toast } from 'sonner'
 
 interface ReplyFormProps {
   initialValue: string
@@ -26,8 +27,8 @@ export default forwardRef(function ReplyForm({
     
     try {
       await onSubmit(content.text)
-    } catch (error) {
-      console.error('Failed to submit reply:', error)
+    } catch {
+      toast.error('Failed to submit reply');
     }
   }
 

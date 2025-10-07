@@ -35,10 +35,12 @@ import CodeInputModal from "./chat/CodeInputModal";
 import CodeMessage from "./chat/CodeMessage";
 import ReactionsMenu from "./ReactionsMenu";
 import EditMessageModal from "./chat/EditMessageModal";
+import ChatWindowSkeleton from "./chat/ChatWindowSkeleton";
 
 interface ChatWindowProps {
   onBackToList: () => void;
   isMobileView: boolean;
+  isLoading?: boolean;
 }
 
 const MemoChatInput = React.memo(ChatInput);
@@ -46,6 +48,7 @@ const MemoChatInput = React.memo(ChatInput);
 const ChatWindow: React.FC<ChatWindowProps> = ({
   onBackToList,
   isMobileView,
+  isLoading = false,
 }) => {
   const [message, setMessage] = useState("");
   const [replyTo, setReplyTo] = useState<Message | null>(null);
@@ -409,6 +412,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
+  // Force scroll to bottom with smooth behavior
+  const forceScrollToBottom = () => {
+    if (!scrollRef.current) return;
+    const scrollElement = scrollRef.current;
+    const { scrollHeight, clientHeight } = scrollElement;
+    const maxScroll = scrollHeight - clientHeight;
+    
+    // Use requestAnimationFrame for smoother scrolling
+    requestAnimationFrame(() => {
+      scrollElement.scrollTo({ top: maxScroll, behavior: 'smooth' });
+    });
+  };
+
   // Scroll to bottom when:
   // - activeRoomId changes (user switches chat)
   // - messages length increases and shouldAutoScroll is true
@@ -416,25 +432,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     // If user switched chat, always scroll to bottom after messages load
     if (activeRoomId !== prevActiveRoomId.current) {
       prevActiveRoomId.current = activeRoomId;
-      setTimeout(() => forceScrollToBottom(), 100);
+      
+      // Immediate scroll to bottom for initial load
+      if (scrollRef.current) {
+        const scrollElement = scrollRef.current;
+        const { scrollHeight, clientHeight } = scrollElement;
+        const maxScroll = scrollHeight - clientHeight;
+        scrollElement.scrollTop = maxScroll; // Instant scroll
+      }
+      
+      // Then smooth scroll after timeout
+      setTimeout(() => forceScrollToBottom(), 200);
       prevMessagesLength.current = messages.length;
       return;
     }
     // If new messages arrived (from anyone) and user was at bottom, scroll
     if (messages.length > prevMessagesLength.current && shouldAutoScroll) {
-      setTimeout(() => forceScrollToBottom(), 100);
+      setTimeout(() => forceScrollToBottom(), 200);
     }
     prevMessagesLength.current = messages.length;
   }, [activeRoomId, messages.length, shouldAutoScroll]);
-
-  // Force scroll to bottom with smooth behavior
-  const forceScrollToBottom = () => {
-    if (!scrollRef.current) return;
-    const scrollElement = scrollRef.current;
-    const { scrollHeight, clientHeight } = scrollElement;
-    const maxScroll = scrollHeight - clientHeight;
-    scrollElement.scrollTo({ top: maxScroll, behavior: 'smooth' });
-  };
 
   // Smoothly scroll to a message by id and highlight its bubble briefly
   const scrollToMessageById = (messageId: string) => {
@@ -489,9 +506,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           handleTypingStatus(false);
 
           socket.emit('chat:send_message', msg);
-        } catch (error) {
+        } catch {
           dispatch(setError('Failed to send message'));
-          console.log(error)
         }
       }
     }
@@ -626,13 +642,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       setReplyTo(null);
       toast.success('File sent successfully!');
       
-    } catch (error) {
-      console.error('Failed to upload file:', error);
+    } catch {
       toast.error('Failed to upload file. Please try again.');
-         } finally {
-       setIsUploading(false);
-       setUploadProgress(0);
-     }
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -928,7 +943,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                        controls
                        style={{ minHeight: '256px' }}
                        onError={(e) => {
-                         console.error('Video error:', e);
+                         toast.error(`Video error ${e}`); 
                          // Show fallback content if video fails to load
                          const videoElement = e.currentTarget;
                          videoElement.style.display = 'none';
@@ -1147,6 +1162,30 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
     // eslint-disable-next-line
   }, [messages, typing]);
+
+  // If loading, show skeleton
+  if (isLoading) {
+    return <ChatWindowSkeleton />;
+  }
+
+  // If no active room, show empty state
+  if (!activeRoom) {
+    return (
+      <div className="flex flex-col h-full items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-24 h-24 bg-muted rounded-full mx-auto mb-4 flex items-center justify-center">
+            <Users className="h-12 w-12 text-muted-foreground" />
+          </div>
+          <h3 className="text-lg font-semibold text-foreground mb-2">
+            {t("noChatSelected")}
+          </h3>
+          <p className="text-muted-foreground">
+            {t("selectChatToStart")}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-card border">

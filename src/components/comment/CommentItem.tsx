@@ -54,6 +54,7 @@ import { formatDate } from 'date-fns'
 import CommentSkeleton from './CommentSkeleton'
 import { REPLY_LIMIT } from '@/constants/comments';
 import ReadMore from '../ReadMore'
+import { toast } from 'sonner'
 
 
 // Define CommentContent type
@@ -308,8 +309,8 @@ export default function CommentItem({
             setShowReplies(true);
             setVisibleReplies(REPLY_LIMIT);
           })
-          .catch(error => {
-            console.error('Failed to fetch replies:', error);
+          .catch(() => {
+            toast.error('Failed to fetch replies');   
           })
           .finally(() => {
             setIsLoadingReplies(false);
@@ -340,8 +341,8 @@ export default function CommentItem({
           setVisibleReplies(prev => prev + actualLoadedCount);
           setIsLoadingMore(false);
         })
-        .catch(error => {
-          console.error('Failed to load more replies:', error);
+        .catch(() => {
+          toast.error('Failed to load more replies');  
           setIsLoadingMore(false);
         });
     }
@@ -352,7 +353,7 @@ export default function CommentItem({
     const parentId = rootCommentId;
     
     if (!parentId) {
-      console.error('Cannot add reply: No valid parent comment ID');
+      toast.error('Cannot add reply: No valid comment');
       return;
     }
     
@@ -369,8 +370,8 @@ export default function CommentItem({
       setMentionUser('');
       // Ensure the new reply is visible by increasing visibleReplies if needed
       setVisibleReplies(prev => Math.max(prev + 1, 1));
-    } catch (error) {
-      console.error('Failed to add reply:', error);
+    } catch {
+      toast.error('Failed to add reply');
     }
   }
 
@@ -399,13 +400,11 @@ export default function CommentItem({
         
         // If mentions were removed, emit socket event to delete notifications
         if (removedMentions.length > 0 && socket) {
-          console.log('🔄 Mentions removed:', removedMentions);
           socket.emit('notification:delete', {
             type: 'USER_MENTIONED',
             commentId: String(commentId),
             fromUserId: user?._id
           });
-          console.log('🔄 Socket: Sent notification deletion for removed mentions in comment:', commentId);
         }
         
         // Force update local state to ensure UI reflects changes immediately
@@ -419,8 +418,8 @@ export default function CommentItem({
         if (isReply && rootCommentId) {
           dispatch(fetchReplies({ parentCommentId: rootCommentId, offset: 0, limit: 10 }))
         }
-      } catch (error) {
-        console.error('Error editing comment/reply:', error)
+      } catch {
+        toast.error(`Error editing ${isReply ? 'reply' : 'comment'}`);
       }
     }
     setIsEditing(false)
@@ -477,10 +476,6 @@ export default function CommentItem({
   }
 
   const handleDelete = async () => {
-    console.log('🗑️ Deleting comment/reply:', commentId, 'isReply:', isReply);
-    
-    // 🔥 IMMEDIATE: حذف جميع الإشعارات المرتبطة بالتعليق/الرد محلياً أولاً
-    console.log('🧹 IMMEDIATE CLEANUP: Removing ALL notifications for comment/reply:', commentId);
     
     // حذف إشعارات التعليق/الرد نفسه
     dispatch(removeNotificationsByCriteria({
@@ -502,8 +497,6 @@ export default function CommentItem({
     
     // 🔥 إذا كان تعليق (وليس رد)، احذف أيضاً جميع الردود وإشعاراتها
     if (!isReply && 'replies' in comment && comment.replies && comment.replies.length > 0) {
-      console.log(`🧹 CLEANUP: Deleting notifications for ${comment.replies.length} replies`);
-      
       comment.replies.forEach((reply: Reply) => {
         // حذف إشعارات كل رد
         dispatch(removeNotificationsByCriteria({
@@ -522,8 +515,6 @@ export default function CommentItem({
           type: 'USER_MENTIONED',
           commentId: String(reply?._id),
         }));
-        
-        console.log('🗑️ Deleted notifications for reply:', reply?._id);
       });
     }
     
@@ -535,8 +526,6 @@ export default function CommentItem({
     if (socket && user?._id) {
       // استخراج المنشنات من التعليق لإرسالها مع إشعار الحذف
       const mentions = extractMentions(comment.text || '');
-      
-      console.log('🔄 Socket: Sending notification deletion events for comment:', commentId);
       
       // حذف إشعارات التعليق/الرد
       socket.emit('notification:delete', {
@@ -571,7 +560,6 @@ export default function CommentItem({
       
              // 🔥 إذا كان تعليق (وليس رد)، إرسال أحداث لحذف جميع الردود وإشعاراتها
        if (!isReply && 'replies' in comment && comment.replies && comment.replies.length > 0) {
-         console.log(`🔄 Socket: Sending deletion events for ${comment.replies.length} replies`);
          
          comment.replies.forEach((reply: Reply) => {
           const replyMentions = extractMentions(reply?.text || '');
@@ -606,21 +594,14 @@ export default function CommentItem({
             mentions: replyMentions,
             forceRefresh: true
           });
-          
-          console.log('🔄 Socket: Sent deletion events for reply:', reply?._id);
         });
       }
-      
-      console.log('✅ Socket: All notification deletion events sent for comment/reply and its replies:', commentId);
-    } else {
-      console.warn('⚠️ Socket or user not available, cannot send notification deletion events');
     }
     
     // 🔥 إعادة تحميل الإشعارات بعد الحذف للتأكد من التحديث
     if (user?._id) {
       setTimeout(async () => {
         try {
-          console.log('🔄 Refreshing notifications after comment deletion');
           const token = getAuthToken();
           if (token) {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/notifications/user/${user._id}`, {
@@ -630,11 +611,10 @@ export default function CommentItem({
               const data = await response.json();
               const { setNotifications } = await import('@/store/slices/notificationsSlice');
               dispatch(setNotifications(data));
-              console.log('✅ Notifications refreshed successfully after comment deletion');
             }
           }
-        } catch (error) {
-          console.error('❌ Failed to refresh notifications after comment deletion:', error);
+        } catch {
+          toast.error('Failed to refresh notifications');
         }
       }, 1500);
     }

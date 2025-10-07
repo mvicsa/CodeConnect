@@ -303,8 +303,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
       // Try to create a URL object
       new URL(url);
       return true;
-    } catch (e) {
-      console.error(e)
+    } catch {
       return false;
     }
   };
@@ -388,8 +387,8 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
         ...prev,
         avatar: url
       }));
-    } catch (error) {
-      console.error('Avatar update error:', error);
+    } catch {
+      toast.error('Failed to update avatar'); 
     } finally {
       setEditLoading(false);
     }
@@ -411,8 +410,8 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
         ...prev,
         cover: url
       }));
-    } catch (error) {
-      console.error('Cover update error:', error);
+    } catch {
+      toast.error('Failed to update cover'); 
     } finally {
       setEditLoading(false);
     }
@@ -443,50 +442,40 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
     }
 
     // Filter out incomplete social links and ensure titles are set
-    const filteredSocialLinks = editForm.socialLinks
-      .filter(link => link.platform && link.url)
-      .map(link => {
-        // If title is missing, set it from SOCIAL_PLATFORMS
-        if (!link.title) {
-          const platform = SOCIAL_PLATFORMS.find(p => p.value === link.platform);
-          return {
-            ...link,
-            title: platform?.label || link.platform
-          };
-        }
-        return link;
-      });
+    // const filteredSocialLinks = editForm.socialLinks
+    //   .filter(link => link.platform && link.url)
+    //   .map(link => {
+    //     // If title is missing, set it from SOCIAL_PLATFORMS
+    //     if (!link.title) {
+    //       const platform = SOCIAL_PLATFORMS.find(p => p.value === link.platform);
+    //       return {
+    //         ...link,
+    //         title: platform?.label || link.platform
+    //       };
+    //     }
+    //     return link;
+    //   });
   
     // Prepare data for API
-    const birthdateValue = editForm.birthdate ? 
-      new Date(editForm.birthdate.getTime() - editForm.birthdate.getTimezoneOffset() * 60000)
-        .toISOString().split('T')[0] : null;
-    console.log('Birthdate debug:', {
-      original: editForm.birthdate,
-      formatted: birthdateValue,
-      isoString: editForm.birthdate?.toISOString(),
-      timezoneOffset: editForm.birthdate?.getTimezoneOffset()
-    });
+    // const birthdateValue = editForm.birthdate ? 
+    //   new Date(editForm.birthdate.getTime() - editForm.birthdate.getTimezoneOffset() * 60000)
+    //     .toISOString().split('T')[0] : null;
     
-    const payload = {
-      ...editForm,
-      socialLinks: filteredSocialLinks,
-      birthdate: birthdateValue,
-    };
-    
-    console.log('Submitting profile update with payload:', payload);
+    // const payload = {
+    //   ...editForm,
+    //   socialLinks: filteredSocialLinks,
+    //   birthdate: birthdateValue,
+    // };
     
     // Add a timeout to ensure dialog closes even if there are issues
     const timeoutId = setTimeout(() => {
-      console.log('Force closing dialog due to timeout');
       setEditDialogOpen(false);
       setEditLoading(false);
     }, 10000); // 10 second timeout
     
     try {
       // Actually dispatch the updateProfile action
-      const result = await dispatch(updateProfile(payload)).unwrap();
-      console.log('Profile update successful:', result);
+      // const result = await dispatch(updateProfile(payload)).unwrap();
       
       // Clear the timeout since we succeeded
       clearTimeout(timeoutId);
@@ -499,17 +488,15 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
       
       // Close dialog after successful update
       setEditDialogOpen(false);
-      console.log('Dialog closed successfully');
       
       // Then refetch user data to get the updated profile (don't block dialog closing)
       try {
         await refetchUser();
-      } catch (refetchError) {
-        console.warn('Error refetching user data:', refetchError);
+      } catch {
+        toast.error('Error refetching user data:');
         // Don't show this error to user since the update was successful
       }
     } catch (error) {
-      console.error('Profile update error:', error);
       clearTimeout(timeoutId);
       const errorMessage = (error as Error)?.message || 'Failed to update profile';
       setEditError(errorMessage);
@@ -554,8 +541,8 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
         hasFetchedProfile.current = true;
         try {
           await dispatch(fetchProfile());
-        } catch (error) {
-          console.error('Error fetching profile:', error);
+        } catch {
+          toast.error('Failed to fetch profile');
         }
       }
     };
@@ -615,7 +602,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
         
         // No need to fetch followers/following again - we've already updated the counts locally
         // This prevents unnecessary re-renders
-      } catch (error) {
+      } catch {
         // Revert the local state if there was an error
         setIsFollowing(false);
         
@@ -627,7 +614,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
           // Revert following count
           setFollowingCount((prev: number) => Math.max(0, prev - 1));
         }
-        console.error('Error following user:', error);
+        toast.error('Failed to follow user');
       } finally {
         setFollowActionLoading(false);
       }
@@ -664,7 +651,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
         
         // No need to fetch followers/following again - we've already updated the counts locally
         // This prevents unnecessary re-renders
-      } catch (error) {
+      } catch {
         // Revert the local state if there was an error
         setIsFollowing(true);
         
@@ -676,7 +663,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
           // Revert following count
           setFollowingCount((prev: number) => prev + 1);
         }
-        console.error('Error unfollowing user:', error);
+        toast.error('Failed to unfollow user');
       } finally {
         setFollowActionLoading(false);
       }
@@ -749,8 +736,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
       }
       
       // We'll let the UserListDialog component handle the UI updates locally
-    } catch (error) {
-      console.error('Error toggling follow status:', error);
+    } catch {
       // Revert the count if there was an error
       if (isFollowing) {
         setFollowingCount((prev: number) => prev + 1);
@@ -764,7 +750,6 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
 
   // Add a debug log when the form is opened
   const handleOpenEditDialog = () => {
-    console.log('Opening edit dialog');
     setEditDialogOpen(true);
   };
 

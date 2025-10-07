@@ -17,6 +17,7 @@ import { useTranslations } from "next-intl";
 import { PublicSession } from "@/store/slices/meetingSlice";
 import axiosInstance from "@/lib/axios";
 import Link from "next/link";
+import { toast } from "sonner";
 
 interface PublicSessionCardProps {
   session: PublicSession;
@@ -47,15 +48,10 @@ export const PublicSessionCard = ({
     
     const fetchLiveRoomStatus = async () => {
       try {
-        console.log('Fetching LiveKit status for session:', session._id);
         const response = await axiosInstance.get(`/livekit/rooms/${session._id}/status`);
-        console.log('LiveKit status response:', response.data);
         
         if (response.status === 200) {
           const statusData = response.data;
-          console.log('Status data:', statusData);
-          console.log('Participant count:', statusData.participantCount);
-          console.log('Has active session:', statusData.hasActiveSession);
           
           setLiveParticipantCount(statusData.participantCount || 0);
           setLiveRoomStatus({
@@ -63,8 +59,7 @@ export const PublicSessionCard = ({
             participantCount: statusData.participantCount || 0
           });
         }
-      } catch (error) {
-        console.error('Failed to get live room status:', error);
+      } catch {
         // For public sessions, use database values as fallback
         setLiveParticipantCount(session.currentParticipants || 0);
         setLiveRoomStatus({
@@ -92,8 +87,8 @@ export const PublicSessionCard = ({
   const handleCopyRoomId = async () => {
     try {
       await onCopyRoomId(session._id);
-    } catch (error) {
-      console.error("Failed to copy room ID:", error);
+    } catch {
+      toast.error("Failed to copy room ID"); 
     }
   };
 

@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { Comment, Reply } from '@/types/comments';
 import { getAuthToken } from '@/lib/cookies';
+import { toast } from 'sonner';
 
 // Backend URL configuration - using direct URLs now
 
@@ -300,15 +301,8 @@ export const fetchReplies = createAsyncThunk<{ replies: Reply[]; isInitialLoad: 
         totalCount: response.data.total || replies.length || 0,
         hasMore: response.data.hasMore || false
       };
-    } catch (error) {
-      console.error('Error fetching replies:', error);
-      if (axios.isAxiosError(error)) {
-        console.error('Axios error details:', {
-          status: error.response?.status,
-          data: error.response?.data,
-          message: error.message
-        });
-      }
+    } catch {
+      toast.error('Failed to fetch replies');
       return rejectWithValue('Failed to fetch replies');
     }
   }
