@@ -275,14 +275,16 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         <div
           key={preview._id}
           className={cn(
-            "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors border-x-4 border-x-transparent group relative",
-            isActive 
-              ? "bg-primary/10 border-s-primary" 
-              : "hover:bg-accent dark:hover:bg-card"
+            "flex items-center space-x-3 rounded-lg cursor-pointer transition-colors group relative"
           )}
         >
           <div 
-            className="flex items-center space-x-3 flex-1 cursor-pointer overflow-hidden"
+            className={cn(
+              "flex items-center space-x-3 flex-1 cursor-pointer rounded-lg p-3 border-x-3 border-x-transparent overflow-hidden",
+              isActive 
+              ? "bg-primary/10 border-s-primary" 
+              : "hover:bg-accent dark:hover:bg-card"
+            )}
             onClick={() => handleChatSelect(preview._id)}
           >
             <div className="relative">
