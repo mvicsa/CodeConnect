@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import ReduxProvider from "@/store/Provider";
 import { RtlProvider } from "@/components/RtlProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { ReconnectionIndicator } from '@/components/ReconnectionIndicator';
 
 const jost = Jost({
   variable: "--font-jost",
@@ -65,6 +66,7 @@ export default async function RootLayout({
               <RtlProvider>
                 {children}
                 <Toaster />
+                <ReconnectionIndicator />
               </RtlProvider>
             </ThemeProvider>
           </ReduxProvider>

@@ -10,8 +10,8 @@ import { User } from "@/types/user";
 import { useTranslations } from "next-intl";
 import axiosInstance from "@/lib/axios";
 import Link from "next/link";
-import { AxiosError } from "axios";
 import Image from "next/image";
+import { toast } from "sonner";
 
 interface RoomCardProps {
   room: ReduxRoom;
@@ -76,8 +76,8 @@ export const RoomCard = ({
           if (fetchedSecretId) {
             setSecretId(fetchedSecretId);
           }
-        } catch (error) {
-          console.error('Failed to fetch secret ID:', error);
+        } catch {
+          toast.error('Failed to fetch secret ID');    
         } finally {
           setIsLoadingSecretId(false);
         }
@@ -99,62 +99,35 @@ export const RoomCard = ({
   // Fetch live room status from LiveKit once when component mounts
   useEffect(() => {
     const fetchLiveRoomStatus = async () => {
-      let finalParticipantCount = 0;
-      let finalRoomStatus = { hasActiveSession: false, participantCount: 0 };
+      // let finalParticipantCount = 0;
+      // let finalRoomStatus = { hasActiveSession: false, participantCount: 0 };
       
       try {
-        console.log('=== RoomCard Status Fetch ===');
-        console.log('Room ID:', room._id);
-        console.log('Room name:', room.name);
-        console.log('Room is private:', room.isPrivate);
-        console.log('Room isActive (DB):', room.isActive);
-        console.log('Room currentParticipants (DB):', room.currentParticipants);
-        console.log('Room maxParticipants:', room.maxParticipants);
-        
         // For private rooms, we need to handle them differently
         if (room.isPrivate) {
-          console.log('--- Private Room Handling ---');
-          
           // For private rooms, use the room's database state as the primary source
           // since LiveKit may not have real-time info for private rooms
           const hasActiveSession = room.isActive || false;
           const participantCount = room.currentParticipants || 0;
           
-          console.log('Private room - Database state - isActive:', room.isActive);
-          console.log('Private room - Database state - currentParticipants:', participantCount);
-          console.log('Calculated hasActiveSession:', hasActiveSession || participantCount > 0);
-          
-          // Don't set state immediately - wait for real data or API failure
-          console.log('Room created at:', room.createdAt);
-          console.log('Database state - isActive:', hasActiveSession);
-          console.log('Database state - currentParticipants:', participantCount);
-          
           // Try to get live status if available, but don't fail if unavailable
           try {
-            console.log('Attempting to fetch live status for private room...');
             const response = await axiosInstance.get(`/livekit/rooms/${room._id}/status`);
-            console.log('Private room live status response:', response.data);
             
             if (response.status === 200 && response.data) {
               const statusData = response.data;
               // Only update if we get valid data
               if (statusData.participantCount !== undefined && statusData.participantCount >= 0) {
-                console.log('Updating private room with live data:', statusData);
-                
                 // Use live data if available, default to false if not specified
                 const liveActiveStatus = statusData.hasActiveSession !== undefined 
                   ? statusData.hasActiveSession 
                   : false;
                 
-                console.log('Live data - participantCount:', statusData.participantCount);
-                console.log('Live data - hasActiveSession:', statusData.hasActiveSession);
-                console.log('Live data - calculated activeStatus:', liveActiveStatus);
-                
-                finalParticipantCount = statusData.participantCount;
-                finalRoomStatus = {
-                  hasActiveSession: liveActiveStatus,
-                  participantCount: statusData.participantCount
-                };
+                // finalParticipantCount = statusData.participantCount;
+                // finalRoomStatus = {
+                //   hasActiveSession: liveActiveStatus,
+                //   participantCount: statusData.participantCount
+                // };
                 
                 setLiveParticipantCount(statusData.participantCount);
                 setLiveRoomStatus({
@@ -163,16 +136,14 @@ export const RoomCard = ({
                 });
               }
             }
-          } catch (privateRoomError) {
-            console.log('Private room live status not available, using database state');
-            console.log('Error details:', (privateRoomError as AxiosError<{ status: number; message: string }>)?.response?.status || (privateRoomError as Error)?.message || privateRoomError);
+          } catch {
             // This is expected for private rooms, not an error
             // Use database values as fallback
-            finalParticipantCount = participantCount;
-            finalRoomStatus = {
-              hasActiveSession: hasActiveSession, // Use exact database value
-              participantCount
-            };
+            // finalParticipantCount = participantCount;
+            // finalRoomStatus = {
+            //   hasActiveSession: hasActiveSession, // Use exact database value
+            //   participantCount
+            // };
             
             setLiveParticipantCount(participantCount);
             setLiveRoomStatus({
@@ -181,19 +152,17 @@ export const RoomCard = ({
             });
           }
         } else {
-          console.log('--- Public Room Handling ---');
           // Public room - try to use status endpoint, but fallback gracefully if it fails
           try {
             const response = await axiosInstance.get(`/livekit/rooms/${room._id}/status`);
-            console.log('LiveKit status response:', response.data);
             
             if (response.status === 200) {
               const statusData = response.data;
-              finalParticipantCount = statusData.participantCount || 0;
-              finalRoomStatus = {
-                hasActiveSession: statusData.hasActiveSession || false,
-                participantCount: statusData.participantCount || 0
-              };
+              // finalParticipantCount = statusData.participantCount || 0;
+              // finalRoomStatus = {
+              //   hasActiveSession: statusData.hasActiveSession || false,
+              //   participantCount: statusData.participantCount || 0
+              // };
               
               setLiveParticipantCount(statusData.participantCount || 0);
               setLiveRoomStatus({
@@ -201,19 +170,10 @@ export const RoomCard = ({
                 participantCount: statusData.participantCount || 0
               });
             }
-          } catch (publicRoomError) {
-            console.log('Public room status endpoint not available, using database state');
-            console.log('Error details:', publicRoomError);
-            
+          } catch {
             // Use database values as fallback for public rooms too
             const hasActiveSession = room.isActive || false;
             const participantCount = room.currentParticipants || 0;
-            
-            finalParticipantCount = participantCount;
-            finalRoomStatus = {
-              hasActiveSession: hasActiveSession, // Use exact database value
-              participantCount
-            };
             
             // Use database values as fallback for public rooms
             setLiveParticipantCount(participantCount);
@@ -223,26 +183,18 @@ export const RoomCard = ({
             });
           }
         }
-      } catch (error) {
-        console.error('Failed to get live room status:', error);
-        
+      } catch {
         // For private rooms, use database values as fallback
         if (room.isPrivate) {
-          console.log('Using database fallback for private room');
           const hasActiveSession = room.isActive || false;
           const participantCount = room.currentParticipants || 0;
           
-          console.log('Fallback - isActive:', hasActiveSession);
-          console.log('Fallback - currentParticipants:', participantCount);
-          
           // Use database values as fallback for private rooms
-          console.log('Fallback - using database values');
-          
-          finalParticipantCount = participantCount;
-          finalRoomStatus = {
-            hasActiveSession: hasActiveSession, // Use exact database value
-            participantCount
-          };
+          // finalParticipantCount = participantCount;
+          // finalRoomStatus = {
+          //   hasActiveSession: hasActiveSession, // Use exact database value
+          //   participantCount
+          // };
           
           setLiveParticipantCount(participantCount);
           setLiveRoomStatus({
@@ -251,11 +203,11 @@ export const RoomCard = ({
           });
         } else {
           // Public room fallback
-          finalParticipantCount = 0;
-          finalRoomStatus = {
-            hasActiveSession: false,
-            participantCount: 0
-          };
+          // finalParticipantCount = 0;
+          // finalRoomStatus = {
+          //   hasActiveSession: false,
+          //   participantCount: 0
+          // };
           
           setLiveParticipantCount(0);
           setLiveRoomStatus({
@@ -263,16 +215,10 @@ export const RoomCard = ({
             participantCount: 0
           });
         }
-      } finally {
-        // setIsLoadingStatus(false); // Mark loading as complete
-        console.log('=== RoomCard Status Fetch Complete ===');
-        console.log('Final liveParticipantCount:', finalParticipantCount);
-        console.log('Final liveRoomStatus:', finalRoomStatus);
       }
     };
 
     fetchLiveRoomStatus();
-    console.log('RoomCard useEffect triggered for room:', room._id);
   }, [room._id, room.isActive, room.isPrivate, room.currentParticipants, room.name, room.maxParticipants, room.createdAt]);
 
   // Check if current user is the creator of this room
@@ -438,8 +384,8 @@ export const RoomCard = ({
                       // For public rooms, join directly
                       onJoinRoom(room);
                     }
-                  } catch (error) {
-                    console.error('Error joining room:', error);
+                  } catch {
+                    toast.error('Failed to join room'); 
                     setIsJoining(false);
                   }
                 }}

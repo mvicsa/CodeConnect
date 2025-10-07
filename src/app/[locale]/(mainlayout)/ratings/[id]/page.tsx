@@ -63,8 +63,7 @@ export default function RatingDetailPage() {
           await fetchSessionInfo(ratingData.sessionId);
         }
       }
-    } catch (error) {
-      console.error("Failed to fetch rating details:", error);
+    } catch {
       setError("Failed to load rating details");
       toast.error("Failed to load rating details");
     } finally {
@@ -95,7 +94,7 @@ export default function RatingDetailPage() {
         return;
       }
     } catch {
-      console.log("Session not found in history, trying other endpoints...");
+      toast.error("Session not found in history, trying other endpoints...");
     }
 
     try {
@@ -114,7 +113,7 @@ export default function RatingDetailPage() {
         return;
       }
     } catch {
-      console.log("Session not found in rooms...");
+      toast.error("Session not found in rooms...");
     }
 
     // If all else fails, set default values

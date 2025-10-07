@@ -22,8 +22,7 @@ const ProfileTabs: React.FC<ProfileTabsProps> = ({ userId, forceLoading = false 
         setLoadingRatingCount(true);
         const response = await ratingService.getUserReceivedRatings(userId, 1, 1);
         setRatingCount(response.pagination.total || 0);
-      } catch (error) {
-        console.error('Failed to fetch rating count:', error);
+      } catch {
         setRatingCount(0);
       } finally {
         setLoadingRatingCount(false);

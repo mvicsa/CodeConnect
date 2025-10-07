@@ -29,8 +29,7 @@ export const MeetingRatings = ({ meetingId, dataVersion }: MeetingRatingsProps) 
       setError(null);
       const ratingsData = await ratingService.getSessionRatings(meetingId);
       setRatings(ratingsData || []);
-    } catch (error) {
-      console.error('Failed to fetch meeting ratings:', error);
+    } catch {
       setError('Failed to load ratings');
     } finally {
       setLoading(false);

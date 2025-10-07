@@ -28,8 +28,7 @@ const loadTheme = async (themeName: string) => {
     const theme = await response.json()
     themeCache.set(themeName, theme)
     return theme
-  } catch (error) {
-    console.error(`Failed to load theme ${themeName}:`, error)
+  } catch {
     return null
   }
 }
@@ -66,8 +65,8 @@ export const getHighlighter = async (
           if (globalHighlighter) {
             try {
               globalHighlighter.dispose()
-            } catch (error) {
-              console.warn('Error disposing highlighter:', error)
+            } catch {
+              console.warn('Error disposing highlighter:')
             }
           }
           
@@ -134,12 +133,10 @@ export const highlightCode = async (
         lang: language as BundledLanguage,
         theme: themeName,
       });
-    } catch (error) {
+    } catch {
       retryCount++
-      console.warn(`Highlighting attempt ${retryCount} failed:`, error)
       
       if (retryCount >= maxRetries) {
-        console.error('Failed to highlight code after retries:', error)
         return code // Return plain text as fallback
       }
       
@@ -156,8 +153,7 @@ export const cleanupHighlighter = () => {
   if (globalHighlighter) {
     try {
       globalHighlighter.dispose()
-    } catch (error) {
-      console.warn('Error disposing highlighter:', error)
+    } catch {
     }
     globalHighlighter = null
     currentTheme = null

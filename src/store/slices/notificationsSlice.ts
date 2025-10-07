@@ -386,9 +386,8 @@ const notificationsSlice = createSlice({
               foundInFullData = fullDataStr.includes(`"commentId":"${commentId}"`) || 
                                fullDataStr.includes(`"parentCommentId":"${commentId}"`) ||
                                fullDataStr.includes(`"_id":"${commentId}"`);
-            } catch (e) {
+            } catch {
               // تجاهل الأخطاء في التحويل
-              console.error('Error parsing notification data:', e);
             }
             
             const isRelatedToComment = foundInData || foundInId || foundInComment || foundInParent || foundInMention || isReplyToDeletedComment || foundInFullData;
@@ -445,9 +444,8 @@ const notificationsSlice = createSlice({
           try {
             const fullDataStr = JSON.stringify(notification);
             foundInFullData = fullDataStr.includes(`"postId":"${postId}"`) || fullDataStr.includes(`"post":"${postId}"`);
-          } catch (e) {
+          } catch {
             // تجاهل الأخطاء في التحويل
-            console.error('Error parsing notification data:', e);
           }
           
           const isRelatedToPost = foundInData || foundInComment || foundInPost || foundInMention || foundInCommentReaction || foundInNestedReply || foundInFullData;

@@ -5,6 +5,7 @@ import { Star } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ratingService } from '@/services/ratingService';
 import { SessionRatingsSkeleton } from './ProfileSkeleton';
+import { toast } from 'sonner';
 
 interface UserRatingsStatsProps {
   userId: string;
@@ -36,8 +37,8 @@ const UserRatingsStats: React.FC<UserRatingsStatsProps> = ({ userId, forceLoadin
           setAverageRating(null);
           setFourStarRatings(0);
         } 
-      } catch (error) {
-        console.error('Failed to fetch user ratings:', error);
+      } catch {
+        toast.error('Failed to fetch user ratings');
         setTotalRatings(0);
         setAverageRating(null);
         setFourStarRatings(0);

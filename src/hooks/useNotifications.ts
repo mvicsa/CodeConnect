@@ -11,6 +11,7 @@ import {
   clearNotifications,
 } from '@/store/slices/notificationsSlice';
 import { getAuthToken } from '@/lib/cookies';
+import { toast } from 'sonner';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -56,8 +57,8 @@ export const useNotifications = () => {
         { headers: getAuthHeaders() }
       );
       dispatch(markAsRead(notificationId));
-    } catch (error) {
-      console.error('Failed to mark notification as read:', error);
+    } catch {
+      toast.error('Failed to mark notification as read'); 
       // Still update locally for better UX
       dispatch(markAsRead(notificationId));
     }
@@ -75,8 +76,8 @@ export const useNotifications = () => {
         );
       }
       dispatch(markAllAsRead());
-    } catch (error) {
-      console.error('Failed to mark all notifications as read:', error);
+    } catch {
+      toast.error('Failed to mark all notifications as read'); 
       // Still update locally for better UX
       dispatch(markAllAsRead());
     }
@@ -90,8 +91,8 @@ export const useNotifications = () => {
         { headers: getAuthHeaders() }
       );
       dispatch(deleteNotification(notificationId));
-    } catch (error) {
-      console.error('Failed to delete notification:', error);
+    } catch {
+      toast.error('Failed to delete notification'); 
       // Still update locally for better UX
       dispatch(deleteNotification(notificationId));
     }
@@ -108,8 +109,8 @@ export const useNotifications = () => {
         );
       }
       dispatch(clearNotifications());
-    } catch (error) {
-      console.error('Failed to delete all notifications:', error);
+    } catch {
+      toast.error('Failed to delete all notifications'); 
       // Still update locally for better UX
       dispatch(clearNotifications());
     }

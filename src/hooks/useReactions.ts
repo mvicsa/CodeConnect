@@ -211,14 +211,11 @@ export const useReactions = () => {
     pendingReactionsRef.current.add(reactionKey)
     
     try {
-      console.log('🎯 Making API call for message reaction:', { messageId, reaction });
       const result = await dispatch(addMessageReaction({
         messageId,
         reaction,
         token: getAuthToken() || ''
       })).unwrap()
-      
-      console.log('🎯 API call result:', result);
       
       // Update reactions slice state immediately for better UX
       if (result) {

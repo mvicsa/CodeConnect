@@ -135,24 +135,24 @@ export const MeetingClient = () => {
   const t = useTranslations("meeting");
   const socket = useContext(SocketContext);
 
-  // Check socket connection status
-  useEffect(() => {
-    if (socket) {
-      console.log('🔌 Socket connected:', socket.connected);
+  // // Check socket connection status
+  // useEffect(() => {
+  //   if (socket) {
+  //     console.log('🔌 Socket connected:', socket.connected);
       
-      socket.on('connect', () => {
-        console.log('✅ Socket connected successfully');
-      });
+  //     socket.on('connect', () => {
+  //       console.log('✅ Socket connected successfully');
+  //     });
       
-      socket.on('disconnect', () => {
-        console.log('❌ Socket disconnected');
-      });
+  //     socket.on('disconnect', () => {
+  //       console.log('❌ Socket disconnected');
+  //     });
       
-      socket.on('connect_error', (error: Error) => {
-        console.error('❌ Socket connection error:', error);
-      });
-    }
-  }, [socket]);
+  //     socket.on('connect_error', (error: Error) => {
+  //       console.error('❌ Socket connection error:', error);
+  //     });
+  //   }
+  // }, [socket]);
 
   // Function to fetch and calculate average rating for a session
   const fetchSessionRating = useCallback(async (sessionId: string) => {
@@ -169,8 +169,8 @@ export const MeetingClient = () => {
         setSessionRatings(prev => ({ ...prev, [sessionId]: 0 })); // No ratings
         setSessionRatingCounts(prev => ({ ...prev, [sessionId]: 0 }));
       }
-    } catch (error) {
-      console.error(`Failed to fetch ratings for session ${sessionId}:`, error);
+    } catch {
+      toast.error(`Failed to fetch ratings`);
       setSessionRatings(prev => ({ ...prev, [sessionId]: 0 }));
       setSessionRatingCounts(prev => ({ ...prev, [sessionId]: 0 }));
     }
@@ -181,25 +181,20 @@ export const MeetingClient = () => {
     if (!hasMoreSessions || isLoadingMore) return;
     
     try {
-      console.log('🟢 Load More - Starting... Current sessions:', sessionHistory.length);
       setIsLoadingMore(true);
       const nextPage = currentPage + 1;
-      console.log('🟢 Load More - Fetching page:', nextPage);
       
       await dispatch(fetchSessionHistory({ 
         page: nextPage, 
         limit: 10, 
         loadMore: true 
       }));
-      
-      console.log('🟢 Load More - Completed. New sessions count:', sessionHistory.length);
-    } catch (error) {
-      console.error('Failed to load more sessions:', error);
+    } catch {
       toast.error('Failed to load more sessions');
     } finally {
       setIsLoadingMore(false);
     }
-  }, [hasMoreSessions, isLoadingMore, currentPage, dispatch, sessionHistory.length]);
+  }, [hasMoreSessions, isLoadingMore, currentPage, dispatch]);
 
   // Function to render star rating display
   const renderStarRating = (rating: number, size: 'sm' | 'md' = 'md') => {
@@ -238,10 +233,10 @@ export const MeetingClient = () => {
     );
   };
 
-  useEffect(() => {
-    console.log('Current User:', user);
-    console.log('Followed Users:', followedUsers);
-  }, [user, followedUsers]);
+  // useEffect(() => {
+  //   console.log('Current User:', user);
+  //   console.log('Followed Users:', followedUsers);
+  // }, [user, followedUsers]);
 
   useEffect(() => {
     const fetchFollowedUsers = async () => {
@@ -258,14 +253,12 @@ export const MeetingClient = () => {
               skip: 0 
             }, 'fetchFollowing/fulfilled', { userId: user._id }));
           } else {
-            console.error('Failed to fetch followed users:', response.statusText);
             toast.error("Failed to fetch followed users");
           }
         } else {
           console.warn('No user ID available to fetch followed users');
         }
-      } catch (error) {
-        console.error("Error fetching followed users:", error);
+      } catch {
         toast.error("Failed to fetch followed users");
       }
     };
@@ -306,9 +299,6 @@ export const MeetingClient = () => {
         scheduledStartTime: newRoomData.scheduledStartTime // Include scheduled start time
       };
 
-      console.log('Creating room with data:', roomDataToSend);
-      console.log('Room is private:', newRoomData.isPrivate);
-
       const result = await dispatch(createRoom(roomDataToSend)).unwrap();
       
       toast.success("Room created successfully!");
@@ -330,7 +320,6 @@ export const MeetingClient = () => {
         }
       }
     } catch (error) {
-      console.error("Error creating room:", error);
       toast.error((error as Error).message || "Failed to create room");
     }
   };
@@ -352,8 +341,7 @@ export const MeetingClient = () => {
         localStorage.removeItem('livekitToken');
         localStorage.removeItem('currentRoom');
         localStorage.removeItem('isJoined');
-      } catch (error) {
-        console.error('Error parsing stored room data:', error);
+      } catch {
         // Clear invalid data
         localStorage.removeItem('livekitToken');
         localStorage.removeItem('currentRoom');
@@ -374,8 +362,8 @@ export const MeetingClient = () => {
           const response = await ratingService.getMySubmittedRatings(1, 1000); // Get all submitted ratings
           const ratedSessionIds = response.ratings.map(rating => rating.sessionId);
           setRatedSessions(new Set(ratedSessionIds));
-        } catch (error) {
-          console.error('Failed to fetch rated sessions:', error);
+        } catch {
+          toast.error('Failed to fetch rated sessions');
         }
       };
       fetchData();
@@ -413,7 +401,6 @@ export const MeetingClient = () => {
       const roomResponse = await axiosInstance.get(`/livekit/rooms/join/${idToJoin}`);
 
       if (roomResponse.status !== 200) {
-        console.error("Failed to join room:", roomResponse.status, roomResponse.data);
         toast.error(t("invalidSecretId"));
         return;
       }
@@ -433,15 +420,15 @@ export const MeetingClient = () => {
         } else {
           setCurrentRoom(room);
         }
-      } catch (error) {
-        console.error('Failed to get live room status:', error);
+      } catch {
+        toast.error('Failed to get live room status');
         setCurrentRoom(room);
       }
 
       const tokenResponse = await axiosInstance.get(`/livekit/token?secretId=${idToJoin}`);
 
       if (tokenResponse.status !== 200) {
-        console.error("Failed to get token:", tokenResponse.status, tokenResponse.data);
+        toast.error("Failed to get token");
 
         try {
           const errorData = tokenResponse.data;
@@ -457,10 +444,8 @@ export const MeetingClient = () => {
       }
 
       const tokenData = tokenResponse.data;
-      console.log("Token data:", tokenData);
 
       if (!tokenData.token) {
-        console.error("No token in response:", tokenData);
         toast.error("Invalid token response from server");
         return;
       }
@@ -471,15 +456,13 @@ export const MeetingClient = () => {
       setJoined(true);
       setSecretId("");
       toast.success(t("joinedRoom"));
-    } catch (error) {
-      console.error("Network error joining room:", error);
+    } catch {
       toast.error(t("failedToJoinRoom"));
     }
   };
 
   const joinRoomByRoomId = async (rid?: string) => {
     const idToJoin = rid ?? roomId;
-    console.log('joinRoomByRoomId called with idToJoin:', idToJoin);
     
     if (!idToJoin || !idToJoin.trim()) {
       toast.error("Please enter a room ID");
@@ -487,12 +470,10 @@ export const MeetingClient = () => {
     }
 
     try {
-      console.log('Making request to join public room:', idToJoin);
       // Use the join-public endpoint for public rooms
       const roomResponse = await axiosInstance.get(`/livekit/rooms/join-public/${idToJoin}`);
 
       if (roomResponse.status !== 200) {
-        console.error("Failed to join room:", roomResponse.status, roomResponse.data);
         toast.error("Invalid room ID or room not found");
         return;
       }
@@ -512,8 +493,8 @@ export const MeetingClient = () => {
         } else {
           setCurrentRoom(room);
         }
-      } catch (error) {
-        console.error('Failed to get live room status:', error);
+      } catch {
+        toast.error('Failed to get live room status');
         setCurrentRoom(room);
       }
 
@@ -521,7 +502,7 @@ export const MeetingClient = () => {
       const tokenResponse = await axiosInstance.get(`/livekit/token/room?roomId=${idToJoin}`);
 
       if (tokenResponse.status !== 200) {
-        console.error("Failed to get token:", tokenResponse.status, tokenResponse.data);
+        toast.error("Failed to get token");
 
         try {
           const errorData = tokenResponse.data;
@@ -537,10 +518,8 @@ export const MeetingClient = () => {
       }
 
       const tokenData = tokenResponse.data;
-      console.log("Token data:", tokenData);
 
       if (!tokenData.token) {
-        console.error("No token in response:", tokenData);
         toast.error("Invalid token response from server");
         return;
       }
@@ -551,8 +530,7 @@ export const MeetingClient = () => {
       setJoined(true);
       setRoomId("");
       toast.success(t("joinedRoom"));
-    } catch (error) {
-      console.error("Network error joining room:", error);
+    } catch {
       toast.error(t("failedToJoinRoom"));
     }
   };
@@ -568,7 +546,6 @@ export const MeetingClient = () => {
   const getRoomSecretId = async (roomId: string) => {
     // Prevent multiple simultaneous calls
     if (isFetchingSecretId) {
-      console.log("Already fetching secret ID, skipping...");
       return null;
     }
 
@@ -586,7 +563,6 @@ export const MeetingClient = () => {
     } catch (error) {
       // Only show toast for non-404 errors (404 means endpoint doesn't exist)
       if (error && (error as AxiosError).response?.status !== 404) {
-        console.error("Failed to get secret ID:", error);
         toast.error("Failed to get secret ID");
       } else {
         console.warn("Secret ID endpoint not found (404) - this feature may not be implemented yet");
@@ -642,7 +618,6 @@ export const MeetingClient = () => {
   // };
 
   const handleDisconnect = async (skipPublicSessionsRefresh = false, skipDisconnectToast = false) => {
-    console.log('🔄 handleDisconnect called with:', { skipPublicSessionsRefresh, skipDisconnectToast, currentRoomId: currentRoom?._id });
     
     // Store currentRoom before setting it to null
     const roomToCheck = currentRoom;
@@ -661,11 +636,7 @@ export const MeetingClient = () => {
     // Always refresh public sessions for participants to see updated room status
     // Only skip if explicitly requested (e.g., from handleEndSession)
     if (!skipPublicSessionsRefresh) {
-      console.log('🔄 handleDisconnect: Refreshing public sessions for participant...');
       await dispatch(fetchPublicSessions());
-      console.log('✅ handleDisconnect: Public sessions refreshed for participant');
-    } else {
-      console.log('⏭️ handleDisconnect: Skipping public sessions refresh');
     }
     await dispatch(fetchSessionHistory({ page: 1, limit: 10, loadMore: false }));
 
@@ -690,8 +661,8 @@ export const MeetingClient = () => {
           await dispatch(fetchRooms());
           setShowRatingDialog(true);
         }
-      } catch (error) {
-        console.error('Failed to check room status for rating dialog:', error);
+      } catch {
+        toast.error('Failed to check room status for rating dialog');
       }
     }
   };
@@ -714,17 +685,14 @@ export const MeetingClient = () => {
       
       // Always refetch public sessions because room status might have changed
       // (e.g., from Active to Ended, which affects public sessions display)
-      console.log('🔄 handleEndSession: Refreshing public sessions for creator...');
       await dispatch(fetchPublicSessions());
-      console.log('✅ handleEndSession: Public sessions refreshed for creator');
       
       // Redirect all participants back to meeting page
       // Pass true to skip public sessions refresh since we already did it above
       // Also pass true to skip the disconnect toast since we already show success toast
       handleDisconnect(true, true);
       toast.success("Session ended successfully");
-    } catch (error) {
-      console.error("Failed to end session:", error);
+    } catch {
       toast.error("Failed to end session");
     }
   };
@@ -758,18 +726,12 @@ export const MeetingClient = () => {
       
       // If the deleted room was public, refetch public sessions
       if (!roomToDelete.isPrivate) {
-        console.log('🔄 Deleting public room, refetching public sessions...');
-        console.log('🔄 Room to delete:', roomToDelete._id, roomToDelete.name);
-        console.log('🔄 Current publicSessions count before refetch:', publicSessions?.length || 0);
-        
         await dispatch(fetchPublicSessions());
-        
-        console.log('🔄 Public sessions refetched. New count:', publicSessions?.length || 0);
       }
       
       toast.success(t("roomDeleted"));
     } catch (error: unknown) {
-      console.error("Failed to delete room:", error);
+      toast.error("Failed to delete room");
       
       // Check if it's a network error or if the room has participants
       if (axios.isAxiosError(error) && error.response?.status === 409) {
@@ -783,12 +745,8 @@ export const MeetingClient = () => {
   };
 
   const handleJoinRoom = async (room: ReduxRoom) => {
-    console.log('handleJoinRoom called with room:', room);
-    console.log('Room is private:', room.isPrivate);
-    
     if (room.isPrivate) {
       // For private rooms, get the secret ID and join
-      console.log('Joining private room with secret ID');
       const secretId = await getRoomSecretId(room._id);
       if (secretId) {
         setCurrentRoom(room);
@@ -806,7 +764,6 @@ export const MeetingClient = () => {
       }
     } else {
       // For public rooms, join directly using the room ID
-      console.log('Joining public room with room ID:', room._id);
       setCurrentRoom(room);
       joinRoomByRoomId(room._id);
     }
@@ -842,20 +799,13 @@ export const MeetingClient = () => {
   // Function to send room invitation message to a user
   const sendRoomInvitationMessage = async (invitedUser: User, room: ReduxRoom) => {
     if (!socket || !user) {
-      console.error('❌ Socket or user not available for invitation message');
       return;
     }
-
-    console.log('📤 Sending invitation message to:', invitedUser._id, 'for room:', room.name);
 
     try {
       // Create a private chat room with the invited user
       socket.emit('createPrivateRoom', { receiverId: invitedUser._id }, (response: { roomId: string }) => {
-        console.log('🔵 createPrivateRoom response:', response);
-        
         if (response && response.roomId) {
-          console.log('✅ Private room created, sending invitation message...');
-          
           // Send the room invitation message
           const invitationMessage = {
             roomId: response.roomId,
@@ -863,42 +813,32 @@ export const MeetingClient = () => {
             type: 'text',
             replyTo: null,
           };
-
-          console.log('📨 Sending invitation message:', invitationMessage);
           socket.emit('chat:send_message', invitationMessage, (sendResponse: { success: boolean }) => {
-            console.log('📨 chat:send_message response:', sendResponse);
             if (sendResponse && sendResponse.success) {
-              console.log('✅ Invitation message sent successfully!');
+              toast.success('Invitation message sent successfully!'); 
             } else {
-              console.error('❌ Failed to send invitation message:', sendResponse);
+              toast.error('Failed to send invitation message');
             }
           });
         } else {
-          console.error('❌ Failed to create private room for invitation message. Response:', response);
+          toast.error('Failed to create private room for invitation message');
         }
       });
-    } catch (error) {
-      console.error('❌ Error sending room invitation message:', error);
+    } catch {
+      toast.error('Failed to send room invitation message');
     }
   };
 
   // Function to send cancellation message for removed users
   const sendInvitationCancellationMessage = async (removedUser: User, room: ReduxRoom) => {
     if (!socket || !user) {
-      console.error('❌ Socket or user not available for cancellation message');
       return;
     }
-
-    console.log('📤 Sending cancellation message to:', removedUser.username, 'for room:', room.name);
 
     try {
       // Create a private chat room with the removed user
       socket.emit('createPrivateRoom', { receiverId: removedUser._id }, (response: { roomId: string }) => {
-        console.log('🔵 createPrivateRoom response (cancellation):', response);
-        
         if (response && response.roomId) {
-          console.log('✅ Private room created, sending cancellation message...');
-          
           // Send the cancellation message
           const cancellationMessage = {
             roomId: response.roomId,
@@ -907,21 +847,19 @@ export const MeetingClient = () => {
             replyTo: null,
           };
 
-          console.log('📨 Sending cancellation message:', cancellationMessage);
           socket.emit('chat:send_message', cancellationMessage, (sendResponse: { success: boolean }) => {
-            console.log('📨 chat:send_message response (cancellation):', sendResponse);
             if (sendResponse && sendResponse.success) {
-              console.log('✅ Cancellation message sent successfully!');
+              toast.success('Cancellation message sent successfully!');  
             } else {
-              console.error('❌ Failed to send cancellation message:', sendResponse);
+              toast.error('Failed to send cancellation message');
             }
           });
         } else {
-          console.error('❌ Failed to create private room for cancellation message. Response:', response);
+          toast.error('Failed to create private room for cancellation message');
         }
       });
-    } catch (error) {
-      console.error('❌ Error sending invitation cancellation message:', error);
+    } catch {
+      toast.error('Failed to send invitation cancellation message');
     }
   };
 
@@ -1330,9 +1268,8 @@ export const MeetingClient = () => {
                 setShowEditDialog(false);
                 setEditingRoom(null);
                 setOriginalInvitedUsers([]);
-              } catch (error) {
-                console.error('Update room error:', error);
-                toast.error((error as Error).message || "Failed to update room");
+              } catch {
+                toast.error("Failed to update room");
               }
             }
           }}

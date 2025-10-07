@@ -21,6 +21,7 @@ import { Reactions } from '@/types/comments'
 import { ChatRoom, Message } from '@/types/chat'
 import { updateCommentReactions, updatePostReactions, UserReaction } from './slices/reactionsSlice'
 import { getAuthToken } from '@/lib/cookies'
+import { toast } from 'sonner'
 
 // Strongly-typed socket event payloads
 type LastActivityPayload = {
@@ -165,8 +166,8 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
       transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5
+      reconnectionDelayMax: 10000,
+      reconnectionAttempts: 20
     }) as ReturnType<typeof io>;
 
     // Initialize notification socket connection (root)
@@ -187,8 +188,8 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
       }
     });
     
-    notificationSocket.on('connect_error', (error: Error) => {
-      console.error('❌ [SOCKET][NOTIFICATIONS] Connection error:', error);
+    notificationSocket.on('connect_error', () => {
+      console.error('Connection error');
     });
     
     notificationSocket.on('reconnect', () => {
@@ -198,9 +199,9 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
       }
     });
     
-    notificationSocket.on('disconnect', (reason: string) => {
-      console.log('❌ [SOCKET][NOTIFICATIONS] Disconnected! Reason:', reason);
-    });
+    // notificationSocket.on('disconnect', (reason: string) => {
+    //   console.log('❌ [SOCKET][NOTIFICATIONS] Disconnected! Reason:', reason);
+    // });
     
     notificationSocket.on('notification', (notification: Notification) => {
       // 🔥 فلترة الإشعارات للمستخدمين المحظورين
@@ -324,9 +325,9 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
               .then(response => {
                 dispatch(setNotifications(response.data));
               })
-              .catch(error => {
-                console.error('❌ [SOCKET] Failed to refresh notifications after post deletion:', error);
-              });
+              // .catch(error => {
+              //   console.error('❌ [SOCKET] Failed to refresh notifications after post deletion:', error);
+              // });
             }
           }, 1000);
         }
@@ -372,9 +373,9 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
                 .then(response => {
                   dispatch(setNotifications(response.data));
                 })
-                .catch(error => {
-                  console.error('❌ [SOCKET] Failed to refresh notifications after reaction deletion:', error);
-                });
+                // .catch(error => {
+                //   console.error('❌ [SOCKET] Failed to refresh notifications after reaction deletion:', error);
+                // });
               }
             }
           }, 500);
@@ -439,9 +440,9 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
               .then(response => {
                 dispatch(setNotifications(response.data));
               })
-              .catch(error => {
-                console.error('❌ [SOCKET] Failed to refresh notifications:', error);
-              });
+              // .catch(error => {
+              //   console.error('❌ [SOCKET] Failed to refresh notifications:', error);
+              // });
             }
           }
         }, 500);
@@ -492,9 +493,9 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
               .then(response => {
                 dispatch(setNotifications(response.data));
               })
-              .catch(error => {
-                console.error('❌ [SOCKET] Failed to refresh notifications after mention deletion:', error);
-              });
+              // .catch(error => {
+              //   console.error('❌ [SOCKET] Failed to refresh notifications after mention deletion:', error);
+              // });
             }
           }
         }, 500);
@@ -524,13 +525,20 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
     newSocket.on('connect', () => {
       dispatch(setConnected(true));
     });
-  
-    newSocket.on('disconnect', () => {
-      dispatch(setConnected(false));
+
+    newSocket.on('reconnect', () => {
+      dispatch(setConnected(true));
     });
 
-    newSocket.on('connect_error', (error: Error) => {
-      console.error('Socket.IO connection error:', error);
+    newSocket.on('disconnect', () => {
+      dispatch(setConnected(false));
+      
+      // Socket.io handles automatic reconnection internally
+      // We just need to update the UI state when connection is restored
+    });
+
+    newSocket.on('connect_error', () => {
+      // toast.error('Socket.IO connection error');
       dispatch(setError('Failed to connect to chat server'));
       dispatch(setConnected(false));
     });
@@ -543,7 +551,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
       rooms.forEach(room => {
         newSocket.emit('chat:join_room', { roomId: room._id }, (error: Error) => {
           if (error) {
-            console.error(`[SOCKET] Error joining room ${room._id}:`, error);
+            toast.error(`Failed to join room`);
           }
         });
       });
@@ -593,7 +601,6 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
     });
 
     newSocket.on('chat:new_message', (data: ChatNewMessageEvent) => {
-      console.log('🔍 chat:new_message received:', data);
       
       // Handle both new format (with lastActivity) and old format (just message)
       if (data && typeof data === 'object' && 'message' in data && (data as { message: Message }).message.chatRoom) {
@@ -603,13 +610,11 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         
         // 🎯 NEW: Update room's lastActivity if provided by backend
         if (payload.lastActivity) {
-          console.log('🎯 Updating room lastActivity from new_message:', payload.lastActivity);
           dispatch(updateRoomLastActivity({
             roomId: payload.message.chatRoom,
             lastActivity: payload.lastActivity
           }));
         } else {
-          console.log('❌ No lastActivity in new_message data. Applying client fallback.');
           const fallback: LastActivityPayload = {
             type: 'message',
             time: payload.message.createdAt,
@@ -624,7 +629,6 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         }
       } else if (data && (data as Message).chatRoom) {
         // Old format - data is the message itself
-        console.log('🔄 Using old format for chat:new_message');
         const msg = data as Message;
         dispatch(addMessage({ roomId: msg.chatRoom, message: msg, currentUserId: user?._id }));
         // Fallback lastActivity for legacy payloads
@@ -637,7 +641,7 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         };
         dispatch(updateRoomLastActivity({ roomId: msg.chatRoom, lastActivity: legacyFallback }));
       } else {
-        console.error('❌ Invalid chat:new_message data:', data);
+        toast.error('Invalid chat data');
       }
     });
 
@@ -662,21 +666,9 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
 
     // Message reaction events
     newSocket.on('chat:react_message', (data: MessageReactionUpdateEvent) => {
-      // 🔍 Check if backend is sending lastActivity
-      if (!data?.lastActivity) {
-        console.log('❌ Backend is NOT sending lastActivity! Applying client fallback.');
-      } else {
-        console.log('✅ Backend is sending lastActivity:', data.lastActivity);
-      }
       
       // Check if data and required properties exist
       if (data && data.message && data.message._id && data.roomId) {
-        console.log('🎯 Updating message reactions in Redux:', {
-          roomId: data.roomId,
-          messageId: data.message._id,
-          reactions: data.message.reactions,
-          userReactions: data.message.userReactions
-        });
         dispatch(updateMessageReactions({
           roomId: data.roomId,
           messageId: data.message._id,
@@ -686,7 +678,6 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         
         // 🎯 NEW: Update room's lastActivity if provided by backend
         if (data.lastActivity) {
-          console.log('🎯 Updating room lastActivity from backend:', data.lastActivity);
           dispatch(updateRoomLastActivity({
             roomId: data.roomId,
             lastActivity: data.lastActivity
@@ -720,23 +711,12 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
               reaction: (latest as unknown as { reaction?: string }).reaction,
               userId: userIdValue,
             };
-            console.log('🎯 Updating room lastActivity (client fallback):', fallbackLastActivity);
             dispatch(updateRoomLastActivity({
               roomId: data.roomId,
               lastActivity: fallbackLastActivity,
             }));
           }
         }
-        
-        console.log('🎯 Redux update dispatched');
-      } else {
-        console.error('❌ Invalid chat:react_message data:', {
-          hasData: !!data,
-          hasMessage: !!(data && data.message),
-          hasMessageId: !!(data && data.message && data.message._id),
-          hasRoomId: !!(data && data.roomId),
-          data: data
-        });
       }
     });
 
@@ -745,8 +725,6 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
     
     // Listen for user:status events (online/offline)
     newSocket.on('user:status', ({ userId, status }: { userId: string; status: 'online' | 'offline' }) => {
-      console.log('🔍 user:status received from socket:', { userId, status });
-      
       // Clear existing timer for this user
       if (statusTimers[userId]) {
         clearTimeout(statusTimers[userId]);
@@ -761,7 +739,6 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
 
     // Listen for user:status:all events (all currently online users)
     newSocket.on('user:status:all', ({ online }: { online: string[] }) => {
-      console.log('🔍 user:status:all received from socket:', { online });
       online.forEach(userId => {
         dispatch(setUserStatus({ userId, status: 'online' }));
       });
@@ -838,7 +815,8 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         newSocket.off('notification:delete');
         newSocket.off('notification:delete_all');
 
-        newSocket.off('reconnect'); // Added this line to remove the listener
+        // Don't remove reconnect listener - let socket.io handle reconnection
+        // newSocket.off('reconnect');
         newSocket.disconnect();
         setSocket(null);
       }

@@ -20,9 +20,6 @@ export default function TagsIndexPage() {
     dispatch(fetchAllTags())
   }, [dispatch])
 
-  // Debug: Log the tags data
-  console.log('allTags from store:', allTags)
-
   if (loading) {
     return (
       <Container>
@@ -68,8 +65,6 @@ export default function TagsIndexPage() {
       }
     })
     .sort((a, b) => b.count - a.count)
-
-  console.log('sortedTags:', sortedTags)
 
   return (
     <Container>

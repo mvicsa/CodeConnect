@@ -2,14 +2,16 @@
 import React, { useState, useEffect, useMemo } from "react";
 import ChatSidebar from "./ChatSidebar";
 import ChatWindow from "./ChatWindow";
+import ChatWindowSkeleton from "./chat/ChatWindowSkeleton";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store/store';
-import { setActiveRoom, removeRoom } from '@/store/slices/chatSlice';
+import { setActiveRoom, removeRoom, setLoading } from '@/store/slices/chatSlice';
 import { ChatPreview, Message } from "@/types/chat";
 import { createSelector } from 'reselect';
 import { User } from "@/types/user";
+import { toast } from "sonner";
 
 // Memoized selector for chatRooms
 const selectChatRoomsForUser = createSelector(
@@ -36,9 +38,12 @@ const ChatInterface: React.FC = () => {
   // Only show rooms where the current user is a member, with defensive checks
   const chatRooms = useSelector(selectChatRoomsForUser);
   const messages = useSelector((state: RootState) => state.chat.messages);
-  const isConnected = useSelector((state: RootState) => state.chat.connected);
-  const error = useSelector((state: RootState) => state.chat.error);
+  // const isConnected = useSelector((state: RootState) => state.chat.connected);
+  // const error = useSelector((state: RootState) => state.chat.error);
   const isLoading = useSelector((state: RootState) => state.chat.loading);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [isChatLoading, setIsChatLoading] = useState(false);
 
   // Transform chat rooms into previews with useMemo for optimization
   const chatPreviews: ChatPreview[] = useMemo(() => {
@@ -95,12 +100,27 @@ const ChatInterface: React.FC = () => {
 
   const activeChatId = useSelector((state: RootState) => state.chat.activeRoomId);
   const activeChat = chatRooms.find(r => r._id === activeChatId) || null;
-  const [searchQuery, setSearchQuery] = useState("");
 
   const handleChatSelect = (chatId: string) => {
+    // If clicking the same chat that's already active, close it
+    if (activeChatId === chatId) {
+      dispatch(setActiveRoom(null));
+      setIsMobileView(false);
+      return;
+    }
+    
     dispatch(setActiveRoom(chatId));
     setIsMobileView(true);
+    setSelectedChatId(chatId);
+    setIsChatLoading(true);
   };
+
+  // Reset loading when messages arrive for the selected chat
+  useEffect(() => {
+    if (selectedChatId && messages[selectedChatId]?.length > 0) {
+      setIsChatLoading(false);
+    }
+  }, [selectedChatId, messages]);
 
   const handleChatDelete = (chatId: string) => {
     // Remove the chat from Redux store
@@ -117,6 +137,30 @@ const ChatInterface: React.FC = () => {
     setIsMobileView(false);
     dispatch(setActiveRoom(null));
   };
+
+  // Fetch chats when component mounts (route change)
+  useEffect(() => {
+    // Clear any active chat when entering the page
+    dispatch(setActiveRoom(null));
+    setIsMobileView(false);
+    
+    dispatch(setLoading(true));
+    
+    // Simulate API fetch - in real app this would be an actual API call
+    const fetchChats = async () => {
+      try {
+        // Here you would call your actual API to fetch chat rooms
+        // For demonstration, we'll just wait a bit then set loading false
+        await new Promise(resolve => setTimeout(resolve, 800));
+        dispatch(setLoading(false));
+      } catch {
+        dispatch(setLoading(false));
+        toast.error('Failed to fetch chats');
+      }
+    };
+    
+    fetchChats();
+  }, [dispatch]);
 
   // Handle window resize for mobile view
   useEffect(() => {
@@ -135,17 +179,17 @@ const ChatInterface: React.FC = () => {
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
       {/* Connection status */}
-      {!isConnected && (
+      {/* {!isConnected && (
         <div className="absolute top-0 left-0 right-0 bg-destructive text-destructive-foreground p-2 text-center">
         </div>
-      )}
+      )} */}
 
       {/* Error message */}
-      {error && (
+      {/* {error && (
         <div className="absolute top-0 left-0 right-0 bg-destructive text-destructive-foreground p-2 text-center">
           {error}
         </div>
-      )}
+      )} */}
 
       {/* Sidebar - Hidden on mobile when chat is open */}
       <div
@@ -174,10 +218,15 @@ const ChatInterface: React.FC = () => {
         )}
       >
         {activeChat ? (
-          <ChatWindow
-            onBackToList={handleBackToList}
-            isMobileView={isMobileView}
-          />
+          isChatLoading ? (
+            <ChatWindowSkeleton />
+          ) : (
+            <ChatWindow
+              onBackToList={handleBackToList}
+              isMobileView={isMobileView}
+              isLoading={isChatLoading}
+            />
+          )
         ) : (
           <div className="hidden md:flex items-center justify-center h-full bg-sidebar border">
             <div className="text-center">

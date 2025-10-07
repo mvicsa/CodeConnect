@@ -18,7 +18,6 @@ export default function GitHubCallbackPage() {
     const error = searchParams.get('error');
 
     if (error) {
-      console.error('GitHub OAuth error:', error);
       router.push('/login?error=github-auth-failed');
       return;
     }
@@ -33,12 +32,10 @@ export default function GitHubCallbackPage() {
             // Redirect to home page after successful authentication
             router.push('/');
           })
-          .catch((error) => {
-            console.error('GitHub callback error:', error);
+          .catch(() => {
             router.push('/login?error=github-callback-failed');
           });
-      } catch (error) {
-        console.error('Error parsing user data:', error);
+      } catch {
         router.push('/login?error=github-callback-failed');
       }
     } else {

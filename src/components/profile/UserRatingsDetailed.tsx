@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { RatingCard } from '@/components/rating';
 import { calculateAverageRating } from '@/lib/ratingUtils';
 import { RatingsSkeleton, RatingCardSkeleton } from '@/components/rating/RatingSkeleton';
+import { toast } from 'sonner';
 
 interface UserRatingsDetailedProps {
   userId: string;
@@ -69,8 +70,8 @@ const UserRatingsDetailed: React.FC<UserRatingsDetailedProps> = ({ userId }) => 
           setFourStarCount(0);
           setHasMore(false);
         }
-      } catch (error) {
-        console.error('Failed to fetch user ratings:', error);
+      } catch {
+        toast.error('Failed to fetch user ratings');
         setRatings([]);
         setTotalRatings(0);
         setAverageRating(null);
@@ -100,8 +101,8 @@ const UserRatingsDetailed: React.FC<UserRatingsDetailedProps> = ({ userId }) => 
         setCurrentPage(nextPage);
         setHasMore(response.pagination.hasNext || false);
       }
-    } catch (error) {
-      console.error('Failed to load more ratings:', error);
+    } catch {
+      toast.error('Failed to load more ratings');
     } finally {
       setLoadingMore(false);
     }

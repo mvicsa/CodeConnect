@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { toast } from 'sonner';
 
 export async function DELETE(request: NextRequest, context: { params: Promise<{ roomId: string }> }) {
   const { roomId } = await context.params;
   try {
-    console.log('API DELETE /api/chat/rooms/[roomId] called with params:', roomId);
     if (!roomId) {
-      console.error('No roomId provided in params:', roomId);
       return NextResponse.json({ error: 'No roomId provided' }, { status: 400 });
     }
     const token = request.headers.get('authorization')?.split(' ')[1];
@@ -32,8 +31,8 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
 
     const data = await response.json();
     return NextResponse.json(data);
-  } catch (error) {
-    console.error('Error deleting chat room:', error);
+  } catch {
+    toast.error('Error deleting chat room');
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

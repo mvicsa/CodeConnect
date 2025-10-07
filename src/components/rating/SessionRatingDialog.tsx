@@ -52,7 +52,6 @@ export const SessionRatingDialog: React.FC<SessionRatingDialogProps> = ({
       // Close the dialog
       onOpenChange(false);
     } catch (error) {
-      console.error('Failed to submit rating:', error);
       toast.error(`Failed to submit rating: ${error instanceof Error ? error.message : 'Unknown error'}`, {
         duration: 5000,
       });

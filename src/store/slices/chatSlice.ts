@@ -81,7 +81,6 @@ const chatSlice = createSlice({
       }
     },
     addMessage(state, action: PayloadAction<{ roomId: string; message: Message; currentUserId?: string }>) {
-      console.log('[REDUX] Adding message to state:', action.payload);
       const { roomId, message, currentUserId } = action.payload;
       if (!state.messages[roomId]) {
         state.messages[roomId] = [];
@@ -100,10 +99,8 @@ const chatSlice = createSlice({
         ...message,
         chatRoom: chatRoomId
       };
-      console.log('[REDUX] Normalized message:', normalizedMessage);
 
       state.messages[roomId].push(normalizedMessage);
-      console.log('[REDUX] Message added to state. Current messages count:', state.messages[roomId].length);
       
       // Update room's unread count only
       const room = state.rooms.find(r => r._id === roomId);
@@ -121,7 +118,6 @@ const chatSlice = createSlice({
             userId: normalizedMessage.sender._id,
             message: normalizedMessage
           };
-          console.log('🎯 Updated room lastActivity for new message (fallback):', { roomId, lastActivity: room.lastActivity });
         }
         
         // Move this room to the top of the rooms array (most recent message first)
@@ -131,7 +127,6 @@ const chatSlice = createSlice({
           state.rooms.unshift(movedRoom);
         }
       }
-      console.log('[REDUX] Room updated with new message');
     },
     setTyping(state, action: PayloadAction<{ roomId: string; typing: TypingIndicator[] }>) {
       const { roomId, typing } = action.payload;
@@ -299,10 +294,8 @@ const chatSlice = createSlice({
       
       // Only update if status actually changed to prevent unnecessary re-renders
       if (state.userStatuses[userId] !== status) {
-        console.log('🔍 setUserStatus called:', { userId, status });
         state.userStatuses[userId] = status;
       } else {
-        console.log('🔍 setUserStatus skipped (no change):', { userId, status });
         // Don't update Redux state if status hasn't changed
         return;
       }
@@ -330,13 +323,11 @@ const chatSlice = createSlice({
     },
     updateMessageReactions(state, action: PayloadAction<{ roomId: string; messageId: string; reactions: Reactions; userReactions: UserReaction[] }>) {
       const { roomId, messageId, reactions, userReactions } = action.payload;
-      console.log('🎯 updateMessageReactions called:', { roomId, messageId, reactions, userReactions });
       const messages = state.messages[roomId];
       const room = state.rooms.find(r => r._id === roomId);
       
       if (messages) {
         const messageIndex = messages.findIndex(m => m._id === messageId);
-        console.log('🎯 Message found at index:', messageIndex);
         if (messageIndex !== -1) {
           // Create a new message object to trigger re-render
           const updatedMessage = {
@@ -345,7 +336,6 @@ const chatSlice = createSlice({
             userReactions
           };
           messages[messageIndex] = updatedMessage;
-          console.log('🎯 Message updated:', updatedMessage);
 
           // Update room's lastMessage if this message has the most recent activity
           if (room) {
@@ -371,7 +361,6 @@ const chatSlice = createSlice({
             if (latestActivityTime > currentLastTime) {
               room.lastMessage = updatedMessage;
               room.lastMessageTime = latestActivityTime;
-              console.log('🎯 Updated room lastMessage and lastMessageTime due to newer activity', { latestActivityTime });
             }
           }
         }
@@ -398,9 +387,6 @@ const chatSlice = createSlice({
         const messageTime = new Date(updatedMessage.createdAt).getTime();
         const latestActivityTime = Math.max(messageTime, newestReactionTime);
         room.lastMessageTime = latestActivityTime;
-        console.log('🎯 Updated room.lastMessage directly (messages not loaded)', { latestActivityTime });
-      } else {
-        console.log('🎯 No messages found for room and not lastMessage:', roomId);
       }
     },
     // 🎯 NEW: Update room's lastActivity from backend
@@ -415,8 +401,6 @@ const chatSlice = createSlice({
       } 
     }>) {
       const { roomId, lastActivity } = action.payload;
-      console.log('🔍 updateRoomLastActivity called:', { roomId, lastActivity });
-      console.log('🔍 Available rooms:', state.rooms.map(r => ({ _id: r._id, lastActivity: r.lastActivity })));
       const room = state.rooms.find(r => r._id === roomId);
       
       if (room) {
@@ -424,11 +408,6 @@ const chatSlice = createSlice({
           ...lastActivity,
           time: lastActivity.time // Keep as string, don't convert to Date
         };
-        console.log('🎯 Updated room lastActivity from backend:', { roomId, lastActivity, updatedRoom: room });
-        console.log('🎯 Room lastActivity after update:', room.lastActivity);
-      } else {
-        console.log('❌ Room not found for lastActivity update:', roomId);
-        console.log('❌ Available room IDs:', state.rooms.map(r => r._id));
       }
     },
   },

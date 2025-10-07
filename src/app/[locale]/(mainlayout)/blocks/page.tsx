@@ -21,14 +21,8 @@ export default function BlocksPage() {
     dispatch(fetchBlockStats());
   }, [dispatch]);
 
-  // Debug: Log blockedByUsers data
-  useEffect(() => {
-    console.log('blockedByUsers data:', blockedByUsers);
-  }, [blockedByUsers]);
-
   // Helper function to get display name
   const getDisplayName = (user: User) => {
-    console.log('getDisplayName called with:', user);
     if (user && user.firstName && user.lastName) {
       return `${user.firstName} ${user.lastName}`;
     }
@@ -148,7 +142,6 @@ export default function BlocksPage() {
                 <div className="space-y-4">
                   {blockedByUsers.map((user) => {
                     const actualUser = user.blockerId || user.blockedId || user;
-                    console.log('actualUser extracted:', actualUser);
                     
                     return (
                       <div key={user._id} className="flex items-center justify-between p-4 bg-accent rounded-lg">

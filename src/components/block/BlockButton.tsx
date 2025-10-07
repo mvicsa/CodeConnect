@@ -67,7 +67,6 @@ export const BlockButton: React.FC<BlockButtonProps> = ({
     }
 
     try {
-      console.log('Blocking user with ID:', targetUserId);
       await dispatch(blockUser({ blockedId: targetUserId, reason: confirmReason })).unwrap();
       toast.success(`Successfully blocked ${targetUsername || 'user'}`);
       setShowConfirm(false);
@@ -104,7 +103,6 @@ export const BlockButton: React.FC<BlockButtonProps> = ({
     }
 
     try {
-      console.log('Unblocking user with ID:', targetUserId);
       await dispatch(unblockUser(targetUserId)).unwrap();
       toast.success(`Successfully unblocked ${targetUsername || 'user'}`);
       

@@ -5,6 +5,7 @@ import { Slider } from '@/components/ui/slider';
 import { uploadToImageKit } from '@/lib/imagekitUpload';
 import { cn } from '@/lib/utils';
 import { getCroppedImg, CroppedArea } from '@/lib/imageUtils';
+import { toast } from 'sonner';
 
 interface ImageCropperProps {
   image: string | File | null;
@@ -45,8 +46,8 @@ const ImageCropper = ({ image, type, onSave, onCancel, className }: ImageCropper
       const url = await uploadToImageKit(file, '/users');
 
       onSave(url);
-    } catch (error) {
-      console.error('Error saving image:', error);
+    } catch {
+      toast.error('Error saving image'); 
     } finally {
       setLoading(false);
     }

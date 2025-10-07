@@ -18,6 +18,7 @@ import { removeNotificationsByCriteria } from '@/store/slices/notificationsSlice
 import { SocketContext } from '@/store/Provider';
 import { useBlock } from '@/hooks/useBlock';
 import Link from "next/link";
+import { toast } from "sonner";
 
 // Map your existing reaction images to the database structure
 const reactionImageMap = {
@@ -186,7 +187,6 @@ export default function ReactionsMenu({
       (now - lastReaction.timestamp) < 1000; // 1 second debounce
 
     if (isDuplicate) {
-      console.log('🚫 Duplicate reaction prevented:', { reactionName, postId, commentId, messageId, replyId });
       return;
     }
 
@@ -227,7 +227,6 @@ export default function ReactionsMenu({
           handleDeleteReactionNotification(postId, 'POST_REACTION', actingUserId, reactionName);
         }
       } else if (messageId) {
-        console.log('🎯 Handling message reaction (socket-only):', { roomId, messageId, reactionName });
         // For chat messages, use WebSocket only to avoid double-toggle (add then remove)
         if (socket && roomId) {
           socket.emit('chat:react_message', { roomId, messageId, reaction: reactionName });
@@ -323,16 +322,11 @@ export default function ReactionsMenu({
         }
       }
 
-      console.log('📊 Reaction result:', result);
-
       if (result?.success) {
-        console.log('✅ Reaction successful, closing popover');
         setOpen(false);
-      } else {
-        console.log('❌ Reaction failed:', result);
       }
-    } catch (error) {
-      console.error('💥 Failed to add reaction:', error);
+    } catch {
+      toast.error('Failed to add reaction');
     } finally {
       setIsReactionLoading(false);
     }
