@@ -53,6 +53,7 @@ import { getAuthToken } from '@/lib/cookies';
 import { formatDate } from 'date-fns'
 import CommentSkeleton from './CommentSkeleton'
 import { REPLY_LIMIT } from '@/constants/comments';
+import ReadMore from '../ReadMore'
 
 
 // Define CommentContent type
@@ -129,7 +130,7 @@ export default function CommentItem({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const commentId = has_id(comment) ? comment._id : '';
   useEffect(() => {
-    if (comment.hasAiEvaluation && commentId) {
+    if (comment.hasAiEvaluation && commentId && !fetchedAiEvaluation) {
       setIsLoadingAiEvaluation(true);
       const token = getAuthToken();
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/comments/${commentId}/ai-evaluation`, {
@@ -145,7 +146,7 @@ export default function CommentItem({
           setIsLoadingAiEvaluation(false);
         });
     }
-  }, [comment, commentId]);
+  }, [comment, commentId, fetchedAiEvaluation]);
 
   // Open replies section if there's a highlighted reply
   useEffect(() => {
@@ -436,6 +437,36 @@ export default function CommentItem({
     return mentions;
   }
 
+  // دالة لمعالجة النص مع المنشنات
+  const renderTextWithMentions = (text: string) => {
+    // استخدام regex للتعرف على المنشنات مع الحفاظ على علامات الترقيم
+    const mentionRegex = /(@[a-zA-Z0-9_-]+)/g;
+    const parts = text.split(mentionRegex);
+    
+    return (
+      <bdi className='block'>
+        <p className="text-sm">
+          {parts.map((part, index) => {
+            if (part.startsWith('@')) {
+              const username = part.slice(1); // Remove @ symbol
+              return (
+                <span key={index}>
+                  <Link 
+                    href={`/profile/${username}`}
+                    className="text-primary hover:underline"
+                  >
+                    {part}
+                  </Link>
+                </span>
+              );
+            }
+            return part;
+          })}
+        </p>
+      </bdi>
+    );
+  };
+
   const handleEditCancel = () => {
     setEditValue({
       text: comment.text || '',
@@ -638,21 +669,23 @@ export default function CommentItem({
   }
 
   return (
-    <div className="flex gap-3 items-start relative z-2">
-      <Link href={`/profile/${comment.createdBy.username}`} className='relative'>
-        <UserAvatar src={hasCreatedBy(comment) ? (comment.createdBy.avatar || '') : ''} firstName={hasCreatedBy(comment) ? (comment.createdBy.firstName || '') : ((comment as CommentUser).user?.firstName || '')} />
-        {!isBlocked(comment.createdBy?._id || '') && !isBlockedBy(comment.createdBy?._id || '') && (
-          <span
-            className={
-              `absolute bottom-0.5 end-0.5 w-3 h-3 rounded-full border-2 border-card ` +
-              (status === 'online' ? 'bg-primary' : 'bg-gray-400')
-            }
-            title={status.charAt(0).toUpperCase() + status.slice(1)}
-          />
-        )}
-      </Link>
+    <div className="grid grid-cols-[auto_1fr] gap-3 relative z-2">
+      <div>
+        <Link href={`/profile/${comment.createdBy.username}`} className='relative inline-block'>
+          <UserAvatar src={hasCreatedBy(comment) ? (comment.createdBy.avatar || '') : ''} firstName={hasCreatedBy(comment) ? (comment.createdBy.firstName || '') : ((comment as CommentUser).user?.firstName || '')} />
+          {!isBlocked(comment.createdBy?._id || '') && !isBlockedBy(comment.createdBy?._id || '') && (
+            <span
+              className={
+                `absolute bottom-0.5 end-0.5 w-3 h-3 rounded-full border-2 border-card ` +
+                (status === 'online' ? 'bg-primary' : 'bg-gray-400')
+              }
+              title={status.charAt(0).toUpperCase() + status.slice(1)}
+            />
+          )}
+        </Link>
+      </div>
 
-      <div className="flex-1">
+      <div className="grow-1">
         <div className="bg-accent p-3 rounded-xl relative">
           {!isEditing && user && (
             <div className="absolute top-2 end-2">
@@ -728,26 +761,10 @@ export default function CommentItem({
           ) : (
             <div className="mt-1 space-y-2">
               {comment.text && (
-                <bdi className='block'>
-                  <p className="text-sm">
-                    {comment.text.split(' ').map((word, index) => {
-                      if (word.startsWith('@')) {
-                        const username = word.slice(1); // Remove @ symbol
-                        return (
-                          <span key={index}>
-                            <Link 
-                              href={`/profile/${username}`}
-                              className="text-primary hover:underline"
-                            >
-                              {word}
-                            </Link>{' '}
-                          </span>
-                        );
-                      }
-                      return word + ' ';
-                    })}
-                  </p>
-                </bdi>
+                <ReadMore 
+                  text={comment.text} 
+                  render={renderTextWithMentions} 
+                />
               )}
               {comment.code && (
                 <CodeBlock 
@@ -801,13 +818,11 @@ export default function CommentItem({
         <div className={`${((comment as Comment).replies?.length > 0 && visibleReplies > 0) || (comment.hasAiEvaluation && (fetchedAiEvaluation || isLoadingAiEvaluation)) ? 'mt-3' : ''} space-y-3`}>
           {/* Show AI evaluation if available, fetched, or loading */}
           {(comment.hasAiEvaluation && (fetchedAiEvaluation || isLoadingAiEvaluation)) && (
-            <div>
-              <CommentAI 
-                evaluation={fetchedAiEvaluation || undefined} 
-                postId={comment.postId} 
-                isLoading={isLoadingAiEvaluation}
-              />
-            </div>
+            <CommentAI 
+              evaluation={fetchedAiEvaluation || undefined} 
+              postId={comment.postId} 
+              isLoading={isLoadingAiEvaluation}
+            />
           )}
           
           {/* Show replies */}
@@ -815,7 +830,7 @@ export default function CommentItem({
             <div 
               key={replyData._id || `reply-${index}`} 
               id={`comment-${replyData._id}`}
-              className="reply-item relative"
+              className="reply-item mt-2 relative"
             >
               {replyData.isHighlighted && replyData._id === highlightedReplyId && shouldShowHighlight && (
                 <div className="absolute top-[-0.5rem] left-[-0.5rem] w-[calc(100%+1rem)] h-[calc(100%+1rem)] bg-primary/10 z-1 border-s-2 border-primary transition-opacity duration-500 rounded-lg"></div>
@@ -838,7 +853,7 @@ export default function CommentItem({
           
           {/* Single Load More Button */}
           {!isReply && hasMoreReplies && (
-            <div className="flex justify-start pt-2 mt-1">
+            <div className={`flex justify-start ${!comment.hasAiEvaluation && (!fetchedAiEvaluation || !isLoadingAiEvaluation) && 'mt-3'}`}>
               <Button
                 variant="ghost"
                 size="sm"
@@ -846,13 +861,13 @@ export default function CommentItem({
                 disabled={isLoadingReplies || isLoadingMore}
                 className="text-muted-foreground hover:text-foreground text-xs px-2 py-1 h-auto"
               >
-                <ChevronDown className="size-3 mr-1" />
+                <ChevronDown className="size-3 me-1" />
                 {!showReplies 
                   ? (() => {
                       const repliesCount = effectiveRepliesCount;
-                      const aiCount = comment.hasAiEvaluation ? 1 : 0;
-                      const totalCount = repliesCount + aiCount;
-                      return `View ${totalCount} ${totalCount === 1 ? 'reply' : 'replies'}`;
+                      // const aiCount = comment.hasAiEvaluation ? 1 : 0;
+                      // const totalCount = repliesCount + aiCount;
+                      return `View ${repliesCount} ${repliesCount === 1 ? 'reply' : 'replies'}`;
                     })()
                   : `Load More Replies (${Math.max(0, ((comment as Comment).repliesCount || 0) - filteredReplies.length)} more)`
                 }

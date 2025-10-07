@@ -95,7 +95,7 @@ export default function CommentEditor({
             value={content.text}
             onChange={(e) => setContent(prev => ({ ...prev, text: e.target.value }))}
             placeholder={placeholder}
-            className="resize-none pe-20 min-h-[80px]"
+            className="resize-none pb-12 min-h-[80px]"
             autoComplete='off'
           />
           <div className="absolute bottom-3 end-3 flex gap-2">

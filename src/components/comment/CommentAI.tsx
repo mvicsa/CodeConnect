@@ -5,7 +5,6 @@ import { useSelector } from 'react-redux'
 import { RootState } from '@/store/store'
 import AIBadge from '../AiBadge'
 import MarkdownWithCode from '../MarkdownWithCode'
-import { useTheme } from 'next-themes';
 import { AIEvaluation, AISuggestion } from '@/types/ai'
 import { formatDate } from 'date-fns'
 import CommentSkeleton from './CommentSkeleton'
@@ -22,7 +21,6 @@ export default function CommentAI({
   isLoading?: boolean
 }) {
   const { loading } = useSelector((state: RootState) => state.aiSuggestions)
-  const { theme } = useTheme();
 
   // If no suggestion/evaluation and not loading, don't render anything
   if (!suggestion && !evaluation?.evaluation && !loading[postId] && !isLoading) {
@@ -38,7 +36,7 @@ export default function CommentAI({
 
   return (
     <div className="flex gap-3 items-start">
-      <UserAvatar src="/ai.avif" firstName="AI" />
+      <UserAvatar src="/ai.png" firstName="AI" />
 
       <div className="flex-1 overflow-hidden">
         <div className="bg-accent p-3 rounded-xl relative">
@@ -52,14 +50,12 @@ export default function CommentAI({
             {/* Show AI evaluation if present */}
             {evaluation && (
               <MarkdownWithCode 
-                content={evaluation?.evaluation} 
-                theme={theme === 'dark' ? 'dark' : 'light'} 
+                content={evaluation?.evaluation}
               />
             )}
             {suggestion?.suggestions && (
                 <MarkdownWithCode 
-                  content={suggestion.suggestions} 
-                  theme={theme === 'dark' ? 'dark' : 'light'} 
+                  content={suggestion.suggestions}
                 />
             )}
           </div>

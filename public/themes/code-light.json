@@ -34,7 +34,7 @@
       "editor.foldBackground": "#22222210",
       "editor.foreground": "#393a34",
       "editor.inactiveSelectionBackground": "#22222210",
-      "editor.lineHighlightBackground": "#f7f7f7",
+      "editor.lineHighlightBackground": "#f4f4f4",
       "editor.selectionBackground": "#22222218",
       "editor.selectionHighlightBackground": "#22222210",
       "editor.stackFrameHighlightBackground": "#fffbdd",
