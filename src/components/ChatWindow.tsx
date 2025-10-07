@@ -87,6 +87,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
 
+  // Add these new state variables for pagination
+  const [loadedMessages, setLoadedMessages] = useState<Message[]>([]);
+  const MESSAGES_PER_PAGE = 20; // عدد الرسائل في كل صفحة
+
+  // Add ref to track initial load
+  const isInitialLoadRef = useRef(true);
+  
+  // Add ref for scroll polling
+  const scrollPollingRef = useRef<NodeJS.Timeout | null>(null);
+
   // Handle emoji selection
   const handleEmojiSelect = (emoji: string) => {
     setMessage(prev => prev + emoji);
@@ -210,6 +220,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     (state: RootState) => state.chat.userStatuses || {},
     shallowEqual
   );
+  const hasMoreMessages = useSelector((state: RootState) => 
+    state.chat.hasMore[activeRoomId || ''] || false
+  );
 
   // Get socket from context
   const socket = useContext(SocketContext);
@@ -271,7 +284,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Load initial messages and check block status
   useEffect(() => {
     if (activeRoom?._id && socket) {
-      socket.emit('chat:get_messages', { roomId: activeRoom._id, limit: 50 });
+      socket.emit('chat:get_messages', { 
+        roomId: activeRoom._id, 
+        limit: MESSAGES_PER_PAGE 
+      });
+      setLoadedMessages([]);
       
       // Check block status for other members in private chats
       if (activeRoom.type === ChatRoomType.PRIVATE) {
@@ -282,6 +299,28 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       }
     }
   }, [activeRoom?._id, socket, myUserId, activeRoom?.members, activeRoom?.type]);
+
+  // Update loaded messages and pagination state when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      setLoadedMessages(messages);
+      const oldestMessage = messages[0];
+      setOldestMessageId(oldestMessage._id);
+      // hasMore comes from backend response via Redux
+      
+      // After first load, disable initial load flag after a delay
+      if (isInitialLoadRef.current) {
+        setTimeout(() => {
+          isInitialLoadRef.current = false;
+        }, 1000);
+      }
+    } else {
+      setLoadedMessages([]);
+    }
+    
+    // Reset loading state when messages are updated
+    setIsLoadingMore(false);
+  }, [messages]);
 
   // Update oldest message ID when messages change
   useEffect(() => {
@@ -337,7 +376,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     // Add a small delay to make it more realistic (user needs time to see messages)
     const timeoutId = setTimeout(() => {
       // Get unseen messages for the current user
-      const unseenMessages = messages.filter(msg => 
+      const unseenMessages = loadedMessages.filter(msg => 
         !msg.seenBy.includes(myUserId) && msg.sender._id !== myUserId
       );
 
@@ -361,69 +400,81 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }, 1000); // 1 second delay
 
     return () => clearTimeout(timeoutId);
-  }, [activeRoomId, messages, socket, myUserId, dispatch, isUserActive]);
+  }, [activeRoomId, loadedMessages, socket, myUserId, dispatch, isUserActive]);
 
   // Message reaction events are now handled in the Provider
 
   // Track scroll position to update shouldAutoScroll
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const element = event.currentTarget;
-    setShouldAutoScroll(element.scrollHeight - (element.scrollTop + element.clientHeight) < 100);
+    const { scrollTop, scrollHeight, clientHeight } = element;
     
-    const isNearTop = element.scrollTop < 100;
-    const shouldLoadMore = !isLoadingMore && isNearTop;
+    setShouldAutoScroll(scrollHeight - (scrollTop + clientHeight) < 100);
+    
+    // جعل الشرط أكثر مرونة - السماح بالتحميل عندما يكون المستخدم في الربع العلوي
+    const isNearTop = scrollTop < (clientHeight * 0.25); // 25% من ارتفاع النافذة
+    
+    const shouldLoadMore = !isLoadingMore && isNearTop && hasMoreMessages && !isInitialLoadRef.current;
 
     if (shouldLoadMore && socket && activeRoom) {
       setIsLoadingMore(true);
       socket.emit('chat:get_messages', {
         roomId: activeRoom._id,
-        limit: 50,
+        limit: MESSAGES_PER_PAGE,
         before: oldestMessageId
       });
     }
 
     // Update scroll to bottom button visibility
-    const isAtBottom = element.scrollHeight - (element.scrollTop + element.clientHeight) < 100;
+    const isAtBottom = scrollHeight - (scrollTop + clientHeight) < 100;
     setShowScrollToBottom(!isAtBottom);
 
     // Mark messages as seen when user scrolls to bottom
     if (isAtBottom && socket && activeRoomId && myUserId) {
-      const unseenMessages = messages.filter(msg => 
+      const unseenMessages = loadedMessages.filter(msg => 
         !msg.seenBy.includes(myUserId) && msg.sender._id !== myUserId
       );
-
+      
       if (unseenMessages.length > 0) {
-        const messageIds = unseenMessages.map(msg => msg._id);
-        
-        // Emit seen event to server
-        socket.emit('chat:seen', { 
-          roomId: activeRoomId, 
-          messageIds 
+        socket.emit('chat:seen', {
+          roomId: activeRoomId,
+          messageIds: unseenMessages.map(msg => msg._id),
+          userId: myUserId
         });
-        
-        // Optimistically update Redux state
-        dispatch(setSeen({ 
-          roomId: activeRoomId, 
-          seen: messageIds, 
-          userId: myUserId,
-          currentUserId: myUserId 
-        }));
       }
     }
   };
 
-  // Force scroll to bottom with smooth behavior
+  // Force scroll to bottom with instant behavior
   const forceScrollToBottom = () => {
     if (!scrollRef.current) return;
     const scrollElement = scrollRef.current;
     const { scrollHeight, clientHeight } = scrollElement;
     const maxScroll = scrollHeight - clientHeight;
     
-    // Use requestAnimationFrame for smoother scrolling
+    // Use instant behavior for immediate scrolling
     requestAnimationFrame(() => {
       scrollElement.scrollTo({ top: maxScroll, behavior: 'smooth' });
     });
   };
+
+  // Separate useEffect for instant invisible scrolling on initial load
+  useEffect(() => {
+    if (activeRoomId && loadedMessages.length > 0 && isInitialLoadRef.current) {
+      if (scrollRef.current) {
+        const scrollElement = scrollRef.current;
+        // Disable any smooth scrolling behavior temporarily
+        // scrollElement.style.scrollBehavior = 'auto';
+        // Instant scroll to bottom - completely invisible
+        scrollElement.scrollTop = scrollElement.scrollHeight;
+        // Restore default scroll behavior
+        // scrollElement.style.scrollBehavior = '';
+        
+        // Disable auto-loading after scrolling
+        isInitialLoadRef.current = false;
+      }
+    }
+  }, [activeRoomId, loadedMessages.length]); // Only run when these change
 
   // Scroll to bottom when:
   // - activeRoomId changes (user switches chat)
@@ -433,25 +484,71 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     if (activeRoomId !== prevActiveRoomId.current) {
       prevActiveRoomId.current = activeRoomId;
       
-      // Immediate scroll to bottom for initial load
-      if (scrollRef.current) {
-        const scrollElement = scrollRef.current;
-        const { scrollHeight, clientHeight } = scrollElement;
-        const maxScroll = scrollHeight - clientHeight;
-        scrollElement.scrollTop = maxScroll; // Instant scroll
-      }
+      // Reset initial load flag for new chat
+      isInitialLoadRef.current = true;
       
-      // Then smooth scroll after timeout
-      setTimeout(() => forceScrollToBottom(), 200);
-      prevMessagesLength.current = messages.length;
+      prevMessagesLength.current = loadedMessages.length;
       return;
     }
     // If new messages arrived (from anyone) and user was at bottom, scroll
-    if (messages.length > prevMessagesLength.current && shouldAutoScroll) {
+    if (loadedMessages.length > prevMessagesLength.current && shouldAutoScroll) {
       setTimeout(() => forceScrollToBottom(), 200);
     }
-    prevMessagesLength.current = messages.length;
-  }, [activeRoomId, messages.length, shouldAutoScroll]);
+    prevMessagesLength.current = loadedMessages.length;
+  }, [activeRoomId, loadedMessages.length, shouldAutoScroll]);
+
+  // دالة منفصلة لتحميل المزيد
+  const loadMoreMessages = useCallback(() => {
+    if (socket && activeRoom && hasMoreMessages && !isLoadingMore && !isInitialLoadRef.current) {
+      setIsLoadingMore(true);
+      socket.emit('chat:get_messages', {
+        roomId: activeRoom._id,
+        limit: MESSAGES_PER_PAGE,
+        before: oldestMessageId
+      });
+    }
+  }, [socket, activeRoom, hasMoreMessages, isLoadingMore, oldestMessageId]);
+
+  // أضف useEffect للتحقق المستمر عند scrollTop = 0
+  useEffect(() => {
+    if (scrollRef.current && hasMoreMessages && !isLoadingMore && !isInitialLoadRef.current) {
+      const element = scrollRef.current;
+      const { scrollTop } = element;
+      
+      if (scrollTop === 0) {
+        // بدء التحقق كل 500ms عندما تكون عند الأعلى
+        if (!scrollPollingRef.current) {
+          scrollPollingRef.current = setInterval(() => {
+            if (scrollRef.current && hasMoreMessages && !isLoadingMore) {
+              const currentScrollTop = scrollRef.current.scrollTop;
+              if (currentScrollTop === 0) {
+                loadMoreMessages();
+              } else {
+                // توقف عن التحقق إذا لم نعد عند الأعلى
+                if (scrollPollingRef.current) {
+                  clearInterval(scrollPollingRef.current);
+                  scrollPollingRef.current = null;
+                }
+              }
+            }
+          }, 500);
+        }
+      } else {
+        // توقف عن التحقق إذا لم نعد عند الأعلى
+        if (scrollPollingRef.current) {
+          clearInterval(scrollPollingRef.current);
+          scrollPollingRef.current = null;
+        }
+      }
+    }
+    
+    return () => {
+      if (scrollPollingRef.current) {
+        clearInterval(scrollPollingRef.current);
+        scrollPollingRef.current = null;
+      }
+    };
+  }, [hasMoreMessages, isLoadingMore, loadMoreMessages]);
 
   // Smoothly scroll to a message by id and highlight its bubble briefly
   const scrollToMessageById = (messageId: string) => {
@@ -1161,7 +1258,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       scrollToBottom();
     }
     // eslint-disable-next-line
-  }, [messages, typing]);
+  }, [loadedMessages, typing]);
 
   // If loading, show skeleton
   if (isLoading) {
@@ -1366,7 +1463,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         }}
       >
         <div className="space-y-4 min-h-full">
-          {messages.map(renderMessage)}
+          {/* Loading indicator for older messages */}
+          {isLoadingMore && (
+            <div className="flex justify-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            </div>
+          )}
+          
+          {loadedMessages.map(renderMessage)}
           
           {typing.map(renderTypingIndicator)}
         </div>
@@ -1374,12 +1478,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* Scroll to bottom button */}
       {showScrollToBottom && (
-        <div className="absolute bottom-20 right-4 z-10">
+        <div className="absolute bottom-20 right-5 z-10">
           <ChatButton
-            variant="outline"
             size="icon"
             onClick={forceScrollToBottom}
-            className="h-10 w-10 rounded-full shadow-lg"
+            className="h-10 w-10 bg-accent hover:bg-background border rounded-full shadow-lg cursor-pointer"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
