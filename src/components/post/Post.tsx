@@ -52,9 +52,9 @@ interface PostProps {
   commentsLoading?: boolean;
 }
 
-const Post = memo(function Post({ 
-  post, 
-  initialShowComments = false, 
+const Post = memo(function Post({
+  post,
+  initialShowComments = false,
   highlightedCommentId,
   highlightedReplyId,
   // parentCommentId
@@ -73,6 +73,9 @@ const Post = memo(function Post({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showImageDialog, setShowImageDialog] = useState(false);
   
+  // State to hold the total count displayed to prevent flickering
+  const [displayedTotalCount, setDisplayedTotalCount] = useState((commentsCount || 0) + (repliesCount || 0) + (aiSuggestionsCount || 0));
+
   // Get block status directly from Redux to avoid re-renders
   const blockStatuses = useSelector((state: RootState) => state.block.blockStatuses, (prev, next) => {
     // Only re-render if the specific author's block status changed
@@ -104,16 +107,38 @@ const Post = memo(function Post({
   const status = user ? userStatuses[createdBy?._id?.toString()] || 'offline' : 'offline';
   
   // Get total count for this post: comments + replies + AI suggestions
-  // const { comments } = useSelector((state: RootState) => state.comments)
-  const totalCount = useMemo(() => {
-    // Handle undefined/null values properly
-    const commentsCountValue = (commentsCount && commentsCount > 0) ? commentsCount : 0;
-    const repliesCountValue = (repliesCount && repliesCount > 0) ? repliesCount : 0;
-    const aiSuggestionsCountValue = (aiSuggestionsCount && aiSuggestionsCount > 0) ? aiSuggestionsCount : 0;
-    
-    const total = commentsCountValue + repliesCountValue + aiSuggestionsCountValue;
-    return total;
-  }, [commentsCount, repliesCount, aiSuggestionsCount])
+  const { totalCounts, totalAiEvaluationsCount, isLoaded: commentsIsLoaded } = useSelector((state: RootState) => state.comments);
+  const { aiSuggestionsCount: aiSuggestionsCountState, isLoaded: aiSuggestionsIsLoaded } = useSelector((state: RootState) => state.aiSuggestions);
+
+  // Effect to calculate and update the displayed total count
+  const calculatedTotalCount = useMemo(() => {
+    let currentTotal = 0;
+
+    const allReduxDataLoaded = commentsIsLoaded[_id] && aiSuggestionsIsLoaded[_id];
+
+    if (allReduxDataLoaded) {
+      // If all Redux data is loaded, use Redux values
+      currentTotal += totalCounts[_id] !== undefined ? totalCounts[_id] : 0;
+      currentTotal += aiSuggestionsCountState[_id] !== undefined ? aiSuggestionsCountState[_id] : 0;
+      currentTotal += totalAiEvaluationsCount[_id] !== undefined ? totalAiEvaluationsCount[_id] : 0;
+    } else {
+      // Otherwise, use initial post values
+      currentTotal += (commentsCount || 0) + (repliesCount || 0) + (aiSuggestionsCount || 0);
+    }
+    return currentTotal;
+  }, [totalCounts, aiSuggestionsCountState, totalAiEvaluationsCount, commentsIsLoaded, aiSuggestionsIsLoaded, _id, commentsCount, repliesCount, aiSuggestionsCount]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (calculatedTotalCount !== displayedTotalCount) {
+        setDisplayedTotalCount(calculatedTotalCount);
+      }
+    }, 200); // 200ms debounce delay
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [calculatedTotalCount, displayedTotalCount]);
   
   const toggleComments = () => {
     // Always show comments section immediately
@@ -246,9 +271,8 @@ const Post = memo(function Post({
   const authorId = createdBy?._id?.toString();
   
   // Get block status directly from Redux state
-  const authorBlockStatus = authorId ? blockStatuses[authorId] : null;
-  const isAuthorBlocked = authorBlockStatus?.isBlocked || false;
-  const isAuthorBlockedBy = authorBlockStatus?.isBlockedBy || false;
+  const isAuthorBlocked = authorId ? (blockStatuses[authorId]?.isBlocked || false) : false;
+  const isAuthorBlockedBy = authorId ? (blockStatuses[authorId]?.isBlockedBy || false) : false;
   
   // Check if block status is still loading (not yet checked)
   // const isBlockStatusLoading = authorId && !authorBlockStatus;
@@ -377,7 +401,7 @@ const Post = memo(function Post({
                         )}
                         <DropdownMenuItem className='cursor-pointer'>
                           <FlagIcon className='size-4' />
-                          { t('report') }
+                          { t('report') } (Soon)
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                   </DropdownMenu>
@@ -428,7 +452,7 @@ const Post = memo(function Post({
                 className={`flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors ${highlightedCommentId || highlightedReplyId ? 'pointer-events-none' : 'cursor-pointer'}`}
               >
                 <MessageCircleMore className='size-5' />
-                {totalCount && totalCount > 0 ? <span className="text-sm font-medium">{totalCount}</span> : null}
+                {displayedTotalCount && displayedTotalCount > 0 ? <span className="text-sm font-medium">{displayedTotalCount}</span> : null}
               </button>
               <SendIcon className='size-5 text-muted-foreground hidden' />
               

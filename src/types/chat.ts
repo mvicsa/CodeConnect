@@ -69,7 +69,7 @@ export interface Message {
 export interface LastActivity {
   message?: Message | null;
   messageId?: string | null;
-  latestType?: 'message' | 'reaction' | null;
+  latestType?: 'message' | 'reaction' | 'deletion' | null;
   latestTime?: number;
   latestMessage?: Message | null;
   latestReaction?: { userName: string; reaction: string; userId?: string; firstName?: string } | null;
@@ -85,7 +85,7 @@ export interface ChatRoom {
   lastMessage?: Message | null;
   lastMessageTime?: number; // Timestamp for sorting
   lastActivity?: {
-    type: 'message' | 'reaction';
+    type: 'message' | 'reaction' | 'deletion';
     time: string; // Keep as string for Redux serialization
     messageId: string;
     reaction?: string;

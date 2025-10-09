@@ -151,7 +151,7 @@ export const VideoConferenceComponent = ({
   };
 
   return (
-    <div className="min-h-screen bg-background fixed w-full top-0 left-0 z-50">
+    <div className="min-h-[100dvh] bg-background fixed w-full top-0 left-0 z-50">
       <div className="flex items-center justify-between p-4 border-b border-dark-border text-dark-foreground h-[80px] bg-dark ">
         <div className="flex items-center space-x-3 overflow-hidden">
           <Video className="h-6 w-6 text-primary flex-shrink-0" />
@@ -200,7 +200,7 @@ export const VideoConferenceComponent = ({
         </div>
       </div>
 
-      <div className="h-[calc(100vh-80px)]">
+      <div className="h-[calc(100dvh-80px)]">
         <LiveKitRoom
           token={token}
           data-lk-theme="default"

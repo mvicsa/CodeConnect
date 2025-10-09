@@ -22,11 +22,10 @@ interface CommentSectionProps {
   hasAiSuggestions?: boolean;
   highlightedCommentId?: string;
   highlightedReplyId?: string;
-  // parentCommentId?: string; // Parent comment ID for highlighted replies
   postText: string;
   postCode?: string;
   postCodeLang?: string;
-  autoLoad?: boolean; // New prop to control auto-loading
+  autoLoad?: boolean;
 }
 
 const CommentSection = memo(function CommentSection({ 
@@ -35,32 +34,33 @@ const CommentSection = memo(function CommentSection({
   hasAiSuggestions = false,
   highlightedCommentId,
   highlightedReplyId,
-  // parentCommentId: parentCommentIdProp,
   postText,
   postCode,
   postCodeLang,
-  autoLoad = true // Default to true for backward compatibility
+  autoLoad = true
 }: CommentSectionProps) {
   
   const dispatch = useDispatch<AppDispatch>()
-  const { comments, hasMore, totalCounts, visibleCounts } = useSelector((state: RootState) => state.comments)
+  const { comments, hasMore, totalCounts, totalCommentsCount, visibleCounts } = useSelector((state: RootState) => state.comments)
   const { suggestions } = useSelector((state: RootState) => state.aiSuggestions)
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null)
   const [mentionUser, setMentionUser] = useState('')
-  // Get visibleComments from Redux store or default to 3
-  const currentPostComments = comments.filter(comment => comment.postId === postId);
+  
+  // Get current post comments (main comments only)
+  const currentPostComments = useMemo(() => {
+    return comments.filter(comment => comment.postId === postId);
+  }, [comments, postId]);
+  
+  // Get visibleComments from Redux store or default to COMMENT_LIMIT
   const visibleComments = Math.min(visibleCounts[postId] || COMMENT_LIMIT, Math.max(currentPostComments.length, COMMENT_LIMIT));
   const [showHighlight, setShowHighlight] = useState(true)
-  // const [parentCommentId, setParentCommentId] = useState<string | null>(parentCommentIdProp || null)
   const [isLoadingComments, setIsLoadingComments] = useState(false)
   const [showSkeleton, setShowSkeleton] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [aiSuggestionsLoaded, setAiSuggestionsLoaded] = useState(false)
   const [optimisticComments, setOptimisticComments] = useState<Comment[]>([])
-  // const [isAddingComment, setIsAddingComment] = useState(false)
 
   const user = useSelector((state: RootState) => state.auth.user)
-  // const { checkBlockStatus, isBlocked, loading: blockLoading } = useBlock()
   const { checkBlockStatus, isBlocked } = useBlock()
   const checkBlockStatusRef = useRef(checkBlockStatus)
   const checkedAuthorsRef = useRef<Set<string>>(new Set())
@@ -72,16 +72,11 @@ const CommentSection = memo(function CommentSection({
 
   // Filter comments for this specific post and exclude blocked users
   const postComments = useMemo(() => {
-    const realComments = comments
-      .filter(comment => comment.postId === postId)
-      .filter(comment => !isBlocked(comment.createdBy._id));
+    const realComments = currentPostComments.filter(comment => !isBlocked(comment.createdBy._id));
     
     // Combine real comments with optimistic comments
     return [...optimisticComments, ...realComments];
-  }, [comments, postId, isBlocked, optimisticComments]);
-
-  // Parent comment ID is set by SinglePostWithHighlightedComment
-  // No need for complex logic here since backend handles highlighting
+  }, [currentPostComments, isBlocked, optimisticComments]);
 
   // Check block status for all comment authors and reply authors when comments change
   useEffect(() => {
@@ -117,7 +112,6 @@ const CommentSection = memo(function CommentSection({
   }, [postComments]);
 
   // Comments are already ordered by backend with highlighted comment first
-  // No need to reorder - backend handles this with isHighlighted flag
   const orderedComments = useMemo(() => {
     return postComments;
   }, [postComments]);
@@ -156,10 +150,22 @@ const CommentSection = memo(function CommentSection({
     return orderedComments.slice(0, visibleComments);
   }, [orderedComments, visibleComments]);
 
-  // Check if there are more comments to load
-  // Use unique comment IDs to avoid counting duplicates from highlighting
-  const uniqueCommentIds = new Set(currentPostComments.map(comment => comment._id));
-  const hasMoreComments = hasMore[postId] || (totalCounts[postId] && totalCounts[postId] > uniqueCommentIds.size)
+  // Calculate loaded main comments count (not including replies)
+  const loadedMainCommentsCount = useMemo(() => {
+    return currentPostComments.length;
+  }, [currentPostComments]);
+  
+  // Use hasMore flag from backend directly
+  const hasMoreComments = hasMore[postId] ?? false;
+  
+  // Calculate remaining comments to display
+  const remainingCommentsDisplay = useMemo(() => {
+    // Use totalCommentsCount from backend (main comments only)
+    const total = totalCommentsCount[postId] ?? 0;
+    const remaining = Math.max(0, total - loadedMainCommentsCount);
+    
+    return remaining;
+  }, [totalCommentsCount, postId, loadedMainCommentsCount]);
 
   useEffect(() => {
     // Only fetch comments if autoLoad is true
@@ -167,7 +173,7 @@ const CommentSection = memo(function CommentSection({
       setIsLoadingComments(true);
       setShowSkeleton(true);
       
-      dispatch(fetchComments({ postId, offset: 0, limit: COMMENT_LIMIT })) // initial load
+      dispatch(fetchComments({ postId, offset: 0, limit: COMMENT_LIMIT }))
         .unwrap()
         .then(() => {
           setIsLoadingComments(false);
@@ -178,18 +184,15 @@ const CommentSection = memo(function CommentSection({
               .unwrap()
               .then(() => {
                 setAiSuggestionsLoaded(true);
-                // Hide skeleton immediately after AI suggestions are loaded
                 setShowSkeleton(false);
               })
               .catch(() => {
                 toast.error('Failed to fetch AI suggestions');
                 setAiSuggestionsLoaded(true);
-                // Hide skeleton immediately even if AI suggestions fail
                 setShowSkeleton(false);
               });
           } else {
             setAiSuggestionsLoaded(true);
-            // Hide skeleton immediately if no AI suggestions
             setShowSkeleton(false);
           }
         })
@@ -203,11 +206,11 @@ const CommentSection = memo(function CommentSection({
 
   const handleAddComment = async (content: { text: string, code: string, codeLang: string }) => {
     try {
-      if (!user || typeof user._id !== 'string') return; // Ensure user._id is a string
+      if (!user || typeof user._id !== 'string') return;
       
       // Create optimistic comment
       const optimisticComment: Comment = {
-        _id: `temp-${Date.now()}`, // Temporary ID
+        _id: `temp-${Date.now()}`,
         postId: postId,
         createdBy: {
           _id: user._id,
@@ -231,7 +234,6 @@ const CommentSection = memo(function CommentSection({
       
       // Add optimistic comment immediately
       setOptimisticComments(prev => [optimisticComment, ...prev])
-      // setIsAddingComment(true)
       
       // Send to backend
       const newComment = {
@@ -260,8 +262,8 @@ const CommentSection = memo(function CommentSection({
   const handleLoadMore = () => {
     setIsLoadingMore(true);
     
-    // Calculate offset based on loaded comments
-    const currentLoadedCount = currentPostComments.length;
+    // Calculate offset based on loaded main comments
+    const currentLoadedCount = loadedMainCommentsCount;
     let parentCommentIdForHighlight;
     
     if (highlightedReplyId) {
@@ -270,20 +272,17 @@ const CommentSection = memo(function CommentSection({
         comment.replies?.some(reply => reply._id === highlightedReplyId)
       );
       parentCommentIdForHighlight = parentComment?._id;
-      // Don't adjust offset - the backend handles highlighting properly
-      // currentLoadedCount remains the same
     } else if (highlightedCommentId) {
       // For highlighted comment: use the comment ID itself
       parentCommentIdForHighlight = highlightedCommentId;
     }
-    
     
     // Fetch more comments from API with highlight parameter
     dispatch(fetchComments({ 
       postId, 
       offset: currentLoadedCount, 
       limit: COMMENT_LIMIT,
-      highlight: parentCommentIdForHighlight // Send parentCommentId for proper highlighting
+      highlight: parentCommentIdForHighlight
     }))
       .unwrap()
       .then(() => {
@@ -294,14 +293,6 @@ const CommentSection = memo(function CommentSection({
         setIsLoadingMore(false);
       });
   }
-
-  // if (blockLoading) {
-  //   return (
-  //     <div className={`space-y-4 ${className}`}>
-  //       <CommentSkeleton count={3} />
-  //     </div>
-  //   );
-  // }
 
   if (showSkeleton) {
     return (
@@ -314,7 +305,7 @@ const CommentSection = memo(function CommentSection({
   return (
     <div className={`flex flex-col gap-4 ${className}`}>
       {/* Comment Form */}
-      { user && (
+      {user && (
         <CommentEditor
           initialValue={{ text: '', code: '', codeLang: '' }}
           onSubmit={handleAddComment}
@@ -339,7 +330,7 @@ const CommentSection = memo(function CommentSection({
               id={`comment-${comment._id}`}
               className="relative"
             >
-              { !highlightedReplyId && comment.isHighlighted && showHighlight && (
+              {!highlightedReplyId && comment.isHighlighted && showHighlight && (
                 <div className="absolute top-[-0.5rem] left-[-0.5rem] w-[calc(100%+1rem)] h-[calc(100%+1rem)] bg-primary/10 z-1 border-s-2 border-primary transition-opacity duration-500 rounded-lg"></div>
               )}
               {/* Show skeleton for optimistic comments */}
@@ -347,17 +338,17 @@ const CommentSection = memo(function CommentSection({
                 <CommentSkeleton count={1} />
               ) : (
                 <CommentItem
-                comment={comment}
-                activeReplyId={activeReplyId}
-                setActiveReplyId={(id) => setActiveReplyId(id)}
-                mentionUser={mentionUser}
-                setMentionUser={setMentionUser}
-                highlightedReplyId={highlightedReplyId}
-                showHighlight={showHighlight}
-                postText={postText}
-                postCode={postCode}
-                postCodeLang={postCodeLang}
-              />
+                  comment={comment}
+                  activeReplyId={activeReplyId}
+                  setActiveReplyId={(id) => setActiveReplyId(id)}
+                  mentionUser={mentionUser}
+                  setMentionUser={setMentionUser}
+                  highlightedReplyId={highlightedReplyId}
+                  showHighlight={showHighlight}
+                  postText={postText}
+                  postCode={postCode}
+                  postCodeLang={postCodeLang}
+                />
               )}
             </div>
           ))}
@@ -374,8 +365,8 @@ const CommentSection = memo(function CommentSection({
             disabled={isLoadingMore}
             className="text-muted-foreground hover:text-foreground"
           >
-            <ChevronDown className="size-4 mr-1" />
-            Load More Comments ({Math.max(0, (totalCounts[postId] || 0) - currentPostComments.length)} more)
+            <ChevronDown className="size-4 me-1" />
+            Load More Comments ({remainingCommentsDisplay} more)
           </Button>
         </div>
       )}

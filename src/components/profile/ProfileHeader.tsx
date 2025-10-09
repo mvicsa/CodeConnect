@@ -126,16 +126,10 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         clearTimeout(timeout);
         const roomResponse = response as { roomId?: string; error?: string };
         if (roomResponse && roomResponse.roomId) {
-          // Fetch latest rooms from backend to get full data
-          const token = getAuthToken();
-          const res = await fetch('/api/chat/rooms', {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          const data = await res.json();
-          if (data.rooms) {
-            dispatch(setRooms(data.rooms));
-          }
+          // Set the active room immediately
           dispatch(setActiveRoom(roomResponse.roomId));
+          
+          // Navigate to chat page immediately
           router.push(`/chat`);
         } else {
           toast.error('Failed to create private room');

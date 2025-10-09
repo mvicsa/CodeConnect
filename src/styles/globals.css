@@ -60,6 +60,10 @@ html[dir="rtl"] .rotate-270 {
   transform: rotate(270deg);
 } */
 
+.h-\[calc\(100dvh\-80px\)\] {
+  height: calc(100dvh - 80px);
+}
+
 .h-\[calc\(100\%\+1rem\)\] {
   height: calc(100% + 1rem);
 }

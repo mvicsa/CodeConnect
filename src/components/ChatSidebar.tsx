@@ -165,6 +165,12 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         latestMessage = (lastActivity as LastActivity).message || null;
       }
       
+      // If it's a deletion, handle accordingly
+      if (lastActivity.type === 'deletion') {
+        // For deletion, we don't need to set latestMessage since the message is deleted
+        latestMessage = null;
+      }
+      
       return {
         latestType: lastActivity.type,
         latestTime: activityTime,
@@ -181,6 +187,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     const activity = getLastActivity(preview._id);
     const { latestType, latestMessage, latestReaction } = activity;
     if (!latestType) return 'No messages yet';
+    
+    // Handle deletion type FIRST - before checking latestMessage
+    if (latestType === 'deletion') return 'Message deleted'; // Handle deletion type from backend
+    
     if (latestType === 'reaction' && latestReaction) {
       const imageSrc = reactionImageMap[latestReaction.reaction] || "/reactions/like.png";
       const isMe = latestReaction.userId === myUserId;

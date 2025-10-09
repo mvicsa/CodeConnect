@@ -97,6 +97,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Add ref for scroll polling
   const scrollPollingRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Add refs for auto-loading optimization
+  const isLoadingMoreRef = useRef(false);
+  const hasMoreMessagesRef = useRef(true);
+  const [lastLoadTime, setLastLoadTime] = useState(0);
+  const MIN_LOAD_INTERVAL = 500; // 500 ms
+
   // Handle emoji selection
   const handleEmojiSelect = (emoji: string) => {
     setMessage(prev => prev + emoji);
@@ -221,7 +227,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     shallowEqual
   );
   const hasMoreMessages = useSelector((state: RootState) => 
-    state.chat.hasMore[activeRoomId || ''] || false
+    state.chat.hasMore[activeRoomId || ''] ?? true
   );
 
   // Get socket from context
@@ -281,6 +287,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     checkBlockStatusRef.current = checkBlockStatus;
   }, [checkBlockStatus]);
 
+  // Update refs when state changes
+  useEffect(() => {
+    isLoadingMoreRef.current = isLoadingMore;
+  }, [isLoadingMore]);
+
+  useEffect(() => {
+    hasMoreMessagesRef.current = hasMoreMessages;
+  }, [hasMoreMessages]);
+
   // Load initial messages and check block status
   useEffect(() => {
     if (activeRoom?._id && socket) {
@@ -320,6 +335,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     
     // Reset loading state when messages are updated
     setIsLoadingMore(false);
+    isLoadingMoreRef.current = false; // حدث الـ ref كمان
   }, [messages]);
 
   // Update oldest message ID when messages change
@@ -413,7 +429,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     
     // جعل الشرط أكثر مرونة - السماح بالتحميل عندما يكون المستخدم في الربع العلوي
     const isNearTop = scrollTop < (clientHeight * 0.25); // 25% من ارتفاع النافذة
-    
+
     const shouldLoadMore = !isLoadingMore && isNearTop && hasMoreMessages && !isInitialLoadRef.current;
 
     if (shouldLoadMore && socket && activeRoom) {
@@ -499,27 +515,44 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // دالة منفصلة لتحميل المزيد
   const loadMoreMessages = useCallback(() => {
-    if (socket && activeRoom && hasMoreMessages && !isLoadingMore && !isInitialLoadRef.current) {
+    const now = Date.now();
+    
+    // تأكد إن في 2 ثانية على الأقل بين كل تحميل
+    if (now - lastLoadTime < MIN_LOAD_INTERVAL) {
+      return;
+    }
+    
+    // استخدم refs بدل state عشان الـ setInterval يشوف القيم المحدثة
+    if (
+      socket && 
+      activeRoom && 
+      hasMoreMessagesRef.current && 
+      !isLoadingMoreRef.current && 
+      !isInitialLoadRef.current
+    ) {
       setIsLoadingMore(true);
+      isLoadingMoreRef.current = true; // حدث الـ ref فوراً
+      setLastLoadTime(now);
+      
       socket.emit('chat:get_messages', {
         roomId: activeRoom._id,
         limit: MESSAGES_PER_PAGE,
         before: oldestMessageId
       });
     }
-  }, [socket, activeRoom, hasMoreMessages, isLoadingMore, oldestMessageId]);
+  }, [socket, activeRoom, oldestMessageId, lastLoadTime]);
 
   // أضف useEffect للتحقق المستمر عند scrollTop = 0
   useEffect(() => {
-    if (scrollRef.current && hasMoreMessages && !isLoadingMore && !isInitialLoadRef.current) {
+    if (scrollRef.current && hasMoreMessagesRef.current && !isLoadingMoreRef.current && !isInitialLoadRef.current) {
       const element = scrollRef.current;
       const { scrollTop } = element;
       
       if (scrollTop === 0) {
-        // بدء التحقق كل 500ms عندما تكون عند الأعلى
+        // بدء التحقق كل 1000ms (ثانية) عندما تكون عند الأعلى
         if (!scrollPollingRef.current) {
           scrollPollingRef.current = setInterval(() => {
-            if (scrollRef.current && hasMoreMessages && !isLoadingMore) {
+            if (scrollRef.current && hasMoreMessagesRef.current && !isLoadingMoreRef.current) {
               const currentScrollTop = scrollRef.current.scrollTop;
               if (currentScrollTop === 0) {
                 loadMoreMessages();
@@ -531,7 +564,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 }
               }
             }
-          }, 500);
+          }, 1000);
         }
       } else {
         // توقف عن التحقق إذا لم نعد عند الأعلى
@@ -999,7 +1032,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             )}
             
             <div className={`${msg.type === MessageType.VIDEO ? 'px-1 py-1' : 'p-3.5 pb-4.5'} relative`}>
-              <div className={`absolute ${msg.type === MessageType.VIDEO ? 'top-2 right-2' : 'top-1 right-1'} z-10`}>
+              <div className={`absolute ${msg.type === MessageType.VIDEO ? 'top-2 right-2' : 'top-0.5 right-0.5'} z-10`}>
                 <MessageActions
                   message={msg}
                   onReply={(message) => setReplyTo(message)}
@@ -1012,7 +1045,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               
               {/* File/Image Content */}
               {msg.type === MessageType.IMAGE && msg.fileUrl && (
-                <div className="">
+                <div>
                   <Img 
                     alt="Image"
                     src={msg.fileUrl || 'image'} 
@@ -1142,11 +1175,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                {/* Text Content */}
                {msg.type === MessageType.TEXT && (
                  <div className="text-sm">
+                  <bdi className="text-left">
                    <MarkdownWithCode 
                      content={msg.content} 
                      maxLength={10000}
                      theme={theme === 'dark' ? 'dark' : 'light'} 
                    />
+                  </bdi>
                  </div>
                )}
 
@@ -1185,7 +1220,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 <div className="flex items-center gap-1">
                   <p
                     className={cn(
-                      "text-xs",
+                      "text-xs mt-1",
                       isCurrentUser ? "text-primary-foreground" : "text-muted-foreground"
                     )}
                   >
