@@ -5,7 +5,6 @@ import {
 } from "@/components/ui/navigation-menu";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { NavItemProps } from "./nav.types";
 import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useUnreadRoomsCount } from "@/hooks/useChat";

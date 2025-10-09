@@ -18,7 +18,7 @@ import NotificationProvider from '@/components/NotificationProvider';
 import axios from 'axios';
 import { Reactions } from '@/types/comments'
 // import { SocketType } from '@/types/socket' // No longer needed
-import { ChatRoom, Message } from '@/types/chat'
+import { ChatRoom, Message, RoomLastActivityPayload, ChatMessageEditedData } from '@/types/chat'
 import { updateCommentReactions, updatePostReactions, UserReaction } from './slices/reactionsSlice'
 import { getAuthToken } from '@/lib/cookies'
 import { toast } from 'sonner'
@@ -680,17 +680,17 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
       }
     });
 
-    newSocket.on('chat:message_edited', (data: any) => {
+    newSocket.on('chat:message_edited', (data: ChatMessageEditedData) => {
       // Handle new format with lastActivity
       if (data && typeof data === 'object' && 'message' in data && 'lastActivity' in data) {
-        // New format: { message: Message, lastActivity: LastActivityPayload }
+        // New format: { message: Message, lastActivity: RoomLastActivityPayload }
         const { message, lastActivity } = data;
         dispatch(updateMessage({ roomId: message.chatRoom, messageId: message._id, updates: message }));
         
         if (lastActivity) {
           dispatch(updateRoomLastActivity({
             roomId: message.chatRoom,
-            lastActivity
+            lastActivity: lastActivity
           }));
         }
       } else if (data && typeof data === 'object' && (data as Message).chatRoom) {
@@ -699,12 +699,11 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
         dispatch(updateMessage({ roomId: msg.chatRoom, messageId: msg._id, updates: msg }));
         
         // Create fallback lastActivity for old format
-        const fallbackLastActivity: LastActivityPayload = {
+        const fallbackLastActivity: RoomLastActivityPayload = {
           type: 'message',
           time: msg.updatedAt || msg.createdAt,
           messageId: msg._id,
           userId: msg.sender?._id,
-          message: msg
         };
         dispatch(updateRoomLastActivity({
           roomId: msg.chatRoom,

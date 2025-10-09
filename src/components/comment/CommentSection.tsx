@@ -41,7 +41,7 @@ const CommentSection = memo(function CommentSection({
 }: CommentSectionProps) {
   
   const dispatch = useDispatch<AppDispatch>()
-  const { comments, hasMore, totalCounts, totalCommentsCount, visibleCounts } = useSelector((state: RootState) => state.comments)
+  const { comments, hasMore, totalCommentsCount, visibleCounts } = useSelector((state: RootState) => state.comments)
   const { suggestions } = useSelector((state: RootState) => state.aiSuggestions)
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null)
   const [mentionUser, setMentionUser] = useState('')

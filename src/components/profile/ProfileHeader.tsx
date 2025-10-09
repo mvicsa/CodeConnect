@@ -16,9 +16,8 @@ import { SocketContext } from '@/store/Provider';
 import { useRouter } from 'next/navigation';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store/store';
-import { setRooms, setActiveRoom } from '@/store/slices/chatSlice';
+import { setActiveRoom } from '@/store/slices/chatSlice';
 import { User } from '@/types/user';
-import { getAuthToken } from '@/lib/cookies';
 import { toast } from 'sonner';
 
 interface ProfileHeaderProps {
@@ -128,7 +127,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         if (roomResponse && roomResponse.roomId) {
           // Set the active room immediately
           dispatch(setActiveRoom(roomResponse.roomId));
-          
+
           // Navigate to chat page immediately
           router.push(`/chat`);
         } else {

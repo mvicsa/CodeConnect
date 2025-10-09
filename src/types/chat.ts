@@ -66,6 +66,19 @@ export interface Message {
   edited: boolean;
 }
 
+export interface RoomLastActivityPayload {
+  type: 'message' | 'reaction' | 'deletion';
+  time: string;
+  messageId: string;
+  reaction?: string;
+  userId?: string;
+}
+
+export interface ChatMessageEditedData {
+  message: Message;
+  lastActivity: RoomLastActivityPayload;
+}
+
 export interface LastActivity {
   message?: Message | null;
   messageId?: string | null;

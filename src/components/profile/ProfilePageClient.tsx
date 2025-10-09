@@ -442,30 +442,30 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
     }
 
     // Filter out incomplete social links and ensure titles are set
-    // const filteredSocialLinks = editForm.socialLinks
-    //   .filter(link => link.platform && link.url)
-    //   .map(link => {
-    //     // If title is missing, set it from SOCIAL_PLATFORMS
-    //     if (!link.title) {
-    //       const platform = SOCIAL_PLATFORMS.find(p => p.value === link.platform);
-    //       return {
-    //         ...link,
-    //         title: platform?.label || link.platform
-    //       };
-    //     }
-    //     return link;
-    //   });
+    const filteredSocialLinks = editForm.socialLinks
+      .filter(link => link.platform && link.url)
+      .map(link => {
+        // If title is missing, set it from SOCIAL_PLATFORMS
+        if (!link.title) {
+          const platform = SOCIAL_PLATFORMS.find(p => p.value === link.platform);
+          return {
+            ...link,
+            title: platform?.label || link.platform
+          };
+        }
+        return link;
+      });
   
     // Prepare data for API
-    // const birthdateValue = editForm.birthdate ? 
-    //   new Date(editForm.birthdate.getTime() - editForm.birthdate.getTimezoneOffset() * 60000)
-    //     .toISOString().split('T')[0] : null;
+    const birthdateValue = editForm.birthdate ? 
+      new Date(editForm.birthdate.getTime() - editForm.birthdate.getTimezoneOffset() * 60000)
+        .toISOString().split('T')[0] : null;
     
-    // const payload = {
-    //   ...editForm,
-    //   socialLinks: filteredSocialLinks,
-    //   birthdate: birthdateValue,
-    // };
+    const payload = {
+      ...editForm,
+      socialLinks: filteredSocialLinks,
+      birthdate: birthdateValue,
+    };
     
     // Add a timeout to ensure dialog closes even if there are issues
     const timeoutId = setTimeout(() => {
@@ -475,7 +475,7 @@ const ProfilePageClient = ({ user: userProp }: ProfilePageClientProps) => {
     
     try {
       // Actually dispatch the updateProfile action
-      // const result = await dispatch(updateProfile(payload)).unwrap();
+      await dispatch(updateProfile(payload)).unwrap();
       
       // Clear the timeout since we succeeded
       clearTimeout(timeoutId);

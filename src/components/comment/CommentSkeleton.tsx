@@ -7,7 +7,7 @@ interface CommentSkeletonProps {
   isReply?: boolean;
 }
 
-const CommentSkeleton = ({ count = 1, className, isReply = false }: CommentSkeletonProps) => {
+const CommentSkeleton = ({ count = 1, className }: CommentSkeletonProps) => {
   return (
     <div className= {`${className} space-y-4`}>
       {[...Array(count)].map((_, index) => (
