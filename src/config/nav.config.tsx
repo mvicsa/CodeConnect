@@ -1,4 +1,4 @@
-import { Home, MessageCircleMore, Hash } from "lucide-react";
+import { Home, MessageCircleMore, Hash, ShoppingBag } from "lucide-react";
 
 const navItems = [
   {
@@ -18,6 +18,12 @@ const navItems = [
     href: "/tags",
     iconFilled: <Hash fill="currentColor" className="w-6 h-6" />,
     iconOutline: <Hash  className="w-6 h-6" />,
+  },
+  {
+    name: "Earnings",
+    href: "/earnings",
+    iconFilled: <ShoppingBag className="w-6 h-6" />,
+    iconOutline: <ShoppingBag  className="w-6 h-6" />,
   },
   // {
   //   name: "Block Management",
