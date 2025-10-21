@@ -406,21 +406,22 @@ export const RoomCard = ({
                         ) : (
                           <Video className="h-3 w-3 sm:h-4 sm:w-4" />
                         )}
-                        <span className="hidden sm:inline ml-1">
+                        <span className="hidden sm:inline ms-1">
                           {(isJoining || isFetchingPurchaseStatus) ? "Processing..." : isUserInRoom ? "Already in Room" : t("join")}
                         </span>
                       </Button>
                     )
                   )}
 
-                  {!room.isActive && !room.cancelledAt && onRateSession && currentUser?._id !== room.createdBy._id && (
+                  {!room.isActive && !room.cancelledAt && !room.isUserRated && onRateSession && currentUser?._id !== room.createdBy._id && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => onRateSession(room)}
                       className="h-7 sm:h-8 text-xs"
                     >
-                      Rate Session
+                      <Star className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline ms-1">Rate Session</span>
                     </Button>
                   )}
                 </div>

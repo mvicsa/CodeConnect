@@ -20,6 +20,8 @@ import {
   Plus,
   Star,
   Loader2,
+  Sparkles,
+  Clock,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
@@ -1181,9 +1183,18 @@ export const MeetingClient = () => {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="gap-0">
           <TabsList className="grid w-full grid-cols-3 h-auto mb-3">
-            <TabsTrigger value="discover" className="text-xs sm:text-sm py-2 sm:py-1.5">Discover Sessions</TabsTrigger>
-            <TabsTrigger value="my-sessions" className="text-xs sm:text-sm py-2 sm:py-1.5">My Sessions</TabsTrigger>
-            <TabsTrigger value="history" className="text-xs sm:text-sm py-2 sm:py-1.5">History</TabsTrigger>
+            <TabsTrigger value="discover" className="text-xs sm:text-sm py-2 sm:py-1.5">
+              <Sparkles className="h-4 w-4" />
+              Discover Sessions
+            </TabsTrigger>
+            <TabsTrigger value="my-sessions" className="text-xs sm:text-sm py-2 sm:py-1.5">
+              <Video className="h-4 w-4" />
+              My Sessions
+            </TabsTrigger>
+            <TabsTrigger value="history" className="text-xs sm:text-sm py-2 sm:py-1.5">
+              <Clock className="h-4 w-4" />
+              History
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="discover" className="space-y-4 sm:space-y-6">

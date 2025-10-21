@@ -27,7 +27,8 @@ export default function UserMenu() {
 
   const handleLogout = () => {
     dispatch(logout());
-    router.push(`/${locale}/login`);
+    // Redirect to a dedicated logout loading page
+    router.push(`/${locale}/auth/logout-loading`);
   }
 
   if (loading) {

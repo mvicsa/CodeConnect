@@ -151,26 +151,26 @@ export const PurchasersList = ({ roomId, creatorId }: PurchasersListProps) => {
         {purchasers.map((purchaser) => (
           <div 
             key={purchaser.purchaseId} 
-            className="flex items-center justify-between p-3 rounded-lg bg-background/60 hover:bg-background/20 transition-colors"
+            className="flex items-center justify-between gap-2 p-3 rounded-lg bg-background/60 hover:bg-background/20 transition-colors"
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2.5 overflow-hidden">
               <Avatar className="w-10 h-10">
                 <AvatarImage src={purchaser.avatar} />
                 <AvatarFallback>
                   {purchaser.firstName?.[0]}{purchaser.lastName?.[0]}
                 </AvatarFallback>
               </Avatar>
-              <div>
+              <div className="overflow-hidden truncate">
                 <Link 
                   href={`/profile/${purchaser.username}`} 
-                  className="font-medium hover:underline"
+                  className="font-medium hover:underline text-sm"
                 >
                   {purchaser.firstName} {purchaser.lastName}
                 </Link>
                 <p className="text-xs text-muted-foreground">{purchaser.email}</p>
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-right text-sm shrink-0">
               <p className="font-semibold">
                 {purchaser.amountPaid} {purchaser.currency}
               </p>
