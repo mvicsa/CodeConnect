@@ -393,7 +393,7 @@ const chatSlice = createSlice({
     updateRoomLastActivity(state, action: PayloadAction<{ 
       roomId: string; 
       lastActivity: { 
-        type: 'message' | 'reaction'; 
+        type: 'message' | 'reaction' | 'deletion'; 
         time: string; 
         messageId: string; 
         reaction?: string; 

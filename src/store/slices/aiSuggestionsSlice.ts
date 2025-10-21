@@ -14,12 +14,16 @@ interface AiSuggestionsState {
   suggestions: Record<string, CodeSuggestion>
   loading: Record<string, boolean>
   error: Record<string, string | null>
+  aiSuggestionsCount: Record<string, number>
+  isLoaded: Record<string, boolean> // Track if AI suggestions data for a post has been loaded
 }
 
 const initialState: AiSuggestionsState = {
   suggestions: {},
   loading: {},
-  error: {}
+  error: {},
+  aiSuggestionsCount: {},
+  isLoaded: {}
 }
 
 // API URL configuration
@@ -44,7 +48,19 @@ export const fetchCodeSuggestions = createAsyncThunk<CodeSuggestion, string>(
 const aiSuggestionsSlice = createSlice({
   name: 'aiSuggestions',
   initialState,
-  reducers: {},
+  reducers: {
+    updateAiSuggestionsCount: (state, action: { payload: { postId: string; count: number } }) => {
+      state.aiSuggestionsCount[action.payload.postId] = action.payload.count
+    },
+    incrementAiSuggestionsCount: (state, action: { payload: string }) => {
+      const postId = action.payload
+      state.aiSuggestionsCount[postId] = (state.aiSuggestionsCount[postId] || 0) + 1
+    },
+    decrementAiSuggestionsCount: (state, action: { payload: string }) => {
+      const postId = action.payload
+      state.aiSuggestionsCount[postId] = Math.max(0, (state.aiSuggestionsCount[postId] || 0) - 1)
+    }
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchCodeSuggestions.pending, (state, action) => {
@@ -56,13 +72,20 @@ const aiSuggestionsSlice = createSlice({
         const postId = action.meta.arg
         state.loading[postId] = false
         state.suggestions[postId] = action.payload
+        // Update count when suggestions are fetched
+        state.aiSuggestionsCount[postId] = action.payload ? 1 : 0
+        state.isLoaded[postId] = true; // Mark as loaded
       })
       .addCase(fetchCodeSuggestions.rejected, (state, action) => {
         const postId = action.meta.arg
         state.loading[postId] = false
         state.error[postId] = action.payload ? (action.payload as { message: string }).message : 'Unknown error'
+        // Set count to 0 if fetch failed
+        state.aiSuggestionsCount[postId] = 0
       })
   }
 })
+
+export const { updateAiSuggestionsCount, incrementAiSuggestionsCount, decrementAiSuggestionsCount } = aiSuggestionsSlice.actions
 
 export default aiSuggestionsSlice.reducer 

@@ -6,6 +6,14 @@
 
 :root {
   --font-family: 'Jost', 'IBM Plex Sans Arabic';
+  /* --sidebar: hsl(0 0% 98%);
+  --sidebar-foreground: hsl(240 5.3% 26.1%);
+  --sidebar-primary: hsl(240 5.9% 10%);
+  --sidebar-primary-foreground: hsl(0 0% 98%);
+  --sidebar-accent: hsl(240 4.8% 95.9%);
+  --sidebar-accent-foreground: hsl(240 5.9% 10%);
+  --sidebar-border: hsl(220 13% 91%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%); */
 }
 
 body {
@@ -60,6 +68,10 @@ html[dir="rtl"] .rotate-270 {
   transform: rotate(270deg);
 } */
 
+.h-\[calc\(100dvh\-80px\)\] {
+  height: calc(100dvh - 80px);
+}
+
 .h-\[calc\(100\%\+1rem\)\] {
   height: calc(100% + 1rem);
 }
@@ -70,7 +82,7 @@ html[dir="rtl"] .rotate-270 {
 
 .shiki {
   white-space: pre-wrap;
-  
+
   code {
     padding-inline-end: 1rem
   }
@@ -499,7 +511,7 @@ canvas {
 .custom-video-controls {
   /* Add a subtle border */
   border: 1px solid hsl(var(--primary) / 0.2) !important;
-  
+
   /* Ensure smooth transitions */
   transition: all 0.3s ease !important;
 }

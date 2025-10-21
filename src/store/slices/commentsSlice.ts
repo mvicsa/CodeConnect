@@ -11,8 +11,11 @@ interface CommentsState {
   loading: boolean
   error: string | null
   hasMore: Record<string, boolean> // Track hasMore for each post
-  totalCounts: Record<string, number> // Track total counts for each post
+  totalCounts: Record<string, number> // Track total counts (comments + replies) for each post
+  totalCommentsCount: Record<string, number> // Track only main comments count for each post
   visibleCounts: Record<string, number> // Track visible counts for each post
+  totalAiEvaluationsCount: Record<string, number> // Track total AI evaluations for each post
+  isLoaded: Record<string, boolean> // Track if comments data for a post has been loaded
 }
 
 const initialState: CommentsState = {
@@ -21,11 +24,14 @@ const initialState: CommentsState = {
   error: null,
   hasMore: {},
   totalCounts: {},
-  visibleCounts: {}
+  totalCommentsCount: {},
+  visibleCounts: {},
+  totalAiEvaluationsCount: {},
+  isLoaded: {}
 }
 
 // ✅ Fetch comments with backend pagination and highlighting
-export const fetchComments = createAsyncThunk<{ comments: Comment[]; isInitialLoad: boolean; totalCount: number; hasMore: boolean }, { postId: string; offset?: number; limit?: number; highlight?: string }>(
+export const fetchComments = createAsyncThunk<{ comments: Comment[]; isInitialLoad: boolean; totalCount: number; totalCommentsCount: number; hasMore: boolean }, { postId: string; offset?: number; limit?: number; highlight?: string }>(
   'comments/fetchComments',
   async ({ postId, offset = 0, limit = 10, highlight }) => {
     try {
@@ -46,7 +52,7 @@ export const fetchComments = createAsyncThunk<{ comments: Comment[]; isInitialLo
       // Get comments from backend API
       // Backend should return: highlighted comment (if exists) + normal limit of comments
       // Example: if limit=10 and highlight exists, return highlighted + 10 others = 11 total
-      const response = await axios.get<{ comments: Comment[]; total: number; hasMore: boolean }>(
+      const response = await axios.get<{ comments: Comment[]; total: number; totalCommentsCount: number; hasMore: boolean }>(
         `${process.env.NEXT_PUBLIC_API_URL}/comments/post/${postId}?${params.toString()}`
       );
 
@@ -62,6 +68,7 @@ export const fetchComments = createAsyncThunk<{ comments: Comment[]; isInitialLo
         comments: processedComments,
         isInitialLoad: offset === 0,
         totalCount: response.data.total,
+        totalCommentsCount: response.data.totalCommentsCount || response.data.comments.length,
         hasMore: response.data.hasMore
       };
     } catch (error) {
@@ -327,12 +334,24 @@ const commentsSlice = createSlice({
        .addCase(fetchComments.fulfilled, (state, action) => {
          state.loading = false;
          const { postId } = action.meta.arg;
-         const { comments: newComments, isInitialLoad, totalCount, hasMore } = action.payload;
+         const { comments: newComments, isInitialLoad, totalCount, totalCommentsCount, hasMore } = action.payload;
          
-        // Update hasMore and totalCount for this post
+        // Update hasMore, totalCount, and totalCommentsCount for this post
         state.hasMore[postId] = hasMore;
         state.totalCounts[postId] = totalCount;
-        
+        state.totalCommentsCount[postId] = totalCommentsCount;
+
+        // Calculate AI evaluations count for the fetched comments
+        let aiEvaluationsCount = 0;
+        newComments.forEach(comment => {
+          if (comment.hasAiEvaluation) aiEvaluationsCount += 1;
+          comment.replies?.forEach(reply => {
+            if (reply.hasAiEvaluation) aiEvaluationsCount += 1;
+          });
+        });
+        state.totalAiEvaluationsCount[postId] = aiEvaluationsCount;
+        state.isLoaded[postId] = true; // Mark as loaded
+         
          // Keep existing comments for other posts
          const existingCommentsOtherPosts = state.comments.filter(
            comment => comment.postId !== postId
@@ -406,20 +425,79 @@ const commentsSlice = createSlice({
       // Handle addCommentAsync
       .addCase(addCommentAsync.fulfilled, (state, action) => {
         state.comments.unshift(action.payload);
+        if (action.payload.postId) {
+          state.totalCounts[action.payload.postId] = (state.totalCounts[action.payload.postId] || 0) + 1;
+          state.totalCommentsCount[action.payload.postId] = (state.totalCommentsCount[action.payload.postId] || 0) + 1;
+          // تحديث عدد الكومنتات المرئية عند إضافة كومنت جديد
+          state.visibleCounts[action.payload.postId] = (state.visibleCounts[action.payload.postId] || 3) + 1;
+          if (action.payload.hasAiEvaluation) {
+            state.totalAiEvaluationsCount[action.payload.postId] = (state.totalAiEvaluationsCount[action.payload.postId] || 0) + 1;
+          }
+        }
       })
       
       // Handle addReplyAsync
       .addCase(addReplyAsync.fulfilled, (state, action) => {
         const parentCommentId = action.meta.arg.parentCommentId;
         const parentComment = state.comments.find(c => c._id === parentCommentId);
-        if (parentComment) {
-          // Add new reply at the beginning of the array
+        if (parentComment && action.payload.postId) {
           parentComment.replies = parentComment.replies || [];
           parentComment.replies.unshift(action.payload);
-          // Update replies count
           parentComment.repliesCount = (parentComment.repliesCount || 0) + 1;
-          // Update store total count
-          state.totalCounts[parentCommentId] = (state.totalCounts[parentCommentId] || 0) + 1;
+          
+          // زيادة العدد الكلي للبوست بواحد عند إضافة رد جديد
+          state.totalCounts[action.payload.postId] = (state.totalCounts[action.payload.postId] || 0) + 1;
+          // الـ visibleCounts مش بيتأثر بالـ replies - هو للكومنتات الأساسية بس
+          if (action.payload.hasAiEvaluation) {
+            state.totalAiEvaluationsCount[action.payload.postId] = (state.totalAiEvaluationsCount[action.payload.postId] || 0) + 1;
+          }
+        }
+      })
+
+      // Handle deleteCommentOrReplyAsync
+      .addCase(deleteCommentOrReplyAsync.fulfilled, (state, action) => {
+        const deletedId = action.payload;
+        const commentIndex = state.comments.findIndex(c => c._id === deletedId);
+        const replyParentComment = state.comments.find(c => 
+          c.replies?.some(reply => reply._id === deletedId)
+        );
+
+        if (commentIndex !== -1) {
+          // لو كومنت أساسي
+          const deletedComment = state.comments[commentIndex];
+          // استخدم repliesCount من الباك إند مش length عشان ممكن الـ replies مش كلها متحملة
+          const repliesCount = deletedComment.repliesCount || deletedComment.replies?.length || 0;
+          
+          state.comments.splice(commentIndex, 1);
+          
+          if (deletedComment.postId) {
+            // ننقص الكومنت + كل الـ replies بتاعته من العدد الكلي
+            const totalToDelete = 1 + repliesCount;
+            state.totalCounts[deletedComment.postId] = Math.max(0, (state.totalCounts[deletedComment.postId] || 0) - totalToDelete);
+            // ننقص كومنت واحد من عدد الكومنتات الأساسية
+            state.totalCommentsCount[deletedComment.postId] = Math.max(0, (state.totalCommentsCount[deletedComment.postId] || 0) - 1);
+            // تحديث عدد الكومنتات المرئية - ننقص الكومنت الأساسي بس (1)، مش الـ replies
+            state.visibleCounts[deletedComment.postId] = Math.max(3, (state.visibleCounts[deletedComment.postId] || 3) - 1);
+            if (deletedComment.hasAiEvaluation) {
+              state.totalAiEvaluationsCount[deletedComment.postId] = Math.max(0, (state.totalAiEvaluationsCount[deletedComment.postId] || 0) - 1);
+            }
+          }
+        } else if (replyParentComment) {
+          // لو رد على كومنت
+          const deletedReply = replyParentComment.replies?.find(reply => reply._id === deletedId);
+          replyParentComment.replies = replyParentComment.replies?.filter(reply => reply._id !== deletedId) || [];
+          
+          if (replyParentComment.repliesCount !== undefined) {
+            replyParentComment.repliesCount = Math.max(0, replyParentComment.repliesCount - 1);
+          }
+          
+          if (deletedReply?.postId) {
+            state.totalCounts[deletedReply.postId] = Math.max(0, (state.totalCounts[deletedReply.postId] || 0) - 1);
+            // الـ visibleCounts مش بيتأثر بالـ replies - هو للكومنتات الأساسية بس
+            if (deletedReply.hasAiEvaluation) {
+              state.totalAiEvaluationsCount[deletedReply.postId] = Math.max(0, (state.totalAiEvaluationsCount[deletedReply.postId] || 0) - 1);
+            }
+          }
         }
       })
 
@@ -444,28 +522,6 @@ const commentsSlice = createSlice({
                 replies: comment.replies.map(reply =>
                   reply._id === updatedComment._id ? updatedComment as Reply : reply
                 )
-              };
-            }
-            return comment;
-          });
-        }
-      })
-
-      // Handle deleteCommentOrReplyAsync
-      .addCase(deleteCommentOrReplyAsync.fulfilled, (state, action) => {
-        const deletedId = action.payload;
-        // Check if it's a top-level comment
-        const commentIndex = state.comments.findIndex(c => c._id === deletedId);
-        if (commentIndex !== -1) {
-          // Remove the comment
-          state.comments.splice(commentIndex, 1);
-        } else {
-          // It's a reply, find the parent comment and remove the reply
-          state.comments = state.comments.map(comment => {
-            if (comment.replies?.some(reply => reply?._id === deletedId)) {
-              return {
-                ...comment,
-                replies: comment.replies.filter(reply => reply._id !== deletedId)
               };
             }
             return comment;
@@ -521,4 +577,10 @@ const commentsSlice = createSlice({
 });
 
 export const { updateVisibleCount } = commentsSlice.actions;
+
+// Selector to get main comments count (excluding replies)
+export const selectMainCommentsCount = (state: { comments: CommentsState }, postId: string) => {
+  return state.comments.comments.filter(comment => comment.postId === postId).length;
+};
+
 export default commentsSlice.reducer;

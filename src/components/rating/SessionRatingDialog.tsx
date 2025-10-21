@@ -104,10 +104,10 @@ export const SessionRatingDialog: React.FC<SessionRatingDialogProps> = ({
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary">
             <Star className="h-8 w-8 text-white" />
           </div>
-          <DialogTitle className="text-2xl font-bold">
+          <DialogTitle className="text-2xl font-bold text-center">
             How was your session?
           </DialogTitle>
-          <DialogDescription className="text-base leading-relaxed">
+          <DialogDescription className="text-base leading-relaxed text-center">
             You recently participated in <strong className="text-foreground">{roomName}</strong> with{' '}
             <strong className="text-primary">{creatorName}</strong>. 
             <br />

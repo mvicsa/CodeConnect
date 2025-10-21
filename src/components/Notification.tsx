@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Bell, Search, Clock, Trash2, Check, MessageSquare, Heart, UserPlus, FileText, Volume2, VolumeX, Smartphone, AtSign, Star } from 'lucide-react';
+import { Bell, Search, Clock, Trash2, Check, MessageSquare, Heart, UserPlus, FileText, Volume2, VolumeX, Smartphone, AtSign, Star, Pencil, DollarSign, BanknoteArrowUp, XCircle, X, Workflow } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -61,6 +61,20 @@ const getNotificationIcon = (type: NotificationType) => {
             return Star;
         case NotificationType.RATING_REQUESTED:
             return Star;
+        case NotificationType.SESSION_PURCHASED:
+            return DollarSign;
+        case NotificationType.SESSION_DETAILS_CHANGED:
+            return Pencil;
+        case NotificationType.SESSION_CANCELLED:
+            return X;
+        case NotificationType.SESSION_REFUNDED:
+            return BanknoteArrowUp;
+        case NotificationType.STRIPE_CONNECT_SUCCESS:
+            return Workflow;
+        case NotificationType.STRIPE_CONNECT_FAILURE:
+            return XCircle;
+        case NotificationType.STRIPE_CONNECT_PENDING:
+            return Workflow;
         default:
             return Bell;
     }
@@ -89,6 +103,14 @@ const getNotificationTitle = (notification: Notification): string => {
             return 'Session Rated';
         case NotificationType.RATING_REQUESTED:
             return 'Rating Requested';
+        case NotificationType.SESSION_PURCHASED:
+            return 'Session Purchased';
+        case NotificationType.SESSION_DETAILS_CHANGED:
+            return 'Session Details Changed';
+        case NotificationType.SESSION_CANCELLED:
+            return 'Session Cancelled';
+        case NotificationType.SESSION_REFUNDED:
+            return 'Session Refunded';
         default:
             return 'Notification';
     }
@@ -128,88 +150,142 @@ const NotificationPage = () => {
 
     
     // Helper function to get notification link using useState
-    const getNotificationLink = (notification: Notification): string | undefined => {
-        let postId: string | undefined = undefined;
+    // Helper functions for better organization
+    const extractPostId = (data: NotificationData | undefined): string | undefined => {
+        if (!data) return undefined;
 
-        if (notification.type === NotificationType.RATING_RECEIVED) {
-            // For rating notifications, redirect to specific rating detail page
-            const ratingId = notification.data?.ratingId || notification.data?._id;
-            if (ratingId) {
-                return `/ratings/${ratingId}`;
+        // Direct postId
+        if (data.postId) {
+            if (typeof data.postId === 'string') return data.postId;
+            if (typeof data.postId === 'object' && '_id' in data.postId) {
+                return (data.postId as { _id: string })._id;
             }
-            // Fallback to ratings list if no specific rating ID
-            return '/ratings';
-        } else if (notification.type === NotificationType.RATING_REQUESTED) {
-            return `/meeting/${notification.data?.roomId}`;
-        } else if (notification.type.toLowerCase().includes('post')) {
-            const extractedPostId = notification.data?.postId || notification.data?._id;
-            if (typeof extractedPostId === 'string') return `/posts/${extractedPostId}`;
-        } else if (notification.type.toLowerCase().includes('comment') || notification.type.toLowerCase().includes('reply')) {
-            // Method 1: Direct postId in data
-            if (notification.data?.postId) {
-                postId = String(notification.data.postId);
-            }
-            // Method 2: postId in comment object
-            else if (notification.data?.comment?.postId) {
-                const rawPostId = notification.data.comment.postId;
-                if (typeof rawPostId === 'object' && '_id' in rawPostId) {
-                    postId = (rawPostId as { _id: string })._id;
-                } else if (typeof rawPostId === 'string') {
-                    postId = rawPostId;
-                }
-            }
-            // Method 2.1: Check populated commentId structure  
-            else if (notification.data?.commentId && typeof notification.data.commentId === 'object') {
-                const commentData = notification.data.commentId as NotificationData;
-                if (commentData.postId) {
-                    if (typeof commentData.postId === 'object' && commentData.postId._id) {
-                        postId = commentData.postId._id;
-                    } else if (typeof commentData.postId === 'string') {
-                        postId = commentData.postId;
-                    }
-                }
-            }
-            // Method 3: Look for post object
-            else if (notification.data?.post?._id) {
-                postId = notification.data.post._id;
-            }
-            // Method 4: Try to extract from extra data
-            else if (notification.data?.extra?.postId) {
-                postId = String(notification.data.extra.postId);
-            }
-            // Method 5: Check if there's a nested structure
-            else if (notification.data && typeof notification.data === 'object') {
-                const dataKeys = Object.keys(notification.data);
-                for (const key of dataKeys) {
-                    const value = (notification.data as NotificationData)[key];
-                    if (value && typeof value === 'object' && (value as NotificationData).postId) {
-                        postId = String((value as NotificationData).postId);
-                        break;
-                    }
-                }
-            }
-
-            // Get commentId
-            const commentId = notification.data?._id || notification.data?.commentId;
-
-            if (postId && commentId) {
-                return `/posts/${postId}/${commentId}`;
-            } else if (postId) {
-                return `/posts/${postId}`;
-            } else {
-                return `/profile/${notification.fromUserId?.username}`;
-            }
-        } else if (notification.type === NotificationType.USER_MENTIONED) {
-            if (notification.content?.toLowerCase().includes('post')) {
-                return `/posts/${notification.data?._id}`;
-            } else if (notification.content?.toLowerCase().includes('comment') || notification.content?.toLowerCase().includes('reply')) {
-                return `/posts/${notification.data?.postId}/${notification.data?._id}`;
-            } else {
-                return `/profile/${notification.fromUserId?.username}`;
-            }
-        } else {
-            return `/profile/${notification.fromUserId?.username}`;
         }
+
+        // PostId in comment object
+        if (data.comment?.postId) {
+            const rawPostId = data.comment.postId;
+            if (typeof rawPostId === 'string') return rawPostId;
+            if (typeof rawPostId === 'object' && '_id' in rawPostId) {
+                return (rawPostId as { _id: string })._id;
+            }
+        }
+
+        // PostId in populated commentId
+        if (data.commentId && typeof data.commentId === 'object') {
+            const commentData = data.commentId as NotificationData;
+            if (commentData.postId) {
+                if (typeof commentData.postId === 'string') return commentData.postId;
+                if (typeof commentData.postId === 'object' && commentData.postId._id) {
+                    return commentData.postId._id;
+                }
+            }
+        }
+
+        // PostId in post object
+        if (data.post?._id) return data.post._id;
+
+        // PostId in extra data
+        if (data.extra?.postId) return String(data.extra.postId);
+
+        // Search in nested objects
+        for (const key of Object.keys(data)) {
+            const value = (data as NotificationData)[key];
+            if (value && typeof value === 'object' && (value as NotificationData).postId) {
+                return String((value as NotificationData).postId);
+            }
+        }
+
+        return undefined;
+    };
+
+    const getCommentId = (data: NotificationData | undefined): string | undefined => {
+        if (!data) return undefined;
+        return String(data._id || data.commentId);
+    };
+
+    // Handler functions for each notification type
+    const handlers: Record<string, (notification: Notification) => string | undefined> = {
+        [NotificationType.RATING_RECEIVED]: (notification) => {
+            const ratingId = notification.data?.ratingId || notification.data?._id;
+            return ratingId ? `/ratings/${ratingId}` : '/ratings';
+        },
+
+        [NotificationType.RATING_REQUESTED]: (notification) => {
+            return notification.data?.roomId ? `/meeting/${notification.data.roomId}` : undefined;
+        },
+
+        [NotificationType.USER_MENTIONED]: (notification) => {
+            const content = notification.content?.toLowerCase() || '';
+            if (content.includes('post')) {
+                return `/posts/${notification.data?._id}`;
+            }
+            if (content.includes('comment') || content.includes('reply')) {
+                return `/posts/${notification.data?.postId}/${notification.data?._id}`;
+            }
+            return `/profile/${notification.fromUserId?.username}`;
+        },
+
+        [NotificationType.SESSION_PURCHASED]: (notification) => {
+            return notification.data?.roomId ? `/meeting/${notification.data.roomId}` : '/earnings';
+        },
+        
+        [NotificationType.SESSION_DETAILS_CHANGED]: (notification) => {
+            return notification.data?.roomId ? `/meeting/${notification.data.roomId}` : '/earnings';
+        },
+        
+        [NotificationType.SESSION_CANCELLED]: (notification) => {
+            return notification.data?.roomId ? `/meeting/${notification.data.roomId}` : '/earnings';
+        },
+        
+        [NotificationType.SESSION_REFUNDED]: (notification) => {
+            return notification.data?.roomId ? `/meeting/${notification.data.roomId}` : '/earnings';
+        },
+
+        [NotificationType.STRIPE_CONNECT_SUCCESS]: () => '/settings?tab=payouts',
+        [NotificationType.STRIPE_CONNECT_FAILURE]: () => '/settings?tab=payouts',
+        [NotificationType.STRIPE_CONNECT_PENDING]: () => '/settings?tab=payouts',
+    };
+
+    const handlePostNotification = (notification: Notification): string | undefined => {
+        const postId = notification.data?.postId || notification.data?._id;
+        return typeof postId === 'string' ? `/posts/${postId}` : undefined;
+    };
+
+    const handleCommentNotification = (notification: Notification): string | undefined => {
+        const postId = extractPostId(notification.data as NotificationData);
+        const commentId = getCommentId(notification.data as NotificationData);
+
+        if (postId && commentId) {
+            return `/posts/${postId}/${commentId}`;
+        }
+        if (postId) {
+            return `/posts/${postId}`;
+        }
+        return `/profile/${notification.fromUserId?.username}`;
+    };
+
+    // Main function
+    const getNotificationLink = (notification: Notification): string | undefined => {
+        const type = notification.type.toLowerCase();
+
+        // Check if there's a specific handler for this notification type
+        if (handlers[notification.type]) {
+            return handlers[notification.type](notification);
+        }
+
+        // Handle post-related notifications
+        if (type.includes('post')) {
+            return handlePostNotification(notification);
+        }
+
+        // Handle comment/reply notifications
+        if (type.includes('comment') || type.includes('reply')) {
+            return handleCommentNotification(notification);
+        }
+
+        // Default fallback
+        return `/profile/${notification.fromUserId?.username}`;
     };
     
     
@@ -473,7 +549,7 @@ const NotificationPage = () => {
                                                                 </div>
                                                             </div>
                                                         ) : (
-                                                            <div className="p-2 rounded-lg bg-muted">
+                                                            <div className="w-[44px] h-[44px] flex items-center justify-center p-2 rounded-lg bg-accent/90">
                                                                 <IconComponent className="h-5 w-5" />
                                                             </div>
                                                         )}
@@ -487,10 +563,19 @@ const NotificationPage = () => {
                                                         </span>
                                                         </div>
 
-                                                        <p className="text-muted-foreground text-sm leading-relaxed mb-3">
-                                                            {notification.fromUserId?.firstName} {notification.fromUserId?.lastName} 
-                                                            {notification.type !== NotificationType.RATING_REQUESTED && (" ")}
-                                                            {notification.content}
+                                                        <p className="text-sm leading-relaxed mb-3">
+                                                            <span className="text-foreground/80 font-bold block">
+                                                                {
+                                                                    notification.fromUserId ? (
+                                                                        notification.fromUserId?.firstName + " " + notification.fromUserId?.lastName
+                                                                    ) : (
+                                                                        "Platform System"
+                                                                    )
+                                                                }
+                                                            </span>
+                                                            <span className="text-muted-foreground">
+                                                                {notification.content}
+                                                            </span>
                                                         </p>
 
                                                         <div className="flex items-center gap-2">

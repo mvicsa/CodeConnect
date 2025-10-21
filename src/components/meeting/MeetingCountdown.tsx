@@ -71,7 +71,7 @@ export const MeetingCountdown = ({ scheduledStartTime, onCountdownComplete }: Me
       <div className="flex flex-col items-center justify-center min-w-[40px]">
         <motion.div
           key={`${unit}-${value}`}
-          className={`flex items-center justify-center flex-col w-14 h-14 text-sm sm:w-24 sm:h-24 sm:text-3xl lg:w-32 lg:h-32 lg:text-4xl font-bold bg-accent rounded-lg p-2`}
+          className={`flex items-center justify-center flex-col w-17 h-17 text-sm sm:w-24 sm:h-24 sm:text-3xl lg:w-32 lg:h-32 lg:text-4xl font-bold bg-background/60 rounded-lg p-2`}
           initial={{ scale: 0.9 }}
           animate={{ 
             scale: 1,
@@ -83,7 +83,7 @@ export const MeetingCountdown = ({ scheduledStartTime, onCountdownComplete }: Me
           }}
         >
           {value.toString().padStart(2, '0')}
-          <span className={`text-[8px] sm:text-xs mt-1 text-muted-foreground`}>
+          <span className={`text-[12px] sm:text-xs mt-1 text-muted-foreground`}>
             {unit}
           </span>
         </motion.div>
@@ -138,7 +138,7 @@ export const MeetingCountdown = ({ scheduledStartTime, onCountdownComplete }: Me
   return (
     <div className="space-y-3">
       {/* Status Badge */}
-      <h1 className="text-2xl font-bold text-center uppercase mb-5">Meeting starts in</h1>
+      <h1 className="text-xl font-bold text-center uppercase mb-5">Meeting starts in</h1>
 
       {/* Countdown Display - Only this has motion! */}
       <div className="flex items-center justify-center gap-3">

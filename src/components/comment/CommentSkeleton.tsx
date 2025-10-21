@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface CommentSkeletonProps {
   count?: number;
   className?: string;
+  isReply?: boolean;
 }
 
 const CommentSkeleton = ({ count = 1, className }: CommentSkeletonProps) => {

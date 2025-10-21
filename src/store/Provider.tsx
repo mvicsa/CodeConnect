@@ -18,7 +18,7 @@ import NotificationProvider from '@/components/NotificationProvider';
 import axios from 'axios';
 import { Reactions } from '@/types/comments'
 // import { SocketType } from '@/types/socket' // No longer needed
-import { ChatRoom, Message } from '@/types/chat'
+import { ChatRoom, Message, RoomLastActivityPayload, ChatMessageEditedData } from '@/types/chat'
 import { updateCommentReactions, updatePostReactions, UserReaction } from './slices/reactionsSlice'
 import { getAuthToken } from '@/lib/cookies'
 import { toast } from 'sonner'
@@ -656,12 +656,62 @@ function ChatSocketManagerWithSocket({ setSocket }: { setSocket: (socket: Return
       dispatch(setSeen({ roomId, seen: messageIds, userId, currentUserId: user?._id }));
     });
 
-    newSocket.on('chat:delete_message', ({ roomId, messageId, forAll, userId }: { roomId: string; messageId: string; forAll: boolean; userId: string }) => {
+    newSocket.on('chat:delete_message', ({ 
+      roomId, 
+      messageId, 
+      forAll, 
+      userId,
+      lastActivity // Add this parameter
+    }: { 
+      roomId: string; 
+      messageId: string; 
+      forAll: boolean; 
+      userId: string;
+      lastActivity?: LastActivityPayload; // Add this
+    }) => {
       dispatch(deleteMessage({ roomId, messageId, forAll, userId }));
+      
+      // 🎯 NEW: Update lastActivity if provided by backend
+      if (lastActivity) {
+        dispatch(updateRoomLastActivity({
+          roomId,
+          lastActivity
+        }));
+      }
     });
 
-    newSocket.on('chat:message_edited', (msg: Message) => {
-      dispatch(updateMessage({ roomId: msg.chatRoom, messageId: msg._id, updates: msg }));
+    newSocket.on('chat:message_edited', (data: ChatMessageEditedData) => {
+      // Handle new format with lastActivity
+      if (data && typeof data === 'object' && 'message' in data && 'lastActivity' in data) {
+        // New format: { message: Message, lastActivity: RoomLastActivityPayload }
+        const { message, lastActivity } = data;
+        dispatch(updateMessage({ roomId: message.chatRoom, messageId: message._id, updates: message }));
+        
+        if (lastActivity) {
+          dispatch(updateRoomLastActivity({
+            roomId: message.chatRoom,
+            lastActivity: lastActivity
+          }));
+        }
+      } else if (data && typeof data === 'object' && (data as Message).chatRoom) {
+        // Old format - data is the message itself (for backward compatibility)
+        const msg = data as Message;
+        dispatch(updateMessage({ roomId: msg.chatRoom, messageId: msg._id, updates: msg }));
+        
+        // Create fallback lastActivity for old format
+        const fallbackLastActivity: RoomLastActivityPayload = {
+          type: 'message',
+          time: msg.updatedAt || msg.createdAt,
+          messageId: msg._id,
+          userId: msg.sender?._id,
+        };
+        dispatch(updateRoomLastActivity({
+          roomId: msg.chatRoom,
+          lastActivity: fallbackLastActivity
+        }));
+      } else {
+        console.error('Invalid chat:message_edited data format:', data);
+      }
     });
 
     // Message reaction events

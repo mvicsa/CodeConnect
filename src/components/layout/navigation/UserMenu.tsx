@@ -15,18 +15,24 @@ import { logout } from "@/store/slices/authSlice";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
+import UserMenuSkeleton from "./UserMenuSkeleton";
 
 export default function UserMenu() {
   const [open, setOpen] = useState(false);
   const dispatch = useDispatch<AppDispatch>();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user, loading } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
   const params = useParams();
   const locale = params?.locale as string || 'en';
 
   const handleLogout = () => {
     dispatch(logout());
-    router.push(`/${locale}/login`);
+    // Redirect to a dedicated logout loading page
+    router.push(`/${locale}/auth/logout-loading`);
+  }
+
+  if (loading) {
+    return <UserMenuSkeleton />;
   }
 
   if (!user) {

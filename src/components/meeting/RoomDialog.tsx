@@ -23,6 +23,7 @@ import { useTranslations } from "next-intl";
 import { useDispatch } from "react-redux";
 import { fetchUserByEmail } from "@/store/slices/userSlice";
 import { AppDispatch } from "@/store/store";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface RoomDialogProps {
   open: boolean;
@@ -73,6 +74,13 @@ export const RoomDialog = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [mode, setShowSuggestionMenu]);
+
+  // Effect to ensure currency is set to a default if paid session is active and currency is not set
+  useEffect(() => {
+    if (roomData.isPaid && !roomData.currency) {
+      onRoomDataChange({ ...roomData, currency: 'USD' });
+    }
+  }, [roomData.isPaid, roomData.currency, onRoomDataChange, roomData]);
 
   const handleAddEmail = async () => {
     const email = roomData.inviteEmail?.trim();
@@ -238,20 +246,89 @@ export const RoomDialog = ({
               Optional: Set when you&apos;d like the meeting to start. Participants can&apos;t join earlier.
             </p>
           </div>
-          <div className="grid gap-2 hidden">
+          <div className="grid gap-2">
             <label htmlFor={`${mode}-maxParticipants`} className="text-sm font-medium">
               {mode === 'create' ? t('maxParticipantsLabel') : 'Max Participants'}
             </label>
             <Input
               id={`${mode}-maxParticipants`}
               type="number"
-              value={roomData.maxParticipants || 10}
-              onChange={(e) => onRoomDataChange({ ...roomData, maxParticipants: parseInt(e.target.value) })}
-              min="1"
-              max="50"
+              value={roomData.maxParticipants === null || roomData.maxParticipants === undefined ? '' : roomData.maxParticipants}
+              onChange={(e) => {
+                const value = e.target.value;
+                const numValue = value === '' ? null : parseInt(value);
+                onRoomDataChange({ ...roomData, maxParticipants: numValue! });
+              }}
+              max="100"
+              placeholder="No limit"
               className="text-sm sm:text-base"
             />
+            <p className="text-xs text-muted-foreground">
+              Leave empty or set to 0 for unlimited participants
+            </p>
           </div>
+          {/* Paid Session Section */}
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id={`${mode}-isPaid`}
+                checked={roomData.isPaid || false}
+                onCheckedChange={(checked: boolean) => onRoomDataChange({
+                  ...roomData,
+                  isPaid: checked,
+                  // Reset price and currency if unchecked
+                  ...(checked ? {} : { price: undefined, currency: undefined })
+                })}
+              />
+              <label htmlFor={`${mode}-isPaid`} className="text-sm font-medium">
+                Paid Session
+              </label>
+            </div>
+
+            {roomData.isPaid && (
+              <div className="grid grid-cols-2 gap-3 pl-6 border-l-2 border-primary/20">
+                <div className="grid gap-2">
+                  <label htmlFor={`${mode}-price`} className="text-sm font-medium">
+                    Price
+                  </label>
+                  <Input
+                    id={`${mode}-price`}
+                    type="number"
+                    value={roomData.price || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      const numValue = parseFloat(value);
+                      onRoomDataChange({
+                        ...roomData,
+                        price: value === '' ? undefined : (isNaN(numValue) ? undefined : numValue)
+                      });
+                    }}
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    className="text-sm sm:text-base"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor={`${mode}-currency`} className="text-sm font-medium">
+                    Currency
+                  </label>
+                  <Select
+                    value={roomData.currency || 'USD'}
+                    onValueChange={(value) => onRoomDataChange({ ...roomData, currency: value })}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USD">USD</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center space-x-2">
             <Checkbox
               id={`${mode}-isPrivate`}
@@ -366,9 +443,13 @@ export const RoomDialog = ({
           <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto text-sm">
             {mode === 'create' ? t('cancel') : 'Cancel'}
           </Button>
-          <Button 
-            onClick={onSubmit} 
-            disabled={isLoading || !roomData.name?.trim()}
+          <Button
+            onClick={onSubmit}
+            disabled={
+              isLoading ||
+              !roomData.name?.trim() ||
+              (roomData.isPaid && (!roomData.price || !roomData.currency))
+            }
             className="w-full sm:w-auto text-sm"
           >
             {isLoading ? (

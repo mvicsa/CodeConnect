@@ -14,7 +14,6 @@ export function ReconnectionIndicator() {
   // Show reconnecting status when connection is lost but was previously connected
   useEffect(() => {
     if (!isConnected && wasConnected.current) {
-      console.log('Connection lost - showing reconnecting indicator');
       setIsReconnecting(true);
       setShowReconnected(false);
       reconnectedTimeRef.current = null;
@@ -49,8 +48,6 @@ export function ReconnectionIndicator() {
   if (!isReconnecting && !showReconnected) {
     return null;
   }
-
-  console.log('Rendering indicator');
 
   return (
     <div className="fixed bottom-4 right-4 z-50 bg-accent text-accent-foreground p-3 rounded-lg shadow-lg">

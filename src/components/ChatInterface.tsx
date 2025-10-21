@@ -104,7 +104,7 @@ const ChatInterface: React.FC = () => {
   const handleChatSelect = (chatId: string) => {
     // If clicking the same chat that's already active, close it
     if (activeChatId === chatId) {
-      dispatch(setActiveRoom(null));
+      // Instead of setting to null, just reset mobile view
       setIsMobileView(false);
       return;
     }
@@ -117,31 +117,41 @@ const ChatInterface: React.FC = () => {
 
   // Reset loading when messages arrive for the selected chat
   useEffect(() => {
-    if (selectedChatId && messages[selectedChatId]?.length > 0) {
+    if (selectedChatId && messages[selectedChatId] !== undefined) {
       setIsChatLoading(false);
     }
   }, [selectedChatId, messages]);
+
+  // Add safety timeout to prevent infinite loading
+  useEffect(() => {
+    if (isChatLoading && selectedChatId) {
+      const timeoutId = setTimeout(() => {
+        setIsChatLoading(false);
+      }, 3000); // 3 seconds timeout
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isChatLoading, selectedChatId]);
 
   const handleChatDelete = (chatId: string) => {
     // Remove the chat from Redux store
     dispatch(removeRoom(chatId));
     
-    // If the deleted chat was active, clear the active chat
+    // If the deleted chat was active, just reset mobile view
     if (activeChatId === chatId) {
-      dispatch(setActiveRoom(null));
       setIsMobileView(false);
     }
   };
 
   const handleBackToList = () => {
     setIsMobileView(false);
-    dispatch(setActiveRoom(null));
+    // Don't reset active room, just change mobile view
   };
 
   // Fetch chats when component mounts (route change)
   useEffect(() => {
-    // Clear any active chat when entering the page
-    dispatch(setActiveRoom(null));
+    // Don't clear active chat when entering the page to preserve state between routes
+    // Only reset mobile view
     setIsMobileView(false);
     
     dispatch(setLoading(true));
@@ -177,7 +187,7 @@ const ChatInterface: React.FC = () => {
   const t = useTranslations("chat");
 
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden">
+    <div className="flex h-[100dvh] w-full bg-background overflow-hidden">
       {/* Connection status */}
       {/* {!isConnected && (
         <div className="absolute top-0 left-0 right-0 bg-destructive text-destructive-foreground p-2 text-center">

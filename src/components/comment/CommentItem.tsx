@@ -129,6 +129,8 @@ export default function CommentItem({
   const [isLoadingAiEvaluation, setIsLoadingAiEvaluation] = useState(false);
   const [isLoadingReplies, setIsLoadingReplies] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [optimisticReplies, setOptimisticReplies] = useState<Reply[]>([]); // Add state for optimistic replies
+  const [isAddingReply, setIsAddingReply] = useState(false); // Add state for reply loading
   const commentId = has_id(comment) ? comment._id : '';
   useEffect(() => {
     if (comment.hasAiEvaluation && commentId && !fetchedAiEvaluation) {
@@ -358,6 +360,34 @@ export default function CommentItem({
     }
     
     try {
+      // Create optimistic reply
+      const optimisticReply: Reply = {
+        _id: `temp-reply-${Date.now()}`,
+        parentCommentId: parentId,
+        postId: comment.postId,
+        createdBy: {
+          _id: user?._id as string || '',
+          username: user?.username as string || '',
+          email: user?.email as string || '',
+          firstName: user?.firstName as string || 'User',
+          lastName: user?.lastName as string || '',
+          avatar: user?.avatar as string || '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        text: text,
+        code: '',
+        codeLang: '',
+        createdAt: new Date(),
+        reactions: { like: 0, love: 0, wow: 0, funny: 0, dislike: 0, happy: 0 },
+        userReactions: [],
+        isHighlighted: false
+      };
+      
+      // Add optimistic reply immediately
+      setOptimisticReplies(prev => [optimisticReply, ...prev]);
+      setIsAddingReply(true);
+      
       await dispatch(addReplyAsync({
         parentCommentId: parentId,
         text: text,
@@ -366,12 +396,19 @@ export default function CommentItem({
         codeLang: ''
       })).unwrap();
       
+      // Remove optimistic reply after successful save
+      setOptimisticReplies(prev => prev.filter(r => r._id !== optimisticReply._id));
+      
       setActiveReplyId(null);
       setMentionUser('');
       // Ensure the new reply is visible by increasing visibleReplies if needed
       setVisibleReplies(prev => Math.max(prev + 1, 1));
     } catch {
       toast.error('Failed to add reply');
+      // Remove optimistic reply on error
+      setOptimisticReplies(prev => prev.filter(r => r._id !== `temp-reply-${Date.now()}`));
+    } finally {
+      setIsAddingReply(false);
     }
   }
 
@@ -443,7 +480,7 @@ export default function CommentItem({
     const parts = text.split(mentionRegex);
     
     return (
-      <bdi className='block'>
+      <bdi className='block text-left'>
         <p className="text-sm">
           {parts.map((part, index) => {
             if (part.startsWith('@')) {
@@ -688,7 +725,7 @@ export default function CommentItem({
                   )}
                   <DropdownMenuItem className='cursor-pointer'>
                     <FlagIcon className="size-4" />
-                    {t('report')}
+                    {t('report')} (Soon)
                   </DropdownMenuItem>
                   {/* {user?._id !== comment.createdBy._id && (
                     <DropdownMenuItem asChild className='cursor-pointer'>
@@ -805,6 +842,13 @@ export default function CommentItem({
             />
           )}
           
+          {/* Show optimistic reply skeleton at the top */}
+          {(isAddingReply || optimisticReplies.length > 0) && (
+            <div className="mt-2">
+              <CommentSkeleton count={1} isReply={true} />
+            </div>
+          )}
+          
           {/* Show replies */}
           {!isLoadingReplies && visibleRepliesList.map((replyData, index) => (
             <div 
@@ -854,7 +898,7 @@ export default function CommentItem({
               </Button>
             </div>
           )}
-          
+
           {/* Show loading skeleton after button */}
           {(isLoadingReplies || isLoadingMore) && (
             <CommentSkeleton 

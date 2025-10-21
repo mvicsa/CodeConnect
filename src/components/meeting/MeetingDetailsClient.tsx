@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '@/store/store';
 import { Button } from "@/components/ui/button";
@@ -24,12 +24,16 @@ import {
   X,
   Play,
   StopCircle,
-  Star
+  Star,
+  CircleDollarSign,
+  BadgeDollarSignIcon,
+  CircleX
 } from "lucide-react";
 import { toast } from "sonner";
 import Container from "@/components/Container";
-import { Room, PublicSession, updateRoom, deleteRoom, fetchPublicSessions } from "@/store/slices/meetingSlice";
+import { Room, PublicSession, deleteRoom } from "@/store/slices/meetingSlice";
 import { User } from "@/types/user";
+import { MeetingPurchase } from "@/types/earnings";
 import axiosInstance from "@/lib/axios";
 import { RoomDialog } from "./RoomDialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
@@ -42,7 +46,10 @@ import { MeetingRatings } from "./MeetingRatings";
 import { MeetingCountdown } from "./MeetingCountdown";
 import { SessionRatingDialog } from '@/components/rating';
 import { ratingService } from '@/services/ratingService';
-
+import axios from "axios";
+import { CancelRoomModal } from "./CancelRoomModal";
+import { PurchasersList } from "./PurchasersList";
+import { PurchaseActions } from "@/components/earnings/PurchaseActions";
 
 interface MeetingDetailsClientProps {
   meetingId: string;
@@ -128,6 +135,8 @@ const ContextConnector = ({
 
 export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const dispatch = useDispatch<AppDispatch>();
   
   const { user } = useSelector((state: RootState) => state.auth);
@@ -142,6 +151,12 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
+  // const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
+
+  // Cancel dialog state
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [roomToCancel, setRoomToCancel] = useState<Room | null>(null);
+
   const [roomStatus, setRoomStatus] = useState<{
     hasActiveSession: boolean;
     participantCount: number;
@@ -159,19 +174,179 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
-  
+  const [isPaymentConfirming, setIsPaymentConfirming] = useState(false);
+  const [isInVideoCall, setIsInVideoCall] = useState(false);
+  const [videoToken, setVideoToken] = useState<string | null>(null);
+  const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
+  const [sessionEnded, setSessionEnded] = useState(false);
+  const [hasPurchasedMeeting, setHasPurchasedMeeting] = useState(false);
+  const [currentPurchase, setCurrentPurchase] = useState<MeetingPurchase | null>(null);
+
+  // Add a new state to track processed payments
+  const [processedPayments, setProcessedPayments] = useState<Set<string>>(new Set());
+
+  const handleSuccessfulPayment = useCallback(async (roomId: string) => {
+    // Prevent concurrent calls
+    if (isPaymentConfirming) {
+      return;
+    }
+
+    // Check if this room has been fully processed before
+    const wasFullyProcessed = processedPayments.has(roomId);
+
+    setIsPaymentConfirming(true);
+    
+    try {
+      // Step 1: Confirm purchase
+      const purchaseConfirmation = await axiosInstance.get(`/payment/my-purchases?roomId=${roomId}`);
+      
+      if (!purchaseConfirmation.data || !purchaseConfirmation.data.purchases || purchaseConfirmation.data.purchases.length === 0) {
+        toast.error("Payment confirmation failed. Please contact support.");
+        return;
+      }
+
+      // Verify meeting details to ensure the room exists and is active
+      const meetingResponse = await axiosInstance.get(`/livekit/rooms/${roomId}`);
+      const meetingData = meetingResponse.data;
+      
+      if (!meetingData || !meetingData.isActive) {
+        toast.error("Meeting is not available or has ended.");
+        return;
+      }
+
+      // Step 2: Get LiveKit Access Token
+      const tokenResponse = await axiosInstance.get(`/livekit/token/room?roomId=${roomId}`);
+      
+      if (!tokenResponse.data?.token) {
+        toast.error("Failed to get LiveKit access token.");
+        return;
+      }
+
+      // Only update state and show toast if not fully processed before
+      if (!wasFullyProcessed) {
+        // Mark as processed to prevent duplicate calls
+        setProcessedPayments(prev => new Set(prev).add(roomId));
+
+        // Update state to reflect successful payment and room access
+        setVideoToken(tokenResponse.data.token);
+        setCurrentRoom(meetingData);
+        setHasPurchasedMeeting(true);
+        
+        toast.success("Payment confirmed and you can now join the meeting!");
+      } else {
+        // Always show toast for a previously processed payment
+        toast.info("Payment for this meeting was already processed.");
+        
+        // Ensure video token and current room are set even for previously processed payments
+        setVideoToken(tokenResponse.data.token);
+        setCurrentRoom(meetingData);
+        setHasPurchasedMeeting(true);
+      }
+
+    } catch (error) {
+      toast.error((error as unknown as { response: { data: { message: string } } }).response.data.message);
+    } finally {
+      setIsPaymentConfirming(false);
+    }
+  }, [
+    setVideoToken, 
+    setCurrentRoom, 
+    setHasPurchasedMeeting, 
+    setIsPaymentConfirming, 
+    isPaymentConfirming,
+    processedPayments
+  ]);
+
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment');
+    const roomIdFromUrl = searchParams.get('roomId') || meetingId;
+
+    // Ensure we have a valid meeting and room ID
+    const handlePaymentOnce = async () => {
+      if (paymentStatus === 'success' && roomIdFromUrl) {
+        try {
+          // Fetch meeting details first
+          const [meetingResponse, purchaseResponse] = await Promise.all([
+            axiosInstance.get(`/livekit/rooms/${roomIdFromUrl}`),
+            axiosInstance.get(`/payment/my-purchases?roomId=${roomIdFromUrl}`)
+          ]);
+          
+          if (meetingResponse.data) {
+            // Update meeting details if they don't match current state
+            if (!meeting || meeting._id !== meetingResponse.data._id) {
+              setMeeting(meetingResponse.data);
+            }
+
+            // Verify purchase
+            if (purchaseResponse.data?.purchases && purchaseResponse.data.purchases.length > 0) {
+              // Confirm purchase and get token
+              await handleSuccessfulPayment(roomIdFromUrl);
+            } else {
+              toast.error("Payment verification failed.");
+            }
+          } else {
+            toast.error("Failed to verify meeting details.");
+          }
+        } catch {
+          toast.error("Error verifying meeting details and purchase.");
+        }
+      } else if (paymentStatus === 'cancelled') {
+        toast.info("Payment cancelled. You can try again at any time.");
+      }
+    };
+
+    // Call the function
+    handlePaymentOnce();
+
+    // Always replace the URL to clear payment parameters
+    router.replace(pathname);
+  }, [
+    searchParams, 
+    router, 
+    pathname, 
+    handleSuccessfulPayment, 
+    meetingId, 
+    meeting
+  ]);
+
+  // Effect to check if user has purchased the meeting
+  useEffect(() => {
+    const checkPurchaseStatus = async () => {
+      if (!meetingId || !user) {
+        return;
+      }
+
+      try {
+        const response = await axiosInstance.get(`/payment/my-purchases?roomId=${meetingId}`);
+        
+        if (response.data && response.data.purchases && response.data.purchases.length > 0) {
+          const purchase = response.data.purchases[0];
+          
+          setCurrentPurchase(purchase);
+          
+          // Set hasPurchasedMeeting based on status
+          if (purchase.status === 'completed') {
+            setHasPurchasedMeeting(true);
+          } else {
+            setHasPurchasedMeeting(false);
+          }
+        } else {
+          setHasPurchasedMeeting(false);
+          setCurrentPurchase(null);
+        }
+      } catch {
+        setHasPurchasedMeeting(false);
+        setCurrentPurchase(null);
+      }
+    };
+
+    checkPurchaseStatus();
+  }, [meetingId, user]);
+
   // Rating Dialog state
   const [showRatingDialog, setShowRatingDialog] = useState(false);
   const [ratedSessions, setRatedSessions] = useState<Set<string>>(new Set());
   
-  // New state for video conference
-  const [isInVideoCall, setIsInVideoCall] = useState(false);
-  const [videoToken, setVideoToken] = useState<string | null>(null);
-  const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
-
-  // Add flag to prevent infinite loading after session ends
-  const [sessionEnded, setSessionEnded] = useState(false);
-
   // Add state to force re-renders when meeting data changes
   const [dataVersion, setDataVersion] = useState(0);
 
@@ -615,67 +790,264 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
   };
 
   const handleDeleteRoom = () => {
-    setShowDeleteDialog(true);
+    if (!meeting) return;
+    
+    // Check if room has completed purchases
+    const hasPurchases = meeting?.completedPurchasesCount && meeting?.completedPurchasesCount > 0;
+    
+    if (hasPurchases) {
+      // If room has purchases, open CancelRoomModal instead
+      setRoomToCancel(meeting as Room);
+      setShowCancelDialog(true);
+    } else {
+      // Otherwise, proceed with normal delete dialog
+      // setRoomToDelete(meeting as Room);
+      setShowDeleteDialog(true);
+    }
   };
 
   const handleJoinMeeting = async () => {
-    if (!meeting) return;
+    if (!meeting || !user) {
+      toast.error("Meeting details or user information is missing.");
+      return;
+    }
 
+    // If already in video call, just return
+    if (isInVideoCall) {
+      return;
+    }
+
+    // If video token exists, try to join directly
+    if (videoToken) {
+      try {
+        setIsJoining(true);
+        
+        // Verify token validity by getting room status and checking meeting details
+        const [statusResponse, meetingResponse] = await Promise.all([
+          axiosInstance.get(`/livekit/rooms/${meeting._id}/status`),
+          axiosInstance.get(`/livekit/rooms/${meeting._id}`)
+        ]);
+
+        const isRoomActive = statusResponse.data?.hasActiveSession || 
+                              meetingResponse.data?.isActive || 
+                              (meetingResponse.data?.scheduledStartTime && 
+                               new Date(meetingResponse.data.scheduledStartTime) > new Date());
+
+        if (isRoomActive) {
+          // Update meeting and room status if needed
+          if (meeting._id !== meetingResponse.data._id) {
+            setMeeting(meetingResponse.data);
+          }
+          
+          if (!roomStatus || roomStatus.hasActiveSession !== statusResponse.data.hasActiveSession) {
+            setRoomStatus(statusResponse.data);
+          }
+
+          setIsInVideoCall(true);
+          toast.success("Successfully joined the meeting!");
+        } else {
+          toast.error("This meeting is not currently active.");
+        }
+      } catch {
+        toast.error("Failed to verify meeting status.");
+      } finally {
+        setIsJoining(false);
+      }
+      return;
+    }
+
+    // If paid meeting and not purchased, initiate payment
+    if (meeting.isPaid && !hasPurchasedMeeting && !computedValues.isOwner) {
+      try {
+        setIsJoining(true);
+
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+
+        const successUrlObj = new URL(`${baseUrl}/meeting/${meeting._id}`);
+        successUrlObj.searchParams.set('payment', 'success');
+        successUrlObj.searchParams.set('roomId', meeting._id);
+
+        const cancelUrlObj = new URL(`${baseUrl}/meeting/${meeting._id}`);
+        cancelUrlObj.searchParams.set('payment', 'cancelled');
+        cancelUrlObj.searchParams.set('roomId', meeting._id);
+
+        const checkoutResponse = await axiosInstance.post('/payment/create-checkout-session', {
+          roomId: meeting._id,
+          successUrl: successUrlObj.toString(),
+          cancelUrl: cancelUrlObj.toString()
+        });
+
+        if (checkoutResponse.data?.checkoutUrl) {
+          // Redirect to Stripe checkout
+          window.location.href = checkoutResponse.data.checkoutUrl;
+        } else {
+          toast.error("Failed to create checkout session");
+          setIsJoining(false);
+        }
+      } catch {
+        toast.error("Error initiating payment.");
+        setIsJoining(false);
+      }
+      return;
+    }
+
+    // Attempt to join the meeting
     try {
       setIsJoining(true);
+      
       // Check if user is creator or invited user
       const isCreator = meeting && 'createdBy' in meeting && meeting.createdBy?._id === user?._id;
-      const isInvited = meeting && 'invitedUsers' in meeting && 
+      const isInvited = meeting && 'invitedUsers' in meeting &&
         meeting.invitedUsers?.some((invitedUser: User) => invitedUser._id === user?._id);
-      
+
       if (meeting.isPrivate === true) {
         // For private rooms, check if user is creator or invited
         if (isCreator || isInvited) {
           // User is authorized - join directly
-          const roomResponse = await axiosInstance.get(`/livekit/rooms/${meeting._id}`);
+          const roomResponse = await axiosInstance.post(`/livekit/rooms/join-private/${meeting._id}`, {
+            userId: user?._id  // Include user ID in the request body
+          });
+
+          // Accept both 200 and 201 as successful responses
+          if (roomResponse.status !== 200 && roomResponse.status !== 201) {
+            toast.error("Unable to join private room");
+            return;
+          }
+
           if (roomResponse.data) {
             // Get token directly for authorized users
             const tokenResponse = await axiosInstance.get(`/livekit/token/room?roomId=${meeting._id}`);
+            
             if (tokenResponse.data?.token) {
               // Set video call state instead of redirecting
               setVideoToken(tokenResponse.data.token);
               setCurrentRoom(roomResponse.data);
               setIsInVideoCall(true);
-              setIsJoining(false);
               toast.success("Successfully joined the meeting!");
               return;
             } else {
               toast.error("Failed to get access token");
             }
+          } else {
+            toast.error("Failed to join the meeting");
           }
         } else {
-          // User is not authorized
           toast.error("You need an invitation to join this private meeting");
         }
       } else {
         // Public session - join directly
-        const roomResponse = await axiosInstance.get(`/livekit/rooms/join-public/${meeting._id}`);
+        const roomResponse = await axiosInstance.post(`/livekit/rooms/join-public/${meeting._id}`, {
+          userId: user?._id  // Include user ID in the request body
+        });
+
+        // Accept both 200 and 201 as successful responses
+        if (roomResponse.status !== 200 && roomResponse.status !== 201) {
+          toast.error("Unable to join public room");
+          return;
+        }
+
         if (roomResponse.data) {
           const tokenResponse = await axiosInstance.get(`/livekit/token/room?roomId=${meeting._id}`);
+          
           if (tokenResponse.data?.token) {
             // Set video call state instead of redirecting
             setVideoToken(tokenResponse.data.token);
             setCurrentRoom(roomResponse.data);
             setIsInVideoCall(true);
-            setIsJoining(false);
             toast.success("Successfully joined the public session!");
             return;
           } else {
             toast.error("Failed to get access token for public session");
           }
+        } else {
+          toast.error("Failed to join the session");
         }
       }
-      
-      // Only stop loading if we didn't successfully join
-      setIsJoining(false);
     } catch (error) {
-      toast.error((error as Error).message || "Failed to join meeting");
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 404) {
+          toast.error("Meeting not found. It may have been deleted or does not exist.");
+        } else if (error.response?.status === 403) {
+          toast.error(`${error.response.data.message}`);
+        } else {
+          toast.error("Failed to join meeting");
+        }
+      } else {
+        toast.error("Failed to join meeting due to an unexpected error");
+      }
+    } finally {
       setIsJoining(false);
+    }
+  };
+
+  // Handle payment and join for paid sessions
+  const handlePayAndJoin = async () => {
+
+    if (!meeting || !('isPaid' in meeting) || !meeting.isPaid || !meeting.price || !meeting.currency) {
+      toast.error("Invalid payment information");
+      return;
+    }
+
+    try {
+      setIsJoining(true);
+
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+
+      const successUrlObj = new URL(`${baseUrl}/meeting/${meeting._id}`);
+      successUrlObj.searchParams.set('payment', 'success');
+      successUrlObj.searchParams.set('roomId', meeting._id);
+
+      const cancelUrlObj = new URL(`${baseUrl}/meeting/${meeting._id}`);
+      cancelUrlObj.searchParams.set('payment', 'cancelled');
+      cancelUrlObj.searchParams.set('roomId', meeting._id);
+
+      const checkoutResponse = await axiosInstance.post('/payment/create-checkout-session', {
+        roomId: meeting._id,
+        successUrl: successUrlObj.toString(),
+        cancelUrl: cancelUrlObj.toString()
+      });
+
+      if (checkoutResponse.data?.checkoutUrl) {
+        // Redirect to Stripe checkout
+        window.location.href = checkoutResponse.data.checkoutUrl;
+      } else {
+        toast.error("Failed to create checkout session");
+        setIsJoining(false);
+      }
+    } catch (error) {
+      toast.error((error as Error).message || "Failed to process payment");
+      setIsJoining(false);
+    }
+  };
+
+  // Handle purchase actions
+  const handlePurchaseUpdate = (updatedPurchase: MeetingPurchase) => {
+    setCurrentPurchase(updatedPurchase);
+      
+    // Update hasPurchasedMeeting based on new status
+    if (updatedPurchase.status === 'completed') {
+      setHasPurchasedMeeting(true);
+    } else {
+      setHasPurchasedMeeting(false);
+    }
+  };
+
+  const handlePurchaseRefresh = async () => {
+    // Refresh purchase status
+    try {
+      const response = await axiosInstance.get(`/payment/my-purchases?roomId=${meetingId}`);
+      if (response.data && response.data.purchases && response.data.purchases.length > 0) {
+        const purchase = response.data.purchases[0];
+        setCurrentPurchase(purchase);
+        
+        if (purchase.status === 'completed') {
+          setHasPurchasedMeeting(true);
+        } else {
+          setHasPurchasedMeeting(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing purchase status:', error);
     }
   };
 
@@ -956,24 +1328,26 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
             <div className="flex items-center gap-2">
               {canEdit && (
                 <>
-                    <Button
-                     variant="outline"
-                     onClick={handleEditRoom}
-                     disabled={isUpdating}
-                     className="flex items-center gap-2"
-                   >
-                     <Edit className="w-4 h-4" />
-                     <span className="hidden sm:inline">{isUpdating ? "Updating..." : "Edit"}</span>
-                   </Button>
                   <Button
-                     variant="destructive"
-                     onClick={handleDeleteRoom}
-                     disabled={isDeleting}
-                     className="flex items-center gap-2"
-                   >
-                      <Trash2 className="w-4 h-4" />
-                      <span className="hidden sm:inline">{isDeleting ? "Deleting..." : "Delete"}</span>
-                   </Button>
+                    variant="outline"
+                    onClick={handleEditRoom}
+                    disabled={isUpdating}
+                    className="flex items-center gap-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span className="hidden sm:inline">{isUpdating ? "Updating..." : "Edit"}</span>
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleDeleteRoom}
+                    disabled={isDeleting}
+                    className="flex items-center gap-2"
+                  >
+                    {
+                      meeting?.completedPurchasesCount && meeting?.completedPurchasesCount > 0 ? <CircleX className="h-3 w-3 sm:h-4 sm:w-4" /> : <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                    }
+                    <span className="hidden sm:inline">{meeting?.completedPurchasesCount && meeting?.completedPurchasesCount > 0 ? "Cancel" : "Delete"}</span>
+                  </Button>
                 </>
               )}
               {/* {isOwner && !isActive && (
@@ -1004,7 +1378,7 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
           </div>
 
           {/* Meeting Details Card */}
-          <Card className="mb-4">
+          <Card className="mb-4 gap-3">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -1017,6 +1391,8 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                         className={
                           roomStatus?.hasActiveSession 
                             ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" 
+                            : 'cancelledAt' in meeting && meeting.cancelledAt
+                              ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300"
                             : !meeting?.isActive 
                               ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300" 
                               : 'scheduledStartTime' in meeting && meeting.scheduledStartTime && new Date(meeting.scheduledStartTime) > new Date()
@@ -1026,11 +1402,13 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                       >
                         {roomStatus?.hasActiveSession 
                           ? "Live" 
-                          : !meeting?.isActive 
-                            ? "Ended" 
-                            : 'scheduledStartTime' in meeting && meeting.scheduledStartTime && new Date(meeting.scheduledStartTime) > new Date()
-                              ? "Scheduled"
-                              : (meeting?.isActive ? "Open" : "Ended")}
+                          : 'cancelledAt' in meeting && meeting.cancelledAt
+                            ? "Cancelled"
+                            : !meeting?.isActive 
+                              ? "Ended" 
+                              : 'scheduledStartTime' in meeting && meeting.scheduledStartTime && new Date(meeting.scheduledStartTime) > new Date()
+                                ? "Scheduled"
+                                : (meeting?.isActive ? "Open" : "Ended")}
                       </Badge>
                       <Badge variant="outline">
                         {isPrivate ? (
@@ -1047,7 +1425,12 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                       </Badge>
                     </div>
                   </div>
-                  <p className="text-muted-foreground text-lg">{meeting.description}</p>
+                  <p className="text-muted-foreground text-md">{meeting.description}</p>
+                  {('cancelledAt' in meeting && meeting.cancelledAt) && meeting.cancellationReason && (
+                    <p className="text-orange-600 text-sm mt-1">
+                      Cancellation Reason: {meeting.cancellationReason}
+                    </p>
+                  )}
                 </div>
               </div>
             </CardHeader>
@@ -1109,9 +1492,16 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                     <p className="font-medium">Participants</p>
                     <div className="text-sm text-muted-foreground space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="flex items-center gap-1">
-                          Current: {computedValues.actualParticipantCount}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="flex items-center gap-1">
+                            Current: {computedValues.actualParticipantCount ?? 0}
+                          </span>
+                          {('maxParticipants' in meeting && meeting.maxParticipants && meeting.maxParticipants > 0) && (
+                            <span className={`flex items-center gap-1 ${(computedValues.actualParticipantCount ?? 0) >= meeting.maxParticipants ? 'text-orange-600 font-medium' : ''}`}>
+                              / {meeting.maxParticipants} Participants
+                            </span>
+                          )}
+                        </div>
                         {('totalParticipantsJoined' in meeting && meeting.totalParticipantsJoined) ? (
                           <span className="flex items-center gap-1">
                             Total Joined: {computedValues.totalParticipantsJoined}
@@ -1125,6 +1515,32 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                     </div>
                   </div>
                 </div>
+
+                {/* Completed Purchases Count */}
+                {meeting.completedPurchasesCount! > 0 && (
+                  <div className="flex items-center gap-3">
+                    <Users className="w-5 h-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">Completed Purchases</p>
+                      <p className="text-sm text-muted-foreground">{meeting.completedPurchasesCount} Participants</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Paid Session Info */}
+                {('isPaid' in meeting && meeting.isPaid && meeting.price && meeting.currency) && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
+                      <span className="text-green-600 dark:text-green-400 text-xs font-bold">$</span>
+                    </div>
+                    <div>
+                      <p className="font-medium">Session Fee</p>
+                      <p className="text-sm text-muted-foreground">
+                        {meeting.price} {meeting.currency}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* <div className="flex items-center gap-3">
                    <UserCheck className="w-5 h-5 text-muted-foreground" />
@@ -1183,7 +1599,7 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                 {/* Join Button - Only show for creator, invited users, or public meetings */}
                 <div className="space-y-4">
                   {/* Rating Button for ended meetings - only show for participants (not the creator) */}
-                  {!isActive && !isOwner && (isInvited || !isPrivate) ? (
+                  {!('cancelledAt' in meeting && meeting.cancelledAt) && !isActive && !isOwner && (isInvited || !isPrivate) ? (
                     <>
                       <Button
                         onClick={() => setShowRatingDialog(true)}
@@ -1204,36 +1620,79 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                   ) : (
                     (isOwner || isInvited || !isPrivate) && (
                     <div>
-                      <Button
-                        onClick={handleJoinMeeting}
-                        className="w-full flex items-center gap-2"
-                        disabled={
-                          !computedValues.isActive || 
-                          isJoining || 
-                          (Boolean('scheduledStartTime' in meeting && 
-                           meeting.scheduledStartTime && 
-                           new Date(meeting.scheduledStartTime) > new Date()))
-                        }
-                      >
-                        {isJoining ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            Joining...
-                          </>
-                        ) : (
-                          <>
-                            <Video className="w-4 h-4" />
-                            {computedValues.isActive 
-                              ? "Join Meeting" 
-                              : 'scheduledStartTime' in meeting && meeting.scheduledStartTime && new Date(meeting.scheduledStartTime) > new Date()
-                                ? "Join Scheduled Meeting"
-                                : "Meeting Ended"}
-                          </>
-                        )}
-                      </Button>
+                      {/* Check if room has max participants limit and is full */}
+                      {('maxParticipants' in meeting && meeting.maxParticipants && meeting.maxParticipants > 0 && (computedValues.actualParticipantCount ?? 0) >= meeting.maxParticipants) ? (
+                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
+                          <p className="text-sm text-yellow-800 font-medium">
+                            Room is full. Maximum participants reached.
+                          </p>
+                          <p className="text-xs text-yellow-600 mt-1">
+                            {computedValues.actualParticipantCount ?? 0} / {meeting.maxParticipants} participants
+                          </p>
+                        </div>
+                      ) : ('isPaid' in meeting && meeting.isPaid && !computedValues.isOwner && !hasPurchasedMeeting) ? (
+                        <Button
+                          onClick={handlePayAndJoin}
+                          className="w-full flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                          disabled={
+                            !computedValues.isActive ||
+                            isJoining
+                            // Removed the condition blocking scheduled sessions
+                          }
+                        >
+                          {isJoining ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <BadgeDollarSignIcon className="w-4 h-4" />
+                              Pay Now (${meeting.price} {meeting.currency})
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          className="w-full flex items-center gap-2"
+                          onClick={handleJoinMeeting}
+                          disabled={
+                            !computedValues.isActive ||
+                            isJoining ||
+                            isPaymentConfirming ||
+                            (Boolean('scheduledStartTime' in meeting &&
+                             meeting.scheduledStartTime &&
+                             new Date(meeting.scheduledStartTime) > new Date()))
+                          }
+                        >
+                          {(isJoining || isPaymentConfirming) ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              Joining...
+                            </>
+                          ) : (
+                            <>
+                              <Video className="w-4 h-4" />
+                              {meeting.isPaid && !hasPurchasedMeeting && !computedValues.isOwner ? (
+                                `Pay & Join (${meeting.price} ${meeting.currency})`
+                              ) : (
+                                computedValues.isActive
+                                  ? "Join Meeting"
+                                  : 'cancelledAt' in meeting && meeting.cancelledAt
+                                      ? "Meeting Cancelled"
+                                      : "Meeting Ended"
+                              )}
+                            </>
+                          )}
+                        </Button>
+                      )}
                       {!computedValues.isActive && (
                         <p className="text-xs text-muted-foreground mt-2 text-center">
-                          This meeting has ended and cannot be joined
+                          {
+                            'cancelledAt' in meeting && meeting.cancelledAt
+                              ? "This meeting has been cancelled and cannot be joined"
+                              : "This meeting has ended and cannot be joined"
+                          }
                         </p>
                       )}
                     </div>
@@ -1257,6 +1716,44 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
             </CardContent>
           </Card>
 
+          {/* Purchase Actions Section - Show for non-owners with pending/failed purchases */}
+          {currentPurchase && !computedValues.isOwner && (
+            <Card className="gap-3 mb-4">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CircleDollarSign className="w-5 h-5" />
+                  Purchase Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PurchaseActions 
+                  purchase={currentPurchase}
+                  onPurchaseUpdate={handlePurchaseUpdate}
+                  onRefresh={handlePurchaseRefresh}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Purchasers Section */}
+          {meeting.completedPurchasesCount! > 0 && computedValues.isOwner && (
+            <Card className="gap-3 mb-4">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CircleDollarSign className="w-5 h-5" />
+                  Purchasers
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PurchasersList 
+                  roomId={meeting._id} 
+                  roomName={meeting.name} 
+                  creatorId={meeting.createdBy?._id || ''}
+                />
+              </CardContent>
+            </Card>
+          )}
+
           {/* Invited Users Section (for private rooms) */}
           {'invitedUsers' in meeting && meeting.invitedUsers && meeting.invitedUsers.length > 0 && (
             <Card className="gap-3 mb-4">
@@ -1267,19 +1764,19 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {meeting.invitedUsers.map((user: User) => (
-                    <div key={user._id} className="flex items-center gap-3 p-3 border rounded-lg">
-                      <Avatar className="w-8 h-8">
+                    <div key={user._id} className="flex items-center gap-3 p-3 rounded-lg bg-background/30 hover:bg-background/60 transition-colors">
+                      <Avatar className="w-10 h-10">
                         <AvatarImage src={user.avatar} />
                         <AvatarFallback>
                           {user.firstName?.[0]}{user.lastName?.[0]}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium text-sm">
+                        <Link href={`/profile/${user.username}`} className="font-medium hover:underline">
                           {user.firstName} {user.lastName}
-                        </p>
+                        </Link>
                         <p className="text-xs text-muted-foreground">{user.email}</p>
                       </div>
                     </div>
@@ -1309,49 +1806,58 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
             roomData={editingRoom}
             onRoomDataChange={setEditingRoom}
             onSubmit={async () => {
+              if (!editingRoom) return;
+              
               try {
-                if (!editingRoom) return;
-                
-                setIsUpdating(true);
-                
                 // Convert invitedUsers from User[] to string[] (emails)
-                const invitedEmails = editingRoom.invitedUsers
-                  .map(user => user.email)
-                  .filter((email): email is string => 
-                    email !== undefined && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-                  );
+                // const invitedEmails = editingRoom.invitedUsers
+                //   .map(user => user.email)
+                //   .filter((email): email is string => 
+                //     email !== undefined && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+                //   );
 
                 // Ensure scheduledStartTime is properly formatted for the backend
                 // If it's undefined, send null to explicitly clear it
-                const scheduledStartTime = editingRoom.scheduledStartTime === undefined ? null : editingRoom.scheduledStartTime;
+                // const scheduledStartTime = editingRoom.scheduledStartTime === undefined ? null : editingRoom.scheduledStartTime;
                 
-                const roomDataToSend = {
-                  name: editingRoom.name,
-                  description: editingRoom.description,
-                  isPrivate: editingRoom.isPrivate,
-                  maxParticipants: editingRoom.maxParticipants,
-                  invitedUsers: invitedEmails,
-                  scheduledStartTime: scheduledStartTime
-                };
+                // const roomDataToSend = {
+                //   name: editingRoom.name,
+                //   description: editingRoom.description,
+                //   isPrivate: editingRoom.isPrivate,
+                //   maxParticipants: editingRoom.maxParticipants,
+                //   isPaid: editingRoom.isPaid,
+                //   ...(editingRoom.isPaid && {
+                //     price: editingRoom.price,
+                //     currency: editingRoom.currency
+                //   }),
+                //   invitedUsers: invitedEmails,
+                //   scheduledStartTime: scheduledStartTime
+                // };
+
+                // Set loading state before update
+                setIsUpdating(true);
 
                 // Call the update API using Redux
-                await dispatch(updateRoom({ 
-                  roomId: editingRoom._id, 
-                  roomData: roomDataToSend 
-                })).unwrap();
+                // const updatedRoom = await dispatch(updateRoom({ 
+                //   roomId: editingRoom._id, 
+                //   roomData: roomDataToSend 
+                // })).unwrap();
                 
-                // Always refetch public sessions because room status might have changed
-                // (e.g., from Open to Scheduled, or vice versa)
-                await dispatch(fetchPublicSessions());
-                
-                setShowEditDialog(false);
-                setEditingRoom(null);
                 // Refresh meeting details
                 await fetchMeetingDetails();
+
+                // Close dialogs and reset state
+                setShowEditDialog(false);
+                setEditingRoom(null);
+
+                // Success toast with more specific message
                 toast.success("Meeting updated successfully!");
-              } catch {
-                toast.error("Failed to update meeting");
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Failed to update room';
+      
+                toast.error(errorMessage);
               } finally {
+                // Always reset loading state
                 setIsUpdating(false);
               }
             }}
@@ -1414,6 +1920,21 @@ export const MeetingDetailsClient = ({ meetingId }: MeetingDetailsClientProps) =
           />
         )}
                
+        {/* Cancel Room Dialog */}
+        {roomToCancel && (
+          <CancelRoomModal
+            isOpen={showCancelDialog}
+            onClose={() => {
+              setShowCancelDialog(false);
+              setRoomToCancel(null);
+            }}
+            roomId={roomToCancel._id}
+            roomName={roomToCancel.name}
+            onConfirm={async () => {
+              await fetchMeetingDetails();
+            }}
+          />
+        )}
         </Container>
       </>
       </ContextConnector>

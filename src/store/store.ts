@@ -16,6 +16,7 @@ import aiSuggestionsReducer from './slices/aiSuggestionsSlice'
 import archiveReducer from './slices/archiveSlice'
 import blockReducer from './slices/blockSlice'
 import meetingReducer from './slices/meetingSlice'
+import earningsReducer from './slices/earningsSlice'
 
 
 
@@ -39,7 +40,8 @@ export const store = configureStore({
     aiSuggestions: aiSuggestionsReducer,
     archive: archiveReducer,
     block: blockReducer,
-    meeting: meetingReducer
+    meeting: meetingReducer,
+    earnings: earningsReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
